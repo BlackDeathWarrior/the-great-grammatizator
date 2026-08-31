@@ -98,6 +98,16 @@ def available(caller: Caller) -> list[str]:
     return sorted(t.name for t in _REGISTRY.values() if t.group in allowed)
 
 
+def _trace(caller: str, tool: str, *, allowed: bool) -> None:
+    """Surface the call in the Langfuse trace. Never load-bearing."""
+    try:
+        from app.observability import record_tool_call
+
+        record_tool_call(caller, tool, allowed)
+    except Exception:  # noqa: BLE001 - tracing must not break a tool call
+        log.debug("tool tracing failed", exc_info=True)
+
+
 def call(caller: Caller, name: str, /, **kwargs: Any) -> Any:
     """Invoke a tool as a caller. The single entry point; there is no other.
 
@@ -113,9 +123,11 @@ def call(caller: Caller, name: str, /, **kwargs: Any) -> Any:
             {"caller": str(caller), "tool": name, "group": str(entry.group), "allowed": False}
         )
         log.warning("DENIED %s -> %s (%s)", caller, name, entry.group)
+        _trace(str(caller), name, allowed=False)
         raise ToolDenied(str(caller), name, str(entry.group))
 
     _AUDIT.append({"caller": str(caller), "tool": name, "group": str(entry.group), "allowed": True})
+    _trace(str(caller), name, allowed=True)
     return entry.fn(**kwargs)
 
 

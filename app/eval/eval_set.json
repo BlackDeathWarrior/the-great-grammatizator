@@ -1,0 +1,53 @@
+{
+  "description": "Fixed evaluation set. Run against versioned prompts so a change can be compared rather than guessed at (TEST-CASES.md, Evaluation set).",
+  "cases": [
+    {
+      "source_id": "eval_advisory",
+      "output_type": "linkedin_post",
+      "parameters": {
+        "audience": "general public",
+        "tone": "informative, urgent",
+        "detail": "brief",
+        "objective": "drive awareness and patching",
+        "style": "plain, no jargon"
+      },
+      "expected_properties": {
+        "min_claims": 3,
+        "required_keys": ["hook", "body", "call_to_action", "hashtags"],
+        "must_pass_grounding": true,
+        "min_tone": 0.75,
+        "max_retries": 2
+      },
+      "prompt_version": "linkedin_post@v1"
+    },
+    {
+      "source_id": "eval_advisory",
+      "output_type": "exec_summary",
+      "parameters": {
+        "audience": "executives",
+        "tone": "formal",
+        "detail": "brief",
+        "objective": "support decision making"
+      },
+      "expected_properties": {
+        "min_claims": 3,
+        "required_keys": ["title", "bottom_line", "key_points", "recommended_action", "residual_risk"],
+        "must_pass_grounding": true,
+        "max_retries": 2
+      },
+      "prompt_version": "exec_summary@v1"
+    },
+    {
+      "source_id": "eval_advisory",
+      "output_type": "twitter_x",
+      "parameters": {"audience": "general public", "tone": "informative", "detail": "brief"},
+      "expected_properties": {
+        "min_claims": 1,
+        "required_keys": ["tweets"],
+        "must_pass_grounding": true,
+        "max_retries": 2
+      },
+      "prompt_version": "twitter_x@v1"
+    }
+  ]
+}
