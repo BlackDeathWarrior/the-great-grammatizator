@@ -28,10 +28,16 @@ LONG = "long"
 ALIASES = (FAST, LONG)
 
 # Model identifiers. ARCHITECTURE.md sec.3 warns these strings change on free
-# tiers; verify against the provider's current list before a demo.
-_GROQ_FAST = "groq/llama-3.3-70b-versatile"
-_GEMINI_LONG = "gemini/gemini-2.0-flash"
-_OPENROUTER_FAST = "openrouter/meta-llama/llama-3.3-70b-instruct:free"
+# tiers; verify against the provider before a demo.
+#
+# Verified 2026-09-01. The originals from the doc had ALL THREE gone dead:
+#   llama-3.3-70b-versatile        -> "does not exist" on Groq
+#   gemini-2.0-flash               -> retired, Gemini points at 3.6
+#   llama-3.3-70b-instruct:free    -> the :free slug is now paid-only
+# Re-probe these if a demo fails at the first model call.
+_GROQ_FAST = "groq/openai/gpt-oss-20b"
+_GEMINI_LONG = "gemini/gemini-3.6-flash"
+_OPENROUTER_FAST = "openrouter/meta-llama/llama-3.3-70b-instruct"
 
 _router = None
 _qa_semaphore: asyncio.Semaphore | None = None

@@ -9,6 +9,15 @@ Every factual assertion you make must appear in "claims", each citing the
 chunk_id it came from. Cite only chunk ids listed below. Never invent a chunk
 id: an id that does not exist is treated as a grounding failure.
 
+"claims" must use EXACTLY these two keys - "text" and "chunk_id". Not "claim",
+not "citation", not "source". Any other key is rejected before the content is
+ever read:
+
+  "claims": [
+    {"text": "rated 9.1 out of 10", "chunk_id": "c1"},
+    {"text": "fixed in version 22.7R2.6", "chunk_id": "c3"}
+  ]
+
 Available chunks:
 {% for c in content.chunks %}
 [{{ c.id }}] {{ c.text[:400] }}
