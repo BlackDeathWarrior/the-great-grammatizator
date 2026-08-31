@@ -152,6 +152,10 @@ async def complete(
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
 
+    from app.observability import record_model_call
+
+    record_model_call(alias)
+
     try:
         resp = await router.acompletion(**kwargs)
     except Exception as exc:  # noqa: BLE001 - litellm raises many provider types
