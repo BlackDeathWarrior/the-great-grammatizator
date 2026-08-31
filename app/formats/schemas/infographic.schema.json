@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Infographic",
+  "type": "object",
+  "properties": {
+    "headline": {
+      "type": "string",
+      "minLength": 1
+    },
+    "panels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stat": {
+            "type": "string"
+          },
+          "caption": {
+            "type": "string"
+          },
+          "icon_hint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "heading",
+          "stat",
+          "caption"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "layout_recommendation": {
+      "type": "string"
+    },
+    "key_messaging": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "description": "Every factual assertion, each citing the chunk it came from.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "chunk_id": {
+            "type": "string",
+            "pattern": "^c\\d+$"
+          }
+        },
+        "required": [
+          "text",
+          "chunk_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "headline",
+    "panels",
+    "layout_recommendation",
+    "key_messaging",
+    "claims"
+  ],
+  "additionalProperties": false
+}

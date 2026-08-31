@@ -1,0 +1,101 @@
+{
+  "formats": [
+    {
+      "id": "video_package",
+      "label": "Video Package",
+      "description": "Script, storyboard, scene descriptions, narration, subtitles and visual recommendations. Rendered deterministically; never generative video.",
+      "prompt_template": "video_package@v1",
+      "output_schema": "video_package.schema.json",
+      "constraints": {
+        "scenes_min": 3,
+        "scenes_max": 8,
+        "runtime_target_sec": 240,
+        "runtime_tolerance_sec": 45,
+        "narration_max_chars_per_scene": 700
+      },
+      "model_alias": "long",
+      "renderer": "video"
+    },
+    {
+      "id": "linkedin_post",
+      "label": "LinkedIn Post",
+      "description": "Professional LinkedIn post suitable for publication.",
+      "prompt_template": "linkedin_post@v1",
+      "output_schema": "linkedin_post.schema.json",
+      "constraints": {
+        "max_chars": 3000,
+        "hashtags_max": 5
+      },
+      "model_alias": "fast",
+      "renderer": "markdown"
+    },
+    {
+      "id": "twitter_x",
+      "label": "Twitter / X",
+      "description": "Platform-optimised tweet or tweet thread.",
+      "prompt_template": "twitter_x@v1",
+      "output_schema": "twitter_x.schema.json",
+      "constraints": {
+        "max_chars_per_tweet": 280,
+        "tweets_max": 8
+      },
+      "model_alias": "fast",
+      "renderer": "markdown"
+    },
+    {
+      "id": "advisory",
+      "label": "Advisory",
+      "description": "Structured advisory document.",
+      "prompt_template": "advisory@v1",
+      "output_schema": "advisory.schema.json",
+      "constraints": {
+        "max_chars": 8000,
+        "recommendations_min": 1
+      },
+      "model_alias": "long",
+      "renderer": "docx"
+    },
+    {
+      "id": "infographic",
+      "label": "Infographic",
+      "description": "Infographic content, layout recommendations and key messaging.",
+      "prompt_template": "infographic@v1",
+      "output_schema": "infographic.schema.json",
+      "constraints": {
+        "panels_min": 3,
+        "panels_max": 8,
+        "headline_max_chars": 90
+      },
+      "model_alias": "fast",
+      "renderer": "json"
+    },
+    {
+      "id": "exec_summary",
+      "label": "Executive Summary",
+      "description": "Concise executive briefing.",
+      "prompt_template": "exec_summary@v1",
+      "output_schema": "exec_summary.schema.json",
+      "constraints": {
+        "max_chars": 4000,
+        "key_points_min": 3,
+        "key_points_max": 7
+      },
+      "model_alias": "long",
+      "renderer": "docx"
+    },
+    {
+      "id": "presentation",
+      "label": "Presentation",
+      "description": "Slides with speaker notes.",
+      "prompt_template": "presentation@v1",
+      "output_schema": "presentation.schema.json",
+      "constraints": {
+        "slides_min": 4,
+        "slides_max": 12,
+        "bullets_max_per_slide": 6
+      },
+      "model_alias": "long",
+      "renderer": "pptx"
+    }
+  ]
+}

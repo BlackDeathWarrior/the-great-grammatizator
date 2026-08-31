@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Advisory",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "affected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "description": "Every factual assertion, each citing the chunk it came from.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "chunk_id": {
+            "type": "string",
+            "pattern": "^c\\d+$"
+          }
+        },
+        "required": [
+          "text",
+          "chunk_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "title",
+    "severity",
+    "summary",
+    "affected",
+    "recommendations",
+    "claims"
+  ],
+  "additionalProperties": false
+}

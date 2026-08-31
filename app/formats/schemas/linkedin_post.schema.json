@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LinkedIn Post",
+  "type": "object",
+  "properties": {
+    "hook": {
+      "type": "string",
+      "minLength": 1
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1
+    },
+    "call_to_action": {
+      "type": "string"
+    },
+    "hashtags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^#"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "description": "Every factual assertion, each citing the chunk it came from.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "chunk_id": {
+            "type": "string",
+            "pattern": "^c\\d+$"
+          }
+        },
+        "required": [
+          "text",
+          "chunk_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "hook",
+    "body",
+    "call_to_action",
+    "hashtags",
+    "claims"
+  ],
+  "additionalProperties": false
+}
