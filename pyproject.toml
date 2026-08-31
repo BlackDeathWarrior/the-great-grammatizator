@@ -38,7 +38,9 @@ dependencies = [
     "trafilatura>=1.12",
     "pytesseract>=0.3.13",
     "pillow>=11.0",
-    "openai-whisper>=20240930",
+    # faster-whisper, not openai-whisper: same models via CTranslate2 with no
+    # torch dependency. Keeps the image under 1GB and rebuilds fast.
+    "faster-whisper>=1.1",
 
     # schema validation
     "jsonschema>=4.23",

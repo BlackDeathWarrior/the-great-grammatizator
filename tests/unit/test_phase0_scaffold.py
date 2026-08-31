@@ -9,6 +9,13 @@ from app.main import app
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
+# These assert facts about the REPO (compose file, docs), which .dockerignore
+# keeps out of the runtime image. Skip rather than fail when running in-container.
+repo_only = pytest.mark.skipif(
+    not (ROOT / "docker-compose.yml").exists(),
+    reason="repo-root files not present (running inside the image)",
+)
+
 
 def test_health_returns_ok():
     with TestClient(app) as client:
@@ -18,6 +25,7 @@ def test_health_returns_ok():
 
 
 @pytest.mark.p0
+@repo_only
 def test_service_names_not_localhost():
     """TC-1107: inside the container, services are addressed by name."""
     compose = (ROOT / "docker-compose.yml").read_text()
@@ -28,6 +36,7 @@ def test_service_names_not_localhost():
 
 
 @pytest.mark.p0
+@repo_only
 def test_persistent_volumes_are_mounted():
     """TC-1106: without these, embeddings vanish on `docker compose down`."""
     compose = (ROOT / "docker-compose.yml").read_text()
@@ -35,6 +44,7 @@ def test_persistent_volumes_are_mounted():
     assert "./pg_data:/var/lib/postgresql/data" in compose
 
 
+@repo_only
 def test_doc_diagram_links_resolve():
     """Both docs linked diagrams/*.svg while the files sat in docs/ (fixed Phase 0)."""
     for doc in ("ARCHITECTURE.md", "USE-CASES.md"):
