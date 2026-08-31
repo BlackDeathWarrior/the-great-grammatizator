@@ -1,0 +1,91 @@
+{# Polled by HTMX every 2s. Stops polling once the job settles. #}
+{% if job.done_count == job.total_count %}
+<div hx-get="/ui/jobs/{{ job.job_id }}/status" hx-trigger="none"></div>
+{% endif %}
+
+<p>
+  <span class="badge {{ job.status }}">{{ job.status }}</span>
+  {# Honest partial reporting - never "complete" while work remains (TC-0803) #}
+  <strong>{{ job.progress }}</strong>
+</p>
+
+{% if job.operator_message %}
+<div class="stop">
+  <strong>Job stopped.</strong>
+  <p style="margin:.5rem 0 0">{{ job.operator_message }}</p>
+</div>
+{% endif %}
+
+{% for a in job.artefacts %}
+<div class="artefact">
+  <div class="artefact-head">
+    <div>
+      <strong>{{ a.label }}</strong>
+      {% if a.retry_count %}
+      <span class="muted" style="font-size:.75rem">
+        &middot; {{ a.retry_count }} QA retr{{ 'y' if a.retry_count == 1 else 'ies' }}
+      </span>
+      {% endif %}
+      {% if a.provider_error_count %}
+      <span class="muted" style="font-size:.75rem">
+        &middot; {{ a.provider_error_count }} provider error(s), not counted against quality
+      </span>
+      {% endif %}
+    </div>
+    <span class="badge {{ a.status }}">{{ a.status.replace('_',' ') }}</span>
+  </div>
+
+  <div class="artefact-body">
+    {% if a.error %}
+    <p class="muted">{{ a.error }}</p>
+    {% endif %}
+
+    {% if a.qa %}
+    <div class="checkers">
+      {% for c in a.qa %}
+      <span class="checker {{ 'ok' if c.passed else 'bad' }}">
+        {{ c.checker }}{% if c.score is not none %} {{ '%.2f'|format(c.score) }}{% endif %}
+        &middot; {{ 'pass' if c.passed else 'fail' }}
+      </span>
+      {% endfor %}
+    </div>
+    {% for c in a.qa %}
+      {% for note in c.fix_notes %}
+      <div class="fixnote"><strong>{{ c.checker }}:</strong> {{ note }}</div>
+      {% endfor %}
+    {% endfor %}
+    {% endif %}
+
+    {% if a.content %}
+      {% include 'partials/artefact_' ~ a.output_type ~ '.html' ignore missing %}
+    {% endif %}
+
+    {% if a.claims %}
+    <details style="margin-top:.75rem">
+      <summary class="muted" style="cursor:pointer;font-size:.8125rem">
+        {{ a.claims|length }} cited claim{{ '' if a.claims|length == 1 else 's' }}
+      </summary>
+      {% for c in a.claims %}
+      <p class="claim">&ldquo;{{ c.text }}&rdquo; &mdash; <code>{{ c.chunk_id }}</code></p>
+      {% endfor %}
+    </details>
+    {% endif %}
+
+    {% if a.export_paths %}
+    <p style="margin-top:.75rem">
+      {% for p in a.export_paths %}
+      <a href="/downloads/{{ job.job_id }}/{{ a.output_type }}/{{ p.split('/')[-1] }}">
+        {{ p.split('/')[-1] }}</a>{% if not loop.last %} &middot; {% endif %}
+      {% endfor %}
+    </p>
+    {% endif %}
+
+    {% if a.status in ('passed','passed_flagged','blocked') %}
+    <form action="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/regenerate"
+          method="post" style="margin-top:.75rem">
+      <button class="secondary" type="submit">Regenerate this artefact</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
