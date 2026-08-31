@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 1656" width="680" height="1656" role="img">
+<title>Gen AI Content Transformation Platform — implementation architecture</title>
+<style>
+ text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+ .th{font-size:14px;font-weight:500;fill:#1c1c1a}
+ .ts{font-size:12px;fill:#6e6e68}
+ .arr,.ln{stroke:#8c8c86;stroke-width:1.5;fill:none}
+ .leader{stroke:#8c8c86;stroke-width:1;stroke-dasharray:3 3;fill:none}
+ .c-gray rect{fill:#f5f5f3;stroke:#d6d6d0;stroke-width:.5}
+ .c-teal rect{fill:#e7f3f0;stroke:#a6ccc1;stroke-width:.5}
+ .c-purple rect{fill:#eeebf7;stroke:#bfb5dd;stroke-width:.5}
+ .c-coral rect{fill:#fceee9;stroke:#e9bfad;stroke-width:.5}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#8c8c86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<g class="c-gray"><rect x="220" y="30" width="240" height="40" rx="20"/><text class="th" x="340" y="50" text-anchor="middle" dominant-baseline="central">Operator dashboard</text></g>
+<line x1="340" y1="70" x2="340" y2="92" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="40" y="102" width="186" height="56" rx="8"/><text class="th" x="133" y="122" text-anchor="middle" dominant-baseline="central">Articles, text, docs</text><text class="ts" x="133" y="140" text-anchor="middle" dominant-baseline="central">pdf, docx, html</text></g>
+<g class="c-gray"><rect x="247" y="102" width="186" height="56" rx="8"/><text class="th" x="340" y="122" text-anchor="middle" dominant-baseline="central">Images, videos</text><text class="ts" x="340" y="140" text-anchor="middle" dominant-baseline="central">upload or link</text></g>
+<g class="c-gray"><rect x="454" y="102" width="186" height="56" rx="8"/><text class="th" x="547" y="122" text-anchor="middle" dominant-baseline="central">Prompts, context</text><text class="ts" x="547" y="140" text-anchor="middle" dominant-baseline="central">free-form brief</text></g>
+
+<line x1="133" y1="158" x2="133" y2="174" class="arr" marker-end="url(#a)"/>
+<line x1="340" y1="158" x2="340" y2="174" class="arr" marker-end="url(#a)"/>
+<line x1="547" y1="158" x2="547" y2="174" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="40" y="180" width="600" height="142" rx="12"/><text class="th" x="340" y="198" text-anchor="middle" dominant-baseline="central">API ingestion · deterministic, no LLM</text></g>
+<g class="c-gray"><rect x="52" y="210" width="184" height="56" rx="8"/><text class="th" x="144" y="230" text-anchor="middle" dominant-baseline="central">Text extract</text><text class="ts" x="144" y="248" text-anchor="middle" dominant-baseline="central">pdf, docx, html, ocr</text></g>
+<g class="c-gray"><rect x="248" y="210" width="184" height="56" rx="8"/><text class="th" x="340" y="230" text-anchor="middle" dominant-baseline="central">Image</text><text class="ts" x="340" y="248" text-anchor="middle" dominant-baseline="central">caption + ocr text</text></g>
+<g class="c-gray"><rect x="444" y="210" width="184" height="56" rx="8"/><text class="th" x="536" y="230" text-anchor="middle" dominant-baseline="central">Video, max 10 min</text><text class="ts" x="536" y="248" text-anchor="middle" dominant-baseline="central">transcript, else blocked</text></g>
+<g class="c-gray"><rect x="52" y="274" width="576" height="36" rx="8"/><text class="th" x="340" y="292" text-anchor="middle" dominant-baseline="central">Normalise → chunk → embed → enqueue</text></g>
+
+<line x1="340" y1="322" x2="340" y2="338" class="arr" marker-end="url(#a)"/>
+
+<g class="c-purple"><rect x="40" y="344" width="600" height="156" rx="12"/><text class="th" x="340" y="362" text-anchor="middle" dominant-baseline="central">LLM gateway · LiteLLM</text></g>
+<g class="c-purple"><rect x="52" y="374" width="184" height="56" rx="8"/><text class="th" x="144" y="394" text-anchor="middle" dominant-baseline="central">Guardrails</text><text class="ts" x="144" y="412" text-anchor="middle" dominant-baseline="central">safety, pii, scope</text></g>
+<g class="c-purple"><rect x="248" y="374" width="184" height="56" rx="8"/><text class="th" x="340" y="394" text-anchor="middle" dominant-baseline="central">Router + fallback</text><text class="ts" x="340" y="412" text-anchor="middle" dominant-baseline="central">by output type</text></g>
+<g class="c-purple"><rect x="444" y="374" width="184" height="56" rx="8"/><text class="th" x="536" y="394" text-anchor="middle" dominant-baseline="central">Prompt cache</text><text class="ts" x="536" y="412" text-anchor="middle" dominant-baseline="central">hash + params key</text></g>
+<g class="c-gray"><rect x="52" y="438" width="184" height="50" rx="8"/><text class="th" x="144" y="456" text-anchor="middle" dominant-baseline="central">OpenRouter</text><text class="ts" x="144" y="472" text-anchor="middle" dominant-baseline="central">free tier models</text></g>
+<g class="c-gray"><rect x="248" y="438" width="184" height="50" rx="8"/><text class="th" x="340" y="456" text-anchor="middle" dominant-baseline="central">Groq</text><text class="ts" x="340" y="472" text-anchor="middle" dominant-baseline="central">free, low latency</text></g>
+<g class="c-gray"><rect x="444" y="438" width="184" height="50" rx="8"/><text class="th" x="536" y="456" text-anchor="middle" dominant-baseline="central">Google Gemini</text><text class="ts" x="536" y="472" text-anchor="middle" dominant-baseline="central">flash, free tier</text></g>
+
+<line x1="340" y1="500" x2="340" y2="516" class="arr" marker-end="url(#a)"/>
+
+<g class="c-purple"><rect x="40" y="522" width="389" height="68" rx="8"/><text class="th" x="234" y="544" text-anchor="middle" dominant-baseline="central">Agent orchestration</text><text class="ts" x="234" y="564" text-anchor="middle" dominant-baseline="central">langgraph + langchain adapters</text></g>
+<line x1="447" y1="556" x2="433" y2="556" class="leader"/>
+<g class="c-gray"><rect x="449" y="522" width="191" height="68" rx="8" stroke-dasharray="4 3"/><text class="th" x="544" y="542" text-anchor="middle" dominant-baseline="central">Langflow</text><text class="ts" x="544" y="560" text-anchor="middle" dominant-baseline="central">visual prototyping / demo</text><text class="ts" x="544" y="576" text-anchor="middle" dominant-baseline="central">optional, not in runtime</text></g>
+
+<line x1="340" y1="590" x2="340" y2="606" class="arr" marker-end="url(#a)"/>
+
+<g class="c-purple"><rect x="40" y="612" width="600" height="98" rx="12"/><text class="th" x="340" y="630" text-anchor="middle" dominant-baseline="central">MCP gateway · all agent tool calls</text></g>
+<g class="c-purple"><rect x="52" y="642" width="184" height="56" rx="8"/><text class="th" x="144" y="662" text-anchor="middle" dominant-baseline="central">Tool registry</text><text class="ts" x="144" y="680" text-anchor="middle" dominant-baseline="central">allowlist per agent</text></g>
+<g class="c-purple"><rect x="248" y="642" width="184" height="56" rx="8"/><text class="th" x="340" y="662" text-anchor="middle" dominant-baseline="central">Scoped access</text><text class="ts" x="340" y="680" text-anchor="middle" dominant-baseline="central">job id bound</text></g>
+<g class="c-purple"><rect x="444" y="642" width="184" height="56" rx="8"/><text class="th" x="536" y="662" text-anchor="middle" dominant-baseline="central">Audit</text><text class="ts" x="536" y="680" text-anchor="middle" dominant-baseline="central">every call logged</text></g>
+
+<line x1="340" y1="710" x2="340" y2="726" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="40" y="732" width="600" height="98" rx="12"/><text class="th" x="340" y="750" text-anchor="middle" dominant-baseline="central">Tool groups · purpose-built, no raw access</text></g>
+<g class="c-gray"><rect x="52" y="762" width="135" height="56" rx="8"/><text class="th" x="119" y="782" text-anchor="middle" dominant-baseline="central">Retrieval</text><text class="ts" x="119" y="800" text-anchor="middle" dominant-baseline="central">qdrant search</text></g>
+<g class="c-gray"><rect x="199" y="762" width="135" height="56" rx="8"/><text class="th" x="266" y="782" text-anchor="middle" dominant-baseline="central">Web search</text><text class="ts" x="266" y="800" text-anchor="middle" dominant-baseline="central">external fetch</text></g>
+<g class="c-gray"><rect x="346" y="762" width="135" height="56" rx="8"/><text class="th" x="413" y="782" text-anchor="middle" dominant-baseline="central">Render</text><text class="ts" x="413" y="800" text-anchor="middle" dominant-baseline="central">docx, pptx, pdf</text></g>
+<g class="c-gray"><rect x="493" y="762" width="135" height="56" rx="8"/><text class="th" x="560" y="782" text-anchor="middle" dominant-baseline="central">Media</text><text class="ts" x="560" y="800" text-anchor="middle" dominant-baseline="central">tts, ffmpeg</text></g>
+
+<line x1="340" y1="830" x2="340" y2="846" class="arr" marker-end="url(#a)"/>
+
+<g class="c-teal"><rect x="40" y="852" width="600" height="98" rx="12"/><text class="th" x="340" y="870" text-anchor="middle" dominant-baseline="central">Input analysis subagents · once per job</text></g>
+<g class="c-teal"><rect x="52" y="882" width="184" height="56" rx="8"/><text class="th" x="144" y="902" text-anchor="middle" dominant-baseline="central">Web search</text><text class="ts" x="144" y="920" text-anchor="middle" dominant-baseline="central">enrich and verify</text></g>
+<g class="c-teal"><rect x="248" y="882" width="184" height="56" rx="8"/><text class="th" x="340" y="902" text-anchor="middle" dominant-baseline="central">Content analysis</text><text class="ts" x="340" y="920" text-anchor="middle" dominant-baseline="central">facts, entities</text></g>
+<g class="c-teal"><rect x="444" y="882" width="184" height="56" rx="8"/><text class="th" x="536" y="902" text-anchor="middle" dominant-baseline="central">Input analysis</text><text class="ts" x="536" y="920" text-anchor="middle" dominant-baseline="central">objective, audience</text></g>
+
+<line x1="340" y1="950" x2="340" y2="966" class="arr" marker-end="url(#a)"/>
+
+<g class="c-coral"><rect x="40" y="972" width="600" height="150" rx="12"/><text class="th" x="340" y="990" text-anchor="middle" dominant-baseline="central">Output subagents · one per selected format</text></g>
+<g class="c-coral"><rect x="52" y="1002" width="184" height="50" rx="8"/><text class="th" x="144" y="1020" text-anchor="middle" dominant-baseline="central">Social post</text><text class="ts" x="144" y="1036" text-anchor="middle" dominant-baseline="central">linkedin, x thread</text></g>
+<g class="c-coral"><rect x="248" y="1002" width="184" height="50" rx="8"/><text class="th" x="340" y="1020" text-anchor="middle" dominant-baseline="central">Advisory</text><text class="ts" x="340" y="1036" text-anchor="middle" dominant-baseline="central">structured document</text></g>
+<g class="c-coral"><rect x="444" y="1002" width="184" height="50" rx="8"/><text class="th" x="536" y="1020" text-anchor="middle" dominant-baseline="central">Exec summary</text><text class="ts" x="536" y="1036" text-anchor="middle" dominant-baseline="central">concise briefing</text></g>
+<g class="c-coral"><rect x="52" y="1060" width="184" height="50" rx="8"/><text class="th" x="144" y="1078" text-anchor="middle" dominant-baseline="central">Presentation</text><text class="ts" x="144" y="1094" text-anchor="middle" dominant-baseline="central">slides + notes</text></g>
+<g class="c-coral"><rect x="248" y="1060" width="184" height="50" rx="8"/><text class="th" x="340" y="1078" text-anchor="middle" dominant-baseline="central">Infographic</text><text class="ts" x="340" y="1094" text-anchor="middle" dominant-baseline="central">layout, key messaging</text></g>
+<g class="c-coral"><rect x="444" y="1060" width="184" height="50" rx="8"/><text class="th" x="536" y="1078" text-anchor="middle" dominant-baseline="central">Video package</text><text class="ts" x="536" y="1094" text-anchor="middle" dominant-baseline="central">script, scenes, srt</text></g>
+
+<line x1="340" y1="1122" x2="340" y2="1138" class="arr" marker-end="url(#a)"/>
+
+<g class="c-teal"><rect x="100" y="1144" width="540" height="142" rx="12"/><text class="th" x="370" y="1162" text-anchor="middle" dominant-baseline="central">Content QA subagents · per artefact</text></g>
+<g class="c-teal"><rect x="112" y="1174" width="120" height="56" rx="8"/><text class="th" x="172" y="1194" text-anchor="middle" dominant-baseline="central">Grounding</text><text class="ts" x="172" y="1212" text-anchor="middle" dominant-baseline="central">vs source</text></g>
+<g class="c-teal"><rect x="244" y="1174" width="120" height="56" rx="8"/><text class="th" x="304" y="1194" text-anchor="middle" dominant-baseline="central">Format check</text><text class="ts" x="304" y="1212" text-anchor="middle" dominant-baseline="central">schema, length</text></g>
+<g class="c-teal"><rect x="376" y="1174" width="120" height="56" rx="8"/><text class="th" x="436" y="1194" text-anchor="middle" dominant-baseline="central">Tone fit</text><text class="ts" x="436" y="1212" text-anchor="middle" dominant-baseline="central">audience fit</text></g>
+<g class="c-teal"><rect x="508" y="1174" width="120" height="56" rx="8"/><text class="th" x="568" y="1194" text-anchor="middle" dominant-baseline="central">Safety</text><text class="ts" x="568" y="1212" text-anchor="middle" dominant-baseline="central">pii, policy</text></g>
+<g class="c-purple"><rect x="112" y="1238" width="516" height="36" rx="8"/><text class="th" x="370" y="1256" text-anchor="middle" dominant-baseline="central">Verdict · pass, retry with fix notes, or stop</text></g>
+
+<path d="M 108 1256 H 70 V 1128" class="arr" marker-end="url(#a)"/>
+<text class="ts" x="76" y="1136">Retry, max 3</text>
+
+<line x1="140" y1="1286" x2="140" y2="1302" class="arr" marker-end="url(#a)"/>
+<text class="ts" x="150" y="1298">3 attempts failed</text>
+<g class="c-coral"><rect x="40" y="1308" width="200" height="44" rx="8"/><text class="th" x="140" y="1330" text-anchor="middle" dominant-baseline="central">Job stopped · restart</text></g>
+
+<line x1="370" y1="1286" x2="370" y2="1372" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="40" y="1378" width="186" height="56" rx="8"/><text class="th" x="133" y="1398" text-anchor="middle" dominant-baseline="central">Documents</text><text class="ts" x="133" y="1416" text-anchor="middle" dominant-baseline="central">pdf, docx, md</text></g>
+<g class="c-gray"><rect x="247" y="1378" width="186" height="56" rx="8"/><text class="th" x="340" y="1398" text-anchor="middle" dominant-baseline="central">Decks</text><text class="ts" x="340" y="1416" text-anchor="middle" dominant-baseline="central">pptx + notes</text></g>
+<g class="c-gray"><rect x="454" y="1378" width="186" height="56" rx="8"/><text class="th" x="547" y="1398" text-anchor="middle" dominant-baseline="central">Assets</text><text class="ts" x="547" y="1416" text-anchor="middle" dominant-baseline="central">mp4, srt, json</text></g>
+
+<g class="c-teal"><rect x="40" y="1456" width="600" height="60" rx="8"/><text class="th" x="340" y="1478" text-anchor="middle" dominant-baseline="central">Observability, prompt versions and evaluation</text><text class="ts" x="340" y="1498" text-anchor="middle" dominant-baseline="central">langfuse — traces, prompt registry, eval runs</text></g>
+
+<g class="c-gray"><rect x="40" y="1538" width="600" height="98" rx="12"/><text class="th" x="340" y="1556" text-anchor="middle" dominant-baseline="central">Deployment · docker compose</text></g>
+<g class="c-gray"><rect x="52" y="1568" width="135" height="56" rx="8"/><text class="th" x="119" y="1588" text-anchor="middle" dominant-baseline="central">Qdrant</text><text class="ts" x="119" y="1606" text-anchor="middle" dominant-baseline="central">container :6333</text></g>
+<g class="c-gray"><rect x="199" y="1568" width="135" height="56" rx="8"/><text class="th" x="266" y="1588" text-anchor="middle" dominant-baseline="central">Postgres</text><text class="ts" x="266" y="1606" text-anchor="middle" dominant-baseline="central">container, jobs</text></g>
+<g class="c-gray"><rect x="346" y="1568" width="135" height="56" rx="8"/><text class="th" x="413" y="1588" text-anchor="middle" dominant-baseline="central">App + worker</text><text class="ts" x="413" y="1606" text-anchor="middle" dominant-baseline="central">fastapi + graph</text></g>
+<g class="c-gray"><rect x="493" y="1568" width="135" height="56" rx="8"/><text class="th" x="560" y="1588" text-anchor="middle" dominant-baseline="central">Object store</text><text class="ts" x="560" y="1606" text-anchor="middle" dominant-baseline="central">volume or s3</text></g>
+</svg>

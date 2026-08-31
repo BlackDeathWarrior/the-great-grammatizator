@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 1432" width="680" height="1432" role="img">
+<title>Use case flow UC-01 to UC-14</title>
+<style>
+ text{font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+ .th{font-size:14px;font-weight:500;fill:#1c1c1a}
+ .ts{font-size:12px;fill:#6e6e68}
+ .arr,.ln{stroke:#8c8c86;stroke-width:1.5;fill:none}
+ .c-gray rect,.c-gray polygon{fill:#f5f5f3;stroke:#d6d6d0;stroke-width:.5}
+ .c-teal rect{fill:#e7f3f0;stroke:#a6ccc1;stroke-width:.5}
+ .c-purple rect,.c-purple polygon{fill:#eeebf7;stroke:#bfb5dd;stroke-width:.5}
+ .c-coral rect{fill:#fceee9;stroke:#e9bfad;stroke-width:.5}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#8c8c86" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+<g class="c-gray"><rect x="220" y="30" width="240" height="40" rx="20"/><text class="th" x="340" y="50" text-anchor="middle" dominant-baseline="central">Operator opens dashboard</text></g>
+<line x1="340" y1="70" x2="340" y2="92" class="arr" marker-end="url(#a)"/>
+
+<g class="c-purple"><polygon points="340,98 440,133 340,168 240,133"/><text class="th" x="340" y="133" text-anchor="middle" dominant-baseline="central">New source?</text></g>
+<text class="ts" x="348" y="180">yes</text>
+<text class="ts" x="180" y="125">no</text>
+<path d="M 240 133 H 112 V 184" class="arr" marker-end="url(#a)"/>
+<line x1="340" y1="168" x2="340" y2="184" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="40" y="190" width="150" height="68" rx="8"/><text class="th" x="115" y="216" text-anchor="middle" dominant-baseline="central">UC-12 · Reuse</text><text class="ts" x="115" y="236" text-anchor="middle" dominant-baseline="central">saved source</text></g>
+<g class="c-gray"><rect x="200" y="190" width="280" height="68" rx="8"/><text class="th" x="340" y="216" text-anchor="middle" dominant-baseline="central">UC-01 · Ingest source</text><text class="ts" x="340" y="236" text-anchor="middle" dominant-baseline="central">extract, ocr, chunk, embed</text></g>
+
+<path d="M 115 258 V 278 H 340" class="ln"/>
+<path d="M 340 258 V 278" class="ln"/>
+<line x1="340" y1="278" x2="340" y2="294" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="200" y="300" width="280" height="68" rx="8"/><text class="th" x="340" y="326" text-anchor="middle" dominant-baseline="central">UC-02 · Set parameters</text><text class="ts" x="340" y="346" text-anchor="middle" dominant-baseline="central">audience, tone, language, detail</text></g>
+<line x1="340" y1="368" x2="340" y2="384" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="200" y="390" width="280" height="68" rx="8"/><text class="th" x="340" y="416" text-anchor="middle" dominant-baseline="central">UC-03 · Select output formats</text><text class="ts" x="340" y="436" text-anchor="middle" dominant-baseline="central">one or more, from registry</text></g>
+<line x1="340" y1="458" x2="340" y2="474" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="200" y="480" width="280" height="68" rx="8"/><text class="th" x="340" y="506" text-anchor="middle" dominant-baseline="central">Create job</text><text class="ts" x="340" y="526" text-anchor="middle" dominant-baseline="central">one artefact record per format</text></g>
+<line x1="340" y1="548" x2="340" y2="564" class="arr" marker-end="url(#a)"/>
+
+<g class="c-teal"><rect x="200" y="570" width="280" height="68" rx="8"/><text class="th" x="340" y="596" text-anchor="middle" dominant-baseline="central">UC-06 · Input analysis</text><text class="ts" x="340" y="616" text-anchor="middle" dominant-baseline="central">facts, entities, intent, web enrich</text></g>
+<line x1="340" y1="638" x2="340" y2="654" class="arr" marker-end="url(#a)"/>
+
+<g class="c-coral"><rect x="200" y="660" width="280" height="68" rx="8"/><text class="th" x="340" y="686" text-anchor="middle" dominant-baseline="central">UC-04 / UC-05 · Generate</text><text class="ts" x="340" y="706" text-anchor="middle" dominant-baseline="central">fan out, one call per format</text></g>
+<line x1="340" y1="728" x2="340" y2="744" class="arr" marker-end="url(#a)"/>
+
+<g class="c-teal"><rect x="200" y="750" width="280" height="68" rx="8"/><text class="th" x="340" y="776" text-anchor="middle" dominant-baseline="central">UC-07 · QA subagents</text><text class="ts" x="340" y="796" text-anchor="middle" dominant-baseline="central">grounding, format, tone, safety</text></g>
+<line x1="340" y1="818" x2="340" y2="834" class="arr" marker-end="url(#a)"/>
+
+<g class="c-purple"><polygon points="340,840 450,885 340,930 230,885"/><text class="th" x="340" y="885" text-anchor="middle" dominant-baseline="central">QA verdict?</text></g>
+<text class="ts" x="348" y="944">pass</text>
+<text class="ts" x="140" y="875">fail · retry</text>
+<text class="ts" x="455" y="873">limit</text>
+
+<path d="M 230 885 H 110 V 686 H 194" class="arr" marker-end="url(#a)"/>
+<path d="M 450 885 H 496" class="arr" marker-end="url(#a)"/>
+<line x1="340" y1="930" x2="340" y2="946" class="arr" marker-end="url(#a)"/>
+
+<g class="c-coral"><rect x="500" y="851" width="140" height="68" rx="8"/><text class="th" x="570" y="869" text-anchor="middle" dominant-baseline="central">Flagged</text><text class="ts" x="570" y="887" text-anchor="middle" dominant-baseline="central">safety block or</text><text class="ts" x="570" y="903" text-anchor="middle" dominant-baseline="central">retry limit hit</text></g>
+
+<g class="c-gray"><rect x="200" y="952" width="280" height="68" rx="8"/><text class="th" x="340" y="978" text-anchor="middle" dominant-baseline="central">UC-08 · Review results</text><text class="ts" x="340" y="998" text-anchor="middle" dominant-baseline="central">artefacts with qa findings</text></g>
+<path d="M 570 919 V 986 H 486" class="arr" marker-end="url(#a)"/>
+<line x1="340" y1="1020" x2="340" y2="1036" class="arr" marker-end="url(#a)"/>
+
+<g class="c-purple"><polygon points="340,1042 440,1087 340,1132 240,1087"/><text class="th" x="340" y="1087" text-anchor="middle" dominant-baseline="central">Satisfied?</text></g>
+<text class="ts" x="348" y="1144">yes</text>
+<text class="ts" x="200" y="1077">no</text>
+<path d="M 240 1087 H 196" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="40" y="1053" width="150" height="68" rx="8"/><text class="th" x="115" y="1071" text-anchor="middle" dominant-baseline="central">UC-09 / UC-10</text><text class="ts" x="115" y="1089" text-anchor="middle" dominant-baseline="central">regenerate one</text><text class="ts" x="115" y="1105" text-anchor="middle" dominant-baseline="central">or edit inline</text></g>
+<path d="M 68 1053 V 706 H 194" class="arr" marker-end="url(#a)"/>
+<text class="ts" x="76" y="1000">revise</text>
+
+<line x1="340" y1="1132" x2="340" y2="1148" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="200" y="1154" width="280" height="68" rx="8"/><text class="th" x="340" y="1180" text-anchor="middle" dominant-baseline="central">UC-11 · Export</text><text class="ts" x="340" y="1200" text-anchor="middle" dominant-baseline="central">pdf, docx, pptx, srt, json</text></g>
+<line x1="340" y1="1222" x2="340" y2="1238" class="arr" marker-end="url(#a)"/>
+
+<g class="c-gray"><rect x="220" y="1244" width="240" height="40" rx="20"/><text class="th" x="340" y="1264" text-anchor="middle" dominant-baseline="central">Saved to job history</text></g>
+
+<g class="c-gray"><rect x="40" y="1314" width="600" height="98" rx="12" stroke-dasharray="4 3"/><text class="th" x="340" y="1332" text-anchor="middle" dominant-baseline="central">Administrator · runs alongside, not in the operator path</text></g>
+<g class="c-gray"><rect x="52" y="1344" width="282" height="56" rx="8"/><text class="th" x="193" y="1364" text-anchor="middle" dominant-baseline="central">UC-13 · Prompt templates</text><text class="ts" x="193" y="1382" text-anchor="middle" dominant-baseline="central">versioned, per output type</text></g>
+<g class="c-gray"><rect x="346" y="1344" width="282" height="56" rx="8"/><text class="th" x="487" y="1364" text-anchor="middle" dominant-baseline="central">UC-14 · Traces and evaluation</text><text class="ts" x="487" y="1382" text-anchor="middle" dominant-baseline="central">langfuse, eval runs</text></g>
+</svg>
