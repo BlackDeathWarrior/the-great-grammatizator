@@ -4,9 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Design-only repo. No code exists yet — only `docs/`. The first task is to build the
-platform from the specs below. When code lands, extend this file with real build/test
-commands.
+Implemented and running. All 11 architecture layers are built; 177 tests pass
+(96 P0) against the live compose stack.
+
+Not yet done: no provider keys are configured, so generation raises a clean
+`ProviderError` until `GROQ_API_KEY` / `GEMINI_API_KEY` / `OPENROUTER_API_KEY`
+are set in `.env`. Everything up to the model call — ingestion, chunking,
+embedding, retrieval, the registry, QA plumbing, export, dashboard — runs
+without them. Latency and call-budget numbers (TC-1203/1204) still need
+measuring against a real provider before the demo.
 
 ## Documents (read at session start, not every turn)
 
@@ -29,7 +35,7 @@ once, generates per format, QAs per artefact, exports. Hackathon / demo scope.
 Layers, each knowing only the one below:
 
 1. **Dashboard** — upload, params, format multi-select, job polling, per-artefact QA
-   view, download. ~40% of build effort (six output types = six display components).
+   view, download. ~40% of build effort (seven output types = seven display partials).
 2. **API ingestion** — `POST /sources` (hash → extract → normalise → chunk → embed),
    `POST /jobs` (references `source_id`, enqueues), `GET /jobs/{id}` (polled). Fully
    deterministic, **no LLM**.
@@ -42,7 +48,8 @@ Layers, each knowing only the one below:
    once per job, cached, shared by every generator. Classifies source provenance here.
 7. **Output subagents** — one per selected format, driven by the output registry.
 8. **QA subagents** — 4 parallel independent checkers per artefact (grounding, format,
-   tone, safety) + source-reuse for copyrighted sources.
+   tone, safety) + source-reuse for copyrighted sources. Format and source-reuse are
+   deterministic; the other three are model calls.
 9. **Export** — structured JSON → files. Video = TTS + SRT + title cards + ffmpeg.
 10. **Langfuse** — traces, versioned prompts, eval runs.
 11. **Docker Compose** — qdrant `:6333`, postgres `:5432`, app `:8000`.
@@ -94,23 +101,84 @@ Groq / Gemini Flash / OpenRouter (free tiers) · Qdrant · Postgres · Langfuse 
 Docker Compose. Verify exact free-tier model identifiers against the provider before
 wiring — the strings change.
 
-## Commands (from `docs/CLAUDE.md`; no code yet to run them against)
+## Commands
+
+Bring up the stack (qdrant, postgres, redis, app, worker):
 
 ```bash
-docker compose up -d          # qdrant + postgres
+docker compose up -d
 ```
+
+Dashboard at http://localhost:8000 — upload, pick parameters and formats, watch
+the job. Tests run in-container, which is the authoritative environment:
+
 ```bash
-uvicorn app.main:app --reload
+docker compose exec app python -m pytest -q
 ```
+
+Just the ones that block the demo:
+
 ```bash
-pytest -q
+docker compose exec app python -m pytest -q -m p0
 ```
+
+A single test:
+
+```bash
+docker compose exec app python -m pytest -q tests/integration/test_phase7_example_a.py -k tone
+```
+
+Lint and format (run on the host):
+
 ```bash
 ruff check . && ruff format .
 ```
 
-## Build order
+After editing `app/worker.py`, restart the worker — arq registers task
+functions at boot:
 
-One output format end to end before the second. Format two is then ~an hour. Three
-formats half-built is how the weekend disappears. Golden path first: advisory PDF →
-LinkedIn post + exec summary (TC-1101, worked Example A).
+```bash
+docker compose restart worker
+```
+
+Tests marked `integration` need the stack; `pytest -m "not integration"` runs
+on the host. Three scaffold tests skip in-container by design — they assert
+facts about the repo, which `.dockerignore` correctly keeps out of the image.
+
+## Where things live
+
+| Concern | Path |
+|---|---|
+| Ingestion (zero LLM) | `app/ingest/` — `service.py` is the entry point |
+| Model gateway | `app/gateway/router.py` — the ONLY file that may name a provider |
+| Tool allowlist | `app/tools/registry.py` — where TC-1001 is enforced |
+| Formats | `app/formats/registry.json` + `schemas/` + `app/prompts/templates/` |
+| Pipeline | `app/graph/build.py` — generate → QA → verdict, per artefact |
+| Verdict policy | `app/agents/verdict.py` |
+| Dashboard | `app/web/` — Jinja + HTMX, seven per-format partials |
+
+## Adding a format
+
+Config only, no code (Invariant 4, TC-0302): add an entry to
+`app/formats/registry.json`, a `<id>@v1.jinja` template, and a
+`<id>.schema.json` requiring `claims[]`. It then appears in the dashboard and
+generates. A test asserts the pipeline modules contain no format id literals,
+so a switch statement will fail CI.
+
+## Deviations from the docs, and why
+
+Three places where the implementation departs from a literal reading. Each is
+documented at the site.
+
+1. **Image ingestion** (`app/ingest/extract/image.py`) — `ARCHITECTURE.md:45`
+   specifies "vision caption + OCR", but a vision caption is a model call and
+   Invariant 1 forbids those in the ingest path. Resolved as OCR at ingest,
+   richer visual description deferred to the analysis layer.
+2. **Analysis subagents** (`app/agents/analysis.py`) — §6 describes three
+   subagents; they are one structured call. Three calls would triple the cost
+   of the step the architecture insists must be cheap, and the outputs are
+   consumed as one object.
+3. **Retry loop** (`app/graph/build.py`) — an explicit bounded loop rather than
+   LangGraph conditional edges. Routing retries through shared graph edges
+   would make one artefact's retry state reachable from another, which
+   Invariant 7 forbids. The fan-out is still concurrent.
