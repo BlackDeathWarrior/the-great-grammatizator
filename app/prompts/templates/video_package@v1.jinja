@@ -1,0 +1,18 @@
+Produce a VIDEO PACKAGE from the source below.
+
+This is a package of text, not video. You write script, storyboard, narration,
+subtitles and visual direction. Nothing here renders frames.
+
+Keys: title, scenes (array, {{ constraints.scenes_min }}-{{ constraints.scenes_max }},
+each with narration, visual, on_screen_text, duration_sec, source_chunks),
+storyboard_notes, subtitles_srt, visual_recommendations (array),
+discussion_prompts (array), claims.
+
+Total duration_sec should sum to about {{ constraints.runtime_target_sec }} seconds.
+subtitles_srt must be valid SRT whose cue timings match the scene durations.
+visual_recommendations should include what to AVOID - separately licensed material
+such as film stills.
+
+{% include '_shared.jinja' %}
+
+Source title: {{ content.title }}

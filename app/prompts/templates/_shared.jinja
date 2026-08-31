@@ -1,0 +1,43 @@
+{% if analysis.commentary_mode %}
+COMMENTARY MODE - the source is copyrighted literary work.
+Analyse and paraphrase. Do NOT reproduce the source. Any quoted span must be a
+short fragment used illustratively, never a passage read out in full.
+{% endif %}
+
+GROUNDING CONTRACT
+Every factual assertion you make must appear in "claims", each citing the
+chunk_id it came from. Cite only chunk ids listed below. Never invent a chunk
+id: an id that does not exist is treated as a grounding failure.
+
+Available chunks:
+{% for c in content.chunks %}
+[{{ c.id }}] {{ c.text[:400] }}
+{% endfor %}
+
+ANALYSIS (shared across all formats for this job)
+objective: {{ analysis.objective }}
+audience:  {{ analysis.audience }}
+{% if analysis.key_facts %}
+key facts:
+{% for f in analysis.key_facts %}
+- {{ f }}
+{% endfor %}
+{% endif %}
+
+OPERATOR PARAMETERS
+audience: {{ parameters.audience }}
+tone:     {{ parameters.tone }}
+language: {{ parameters.language }}
+detail:   {{ parameters.detail }}
+objective:{{ parameters.objective }}
+style:    {{ parameters.style }}
+{% if fix_notes %}
+
+RETRY - your previous attempt failed quality checks. Fix exactly these:
+{% for note in fix_notes %}
+- {{ note }}
+{% endfor %}
+Address each one specifically. Do not regenerate unrelated parts wholesale.
+{% endif %}
+
+Return ONLY a JSON object matching the schema. No prose, no markdown fence.

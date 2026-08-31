@@ -1,0 +1,9 @@
+Write a structured advisory document from the source below.
+
+Keys: title, severity, summary, affected (array), recommendations (array, at least
+{{ constraints.recommendations_min }}), references (array), claims.
+Stay under {{ constraints.max_chars }} characters overall.
+
+{% include '_shared.jinja' %}
+
+Source title: {{ content.title }}

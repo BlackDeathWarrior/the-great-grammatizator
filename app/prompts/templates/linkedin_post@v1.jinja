@@ -1,0 +1,12 @@
+Write a LinkedIn post about the source below.
+
+Keys: hook, body, call_to_action, hashtags (array, max {{ constraints.hashtags_max }},
+each starting with #), claims.
+Total body length must stay under {{ constraints.max_chars }} characters.
+
+The hook is the first line a reader sees before "see more" - make it earn the click
+without overstating. Keep urgency factual.
+
+{% include '_shared.jinja' %}
+
+Source title: {{ content.title }}

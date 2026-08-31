@@ -1,0 +1,12 @@
+Design infographic content from the source below.
+
+Keys: headline (max {{ constraints.headline_max_chars }} chars), panels (array,
+{{ constraints.panels_min }}-{{ constraints.panels_max }}, each with heading, stat,
+caption, icon_hint), layout_recommendation, key_messaging (array), claims.
+
+Each panel carries ONE idea. "stat" is the number or short fact that panel exists
+to convey.
+
+{% include '_shared.jinja' %}
+
+Source title: {{ content.title }}

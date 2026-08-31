@@ -1,0 +1,12 @@
+Build a slide deck from the source below.
+
+Keys: title, slides (array, {{ constraints.slides_min }}-{{ constraints.slides_max }},
+each with heading, bullets (max {{ constraints.bullets_max_per_slide }}),
+speaker_notes), claims.
+
+Bullets are prompts, not prose. speaker_notes carries what the presenter actually
+says - it is not a repeat of the bullets.
+
+{% include '_shared.jinja' %}
+
+Source title: {{ content.title }}

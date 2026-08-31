@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Twitter / X",
+  "type": "object",
+  "properties": {
+    "tweets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "hashtags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^#"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "description": "Every factual assertion, each citing the chunk it came from.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "chunk_id": {
+            "type": "string",
+            "pattern": "^c\\d+$"
+          }
+        },
+        "required": [
+          "text",
+          "chunk_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "tweets",
+    "claims"
+  ],
+  "additionalProperties": false
+}

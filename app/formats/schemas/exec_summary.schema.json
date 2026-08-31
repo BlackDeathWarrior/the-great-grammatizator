@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Executive Summary",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "bottom_line": {
+      "type": "string",
+      "minLength": 1
+    },
+    "key_points": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "recommended_action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "residual_risk": {
+      "type": "string"
+    },
+    "claims": {
+      "type": "array",
+      "description": "Every factual assertion, each citing the chunk it came from.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "chunk_id": {
+            "type": "string",
+            "pattern": "^c\\d+$"
+          }
+        },
+        "required": [
+          "text",
+          "chunk_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "title",
+    "bottom_line",
+    "key_points",
+    "recommended_action",
+    "residual_risk",
+    "claims"
+  ],
+  "additionalProperties": false
+}
