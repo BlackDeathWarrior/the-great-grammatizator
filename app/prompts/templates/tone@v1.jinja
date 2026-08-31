@@ -1,0 +1,17 @@
+Rate how well the artefact below fits the requested audience and tone.
+
+Return: {"score": <0.0-1.0>, "reason": "<one sentence>", "suggestion": "<specific,
+actionable change>"}
+
+The suggestion must name what to change and how. "Improve the tone" is useless;
+"Soften the closing line - reference active exploitation rather than predicting
+consequences" is actionable.
+
+Requested:
+  audience: {{ parameters.audience }}
+  tone:     {{ parameters.tone }}
+  style:    {{ parameters.style }}
+  detail:   {{ parameters.detail }}
+
+--- ARTEFACT ---
+{{ artefact }}

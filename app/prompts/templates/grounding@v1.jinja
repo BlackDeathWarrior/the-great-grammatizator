@@ -1,0 +1,15 @@
+For each claim below, decide whether the cited chunk supports it.
+
+A claim is supported if the chunk states it, or states something the claim
+paraphrases accurately. A claim is NOT supported if the chunk is merely about
+the same topic, or if the claim adds a number, date or severity the chunk does
+not contain.
+
+Return: {"claims": [{"index": <int>, "supported": <bool>, "reason": "<short>"}]}
+
+{% for p in pairs %}
+--- CLAIM {{ p.index }} ---
+claim: {{ p.claim }}
+cited chunk {{ p.chunk_id }}: {{ p.chunk_text }}
+
+{% endfor %}
