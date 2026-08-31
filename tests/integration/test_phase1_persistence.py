@@ -8,12 +8,15 @@ import os
 import pytest
 from sqlalchemy.exc import IntegrityError
 
+from app.config import get_settings
 from app.db.models import Artefact, Base, Job, JobSource, QAResultRow, Source
 from app.graph.state import ArtefactStatus, JobStatus, SourceType
 
 pytestmark = pytest.mark.integration
 
-DB_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+psycopg://postgres:dev@localhost:5432/app")
+# Default to the app settings so this works in-container (service names) and
+# on the host (localhost via .env) without a hardcoded host - TC-1107.
+DB_URL = os.environ.get("TEST_DATABASE_URL") or get_settings().database_url
 
 
 @pytest.fixture(scope="module")

@@ -27,6 +27,9 @@ dependencies = [
 
     # gateway (layer 3) - the ONLY module allowed to name a provider
     "litellm>=1.53",
+    # Embeddings SDK, called DIRECTLY from app/ingest/embed.py, bypassing the
+    # router by design (ARCHITECTURE.md sec.2, TC-0905).
+    "openai>=1.55",
 
     # orchestration (layer 4)
     "langgraph>=0.2.45",
@@ -77,6 +80,12 @@ extend-exclude = ["docs", ".venv"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# FastAPI requires Depends/File/Form calls in argument defaults; B008 is a
+# false positive against the framework idiom.
+"app/api/*.py" = ["B008"]
+"app/web/*.py" = ["B008"]
 
 [tool.ruff.lint.isort]
 # `alembic/` is a local directory but the import is the third-party package.
