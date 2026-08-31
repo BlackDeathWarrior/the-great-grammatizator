@@ -1,0 +1,20 @@
+<h3 style="margin-top:0">{{ a.content.title }}</h3>
+<p class="muted" style="font-size:.8125rem">
+  A package of text: script, storyboard, narration, subtitles and visual direction.
+  Rendering is deterministic (TTS + ffmpeg), not generated video.
+</p>
+{% for s in a.content.scenes %}
+<div style="border:1px solid var(--line);border-radius:6px;padding:.75rem;margin-bottom:.5rem">
+  <strong>Scene {{ loop.index }}</strong>
+  <span class="muted" style="font-size:.75rem">&middot; {{ s.duration_sec }}s</span>
+  <p style="margin:.5rem 0"><em>&ldquo;{{ s.narration }}&rdquo;</em></p>
+  <p class="muted" style="font-size:.8125rem;margin:0">
+    <strong>Visual:</strong> {{ s.visual }}<br>
+    <strong>On screen:</strong> {{ s.on_screen_text }}
+  </p>
+</div>
+{% endfor %}
+{% if a.content.visual_recommendations %}
+<p><strong>Visual recommendations</strong></p>
+<ul>{% for v in a.content.visual_recommendations %}<li>{{ v }}</li>{% endfor %}</ul>
+{% endif %}

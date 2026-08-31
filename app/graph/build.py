@@ -45,6 +45,7 @@ async def run_artefact(
     *,
     job_id: str = "",
     on_attempt=None,
+    operator_instructions: str = "",
 ) -> tuple[Artefact, str]:
     """Generate one artefact and drive it through QA until settled.
 
@@ -54,7 +55,10 @@ async def run_artefact(
     spec = registry.get(format_id)
     settings = get_settings()
     artefact = Artefact(output_type=format_id, status=ArtefactStatus.GENERATING)
-    fix_notes: list[str] = []
+    # UC-09: a regenerate carries the OPERATOR's instructions, not machine fix
+    # notes from a failed check. Seeded here so the first attempt already has
+    # them; QA fix notes replace them on any subsequent retry.
+    fix_notes: list[str] = [operator_instructions] if operator_instructions else []
     message = ""
 
     # Bounded by the QA budget: at most one initial attempt plus qa_max_retries.

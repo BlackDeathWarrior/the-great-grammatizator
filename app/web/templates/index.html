@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="panel">
+  <h2>1 &middot; Source</h2>
+  <form action="/ui/sources" method="post" enctype="multipart/form-data">
+    <label for="file">Upload a file (pdf, docx, html, image, video)</label>
+    <input type="file" id="file" name="file">
+    <label for="url">&hellip; or paste a URL</label>
+    <input type="url" id="url" name="url" placeholder="https://example.com/advisory">
+    <label for="text">&hellip; or type context directly</label>
+    <textarea id="text" name="text" rows="3"></textarea>
+    <p><button type="submit">Ingest source</button></p>
+  </form>
+
+  {% if sources %}
+  <h2 style="margin-top:1.5rem">Recent sources</h2>
+  <p class="muted" style="font-size:.8125rem">
+    Selecting an existing source skips ingestion entirely.
+  </p>
+  <table>
+    <tr><th>Title</th><th>Type</th><th>Chunks</th><th></th></tr>
+    {% for s in sources %}
+    <tr>
+      <td>{{ s.title[:70] }}</td>
+      <td>{{ s.source_type }}</td>
+      <td>{{ s.chunk_count }}</td>
+      <td><a href="/?source_id={{ s.source_id }}">Use this</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+
+{% if selected_source %}
+<form action="/ui/jobs" method="post">
+  <input type="hidden" name="source_id" value="{{ selected_source.source_id }}">
+
+  <div class="panel">
+    <h2>2 &middot; Parameters</h2>
+    <p class="muted" style="font-size:.8125rem">
+      Source: <strong>{{ selected_source.title[:80] }}</strong>
+      &middot; {{ selected_source.chunk_count }} chunks
+    </p>
+    <div class="grid">
+      {% for field, options in vocab.items() %}
+      <div>
+        <label for="{{ field }}">{{ field|replace('_',' ')|title }}</label>
+        <select id="{{ field }}" name="{{ field }}">
+          {% for opt in options %}
+          <option value="{{ opt }}"{% if loop.first %} selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>3 &middot; Output formats</h2>
+    <div class="formats">
+      {% for f in formats %}
+      <label class="format">
+        <input type="checkbox" name="formats" value="{{ f.id }}"
+               {% if f.id in ('linkedin_post','exec_summary') %}checked{% endif %}>
+        <span>
+          <span class="name">{{ f.label }}</span><br>
+          <span class="desc">{{ f.description }}</span>
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+    <p style="margin-top:1rem"><button type="submit">Generate</button></p>
+  </div>
+</form>
+{% endif %}
+
+{% if jobs %}
+<div class="panel">
+  <h2>Recent jobs</h2>
+  <table>
+    <tr><th>Job</th><th>Status</th></tr>
+    {% for j in jobs %}
+    <tr><td><a href="/jobs/{{ j.job_id }}/view">{{ j.job_id }}</a></td><td>{{ j.status }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+{% endblock %}

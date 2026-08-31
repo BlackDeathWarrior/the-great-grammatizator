@@ -1,12 +1,15 @@
 """FastAPI entrypoint. Layer 1 (web) + layer 2 (API) mount here."""
 
 import logging
+import pathlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
-from app.api import sources
+from app.api import jobs, sources
 from app.config import get_settings
+from app.web import routes as web_routes
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,7 +28,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Content Transformation Platform", lifespan=lifespan)
+
+app.mount(
+    "/static",
+    StaticFiles(directory=str(pathlib.Path(__file__).parent / "web" / "static")),
+    name="static",
+)
+
 app.include_router(sources.router)
+app.include_router(jobs.router)
+app.include_router(web_routes.router)
 
 
 @app.get("/health")

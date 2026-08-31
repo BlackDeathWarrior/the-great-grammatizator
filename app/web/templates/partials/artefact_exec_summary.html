@@ -1,0 +1,5 @@
+<h3 style="margin-top:0">{{ a.content.title }}</h3>
+<p><strong>Bottom line.</strong> {{ a.content.bottom_line }}</p>
+<ul>{% for p in a.content.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
+<p><strong>Recommended action.</strong> {{ a.content.recommended_action }}</p>
+<p class="muted"><strong>Residual risk.</strong> {{ a.content.residual_risk }}</p>

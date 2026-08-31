@@ -1,0 +1,8 @@
+<h3 style="margin-top:0">{{ a.content.title }}
+  <span class="badge failed">{{ a.content.severity }}</span></h3>
+<p>{{ a.content.summary }}</p>
+{% if a.content.affected %}
+<p class="muted"><strong>Affected:</strong> {{ a.content.affected|join(', ') }}</p>
+{% endif %}
+<p><strong>Recommendations</strong></p>
+<ul>{% for r in a.content.recommendations %}<li>{{ r }}</li>{% endfor %}</ul>
