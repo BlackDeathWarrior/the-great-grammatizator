@@ -60,6 +60,14 @@ async def run_job_task(ctx: dict, job_id: str) -> dict:
         return {"error": str(exc)}
 
     _persist(job_id, result)
+
+    # The worker process outlives one job, but traces buffer; flush so a
+    # completed job is visible in Langfuse immediately rather than whenever
+    # the buffer next fills.
+    from app.observability import flush
+
+    flush()
+
     return {"job_id": job_id, "status": str(result["status"])}
 
 
