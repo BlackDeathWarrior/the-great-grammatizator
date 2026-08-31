@@ -59,7 +59,8 @@ def trace(name: str, **metadata):
 
         if client is not None:
             try:
-                client.trace(
+                # Langfuse v4 replaced .trace() with create_event/observations.
+                client.create_event(
                     name=name,
                     metadata={**metadata, "duration_ms": round(elapsed_ms)},
                     output=span.get("output"),
@@ -80,7 +81,7 @@ def record_tool_call(caller: str, tool: str, allowed: bool) -> None:
     client = _client()
     if client is not None:
         try:
-            client.trace(
+            client.create_event(
                 name="tool_call",
                 metadata={"caller": caller, "tool": tool, "allowed": allowed},
             )
@@ -105,6 +106,17 @@ def metrics() -> dict[str, Any]:
         "tool_calls": _METRICS["tool_calls"],
         "latency": latency,
     }
+
+
+def flush() -> None:
+    """Push buffered traces. Worker jobs are short-lived, so an unflushed
+    buffer would be discarded at process exit."""
+    client = _client()
+    if client is not None:
+        try:
+            client.flush()
+        except Exception as exc:  # noqa: BLE001
+            log.debug("langfuse flush failed: %s", exc)
 
 
 def reset() -> None:
