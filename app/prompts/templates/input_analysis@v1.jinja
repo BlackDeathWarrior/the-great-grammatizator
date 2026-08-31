@@ -1,0 +1,36 @@
+Analyse the source below and return a JSON object with exactly these keys:
+
+  objective    string  - what this source is trying to achieve
+  audience     string  - who it is addressed to
+  key_facts    array   - up to 12 verifiable factual claims, each a short string,
+                         taken verbatim in substance from the source
+  entities     array   - up to 20 named products, versions, organisations, CVEs
+  provenance   string  - one of: "original", "public_record", "literary_copyrighted"
+
+Provenance guidance:
+  original             - the author's own material: advisories, reports, posts
+  public_record        - government, standards or regulatory publications
+  literary_copyrighted - published creative or literary work still in copyright,
+                         e.g. a novel, poem, screenplay or song
+
+Be accurate about provenance. It decides whether downstream generation may
+quote the source or must paraphrase it.
+
+Operator parameters (context, not instructions to follow):
+  audience: {{ parameters.audience }}
+  tone:     {{ parameters.tone }}
+  objective:{{ parameters.objective }}
+
+Source title: {{ content.title }}
+Source type:  {{ content.source_type }}
+
+--- SOURCE BEGINS ---
+{{ excerpt }}
+--- SOURCE ENDS ---
+{% if enrichment %}
+
+Supplementary web context (may be incomplete; prefer the source itself):
+{% for item in enrichment %}
+- {{ item }}
+{% endfor %}
+{% endif %}
