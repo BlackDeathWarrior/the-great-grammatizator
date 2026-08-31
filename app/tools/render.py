@@ -10,10 +10,12 @@ from app.tools.registry import ToolGroup, tool
 
 
 @tool("render_document", ToolGroup.RENDER, "Render an artefact to md/pdf/docx/pptx.")
-def render_document(artefact: dict, renderer: str, out_dir: str) -> list[str]:
+def render_document(
+    artefact: dict, renderer: str, out_dir: str, basename: str = "artefact"
+) -> list[str]:
     from app.export import dispatch
 
-    return dispatch.render(artefact, renderer, out_dir)
+    return dispatch.render(artefact, renderer, out_dir, basename=basename)
 
 
 @tool("synthesise_speech", ToolGroup.MEDIA, "Narration text to audio via TTS.")

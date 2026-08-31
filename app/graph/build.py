@@ -106,6 +106,8 @@ async def run_artefact(
             on_attempt(attempt, artefact, qa)
 
         if artefact.qa_result.verdict is not Verdict.RETRY:
+            if artefact.status in (ArtefactStatus.PASSED, ArtefactStatus.PASSED_FLAGGED):
+                artefact.export_paths = _export(spec, artefact, job_id)
             return artefact, message
 
         fix_notes = artefact.qa_result.all_fix_notes()
@@ -170,6 +172,33 @@ async def run_job(
         }
     finally:
         retrieval.unbind_job(job_id)
+
+
+def _export(spec, artefact: Artefact, job_id: str) -> list[str]:
+    """Render a passed artefact to files.
+
+    Export runs through the tool registry so it is subject to the same
+    allowlist as everything else, and so the call shows up in the audit trail.
+    A failure here must not undo a passed artefact - the content is fine, only
+    the file is missing.
+    """
+    import os
+
+    from app.config import get_settings
+    from app.tools.registry import Caller, call
+
+    out_dir = os.path.join(get_settings().storage_dir, job_id, spec.id)
+    try:
+        return call(
+            Caller.EXPORT,
+            "render_document",
+            artefact=artefact.content or {},
+            renderer=spec.renderer,
+            out_dir=out_dir,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("export failed for %s: %s", spec.id, exc)
+        return []
 
 
 def _job_status(artefacts: dict[str, Artefact], operator_message: str) -> JobStatus:
