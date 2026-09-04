@@ -9,7 +9,7 @@ planned but not built, it is in §13 under a heading that says so. Nothing in
 §1–§12 is aspirational — if it is described here, there is code for it and a
 test id beside it.
 
-Supersedes `docs/ARCHITECTURE.md`, which described an intended design. That file
+Supersedes `docs/v1/ARCHITECTURE.md`, which described an intended design. That file
 stays as the record of original intent; code comments cite it by section number.
 Where v1 and reality diverged, §12 says how and why.
 
@@ -479,7 +479,7 @@ Three places, each documented at the code site.
 
 ### 12.1 Image ingestion is OCR only
 
-`docs/ARCHITECTURE.md:45` specifies "vision caption + OCR". A vision caption is
+`docs/v1/ARCHITECTURE.md:45` specifies "vision caption + OCR". A vision caption is
 a model call, and Invariant 1 forbids model calls in the ingestion path. The
 invariant wins: OCR runs at ingest, and richer visual description is deferred to
 the analysis layer, which may call models and can read `media[]` from the frozen

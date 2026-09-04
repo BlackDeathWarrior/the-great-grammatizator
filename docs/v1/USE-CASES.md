@@ -11,7 +11,7 @@
 
 ## Flow
 
-![Use case flow](diagrams/use-case-flow.svg)
+![Use case flow](use-case-flow.svg)
 
 ## Register
 
