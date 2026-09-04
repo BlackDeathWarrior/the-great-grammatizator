@@ -34,7 +34,12 @@ class Settings(BaseSettings):
     qa_max_retries: int = 3  # 3 strikes then stop the job, TC-0607
     parse_max_retries: int = 2  # separate counter, never burns a QA retry, TC-0405
     qa_concurrency: int = 2  # cap so the checkers don't fire at once, TC-0904
-    tone_threshold: float = 0.75
+    tone_threshold: float = 0.80
+    # Below this an artefact reads as unpublishable, whatever tone thinks of
+    # the fit. Tone alone can never block (it is advisory by policy), so a
+    # floor is the only thing stopping a 0.30 artefact shipping flagged.
+    tone_floor: float = 0.55
+    editorial_threshold: float = 0.75
 
     # Timeouts. Without these a hung connection is indistinguishable from slow
     # work, and the only thing that eventually notices is the arq job timeout

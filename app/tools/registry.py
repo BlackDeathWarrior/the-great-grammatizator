@@ -40,6 +40,7 @@ class Caller(StrEnum):
     GROUNDING_CHECKER = "grounding_checker"
     TONE_CHECKER = "tone_checker"
     SAFETY_CHECKER = "safety_checker"
+    EDITORIAL_CHECKER = "editorial_checker"
     EXPORT = "export"
 
 
@@ -51,6 +52,9 @@ ALLOWLIST: dict[Caller, frozenset[ToolGroup]] = {
     Caller.GROUNDING_CHECKER: frozenset({ToolGroup.RETRIEVAL}),
     Caller.TONE_CHECKER: frozenset(),
     Caller.SAFETY_CHECKER: frozenset(),
+    # Judges the artefact as written. It is handed the source-overlap figure
+    # it needs, so it has no reason to reach for anything (TC-1007).
+    Caller.EDITORIAL_CHECKER: frozenset(),
     Caller.EXPORT: frozenset({ToolGroup.RENDER, ToolGroup.MEDIA}),
 }
 

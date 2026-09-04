@@ -6,6 +6,8 @@
   hard checker errored -> block: unverified, never "passed by default"
   safety fail          -> block unconditionally, do not deliver   [TC-0602]
   grounding fail       -> retry with fix notes                    [TC-0603]
+  editorial fail       -> retry with the failing dimension named
+  tone below the floor -> block: too poor to ship even flagged
   tone below threshold -> retry once, then pass with a warning    [TC-0605]
   format fail          -> retry with the violated constraint
   source reuse         -> flag; long verbatim spans block         [TC-0510/0511]
@@ -27,6 +29,12 @@ RESTART_MESSAGE = (
     "Quality checks failed three times for {output_type}. The job has been "
     "stopped. Review the findings below, adjust the parameters or the source, "
     "and start a new job."
+)
+
+TONE_FLOOR_MESSAGE = (
+    "The {output_type} scored {score:.2f} for tone, below the {floor:.2f} floor. "
+    "It has been withheld rather than delivered with a warning. Adjust the "
+    "audience or style and start a new job."
 )
 
 UNVERIFIED_MESSAGE = (
@@ -74,11 +82,25 @@ def decide(qa: QAResult, artefact: Artefact) -> tuple[Verdict, str]:
     hard_failures = [
         r
         for r in qa.results
-        if not r.passed and r.checker in (CheckerName.GROUNDING, CheckerName.FORMAT)
+        if not r.passed
+        and r.checker in (CheckerName.GROUNDING, CheckerName.FORMAT, CheckerName.EDITORIAL)
     ]
 
     tone = qa.by_checker(CheckerName.TONE)
     tone_failed = tone is not None and not tone.passed
+
+    # Tone is advisory: it retries once, then passes flagged, so on its own it
+    # can never stop anything. That leaves nothing between a 0.30 artefact and
+    # the operator, so a floor blocks outright rather than flagging.
+    if tone is not None and tone.score is not None and tone.score < settings.tone_floor:
+        return (
+            Verdict.BLOCK,
+            TONE_FLOOR_MESSAGE.format(
+                output_type=artefact.output_type,
+                score=tone.score,
+                floor=settings.tone_floor,
+            ),
+        )
 
     if not hard_failures and not tone_failed:
         return Verdict.PASS, ""

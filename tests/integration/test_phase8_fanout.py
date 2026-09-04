@@ -160,6 +160,20 @@ def all_pass(monkeypatch):
             return json.dumps({"score": 0.9, "reason": "fits"})
         if "policy concerns" in system:
             return json.dumps({"safe": True, "reason": "clean"})
+        if "demanding editor" in system:
+            return json.dumps(
+                {
+                    "score": 0.85,
+                    "dimensions": {
+                        "specificity": 0.85,
+                        "substance": 0.85,
+                        "originality": 0.85,
+                        "structure": 0.85,
+                    },
+                    "worst": "originality",
+                    "suggestion": "",
+                }
+            )
 
         # Identify the format from its prompt, since the registry drives which
         # template was rendered.

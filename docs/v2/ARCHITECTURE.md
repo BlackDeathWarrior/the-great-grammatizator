@@ -241,6 +241,7 @@ argument does not depend on the transport.
 | `GROUNDING_CHECKER` | retrieval — **never** web_search |
 | `TONE_CHECKER` | (none) |
 | `SAFETY_CHECKER` | (none) |
+| `EDITORIAL_CHECKER` | (none) |
 | `EXPORT` | render, media |
 
 **The grounding restriction is the load-bearing one** (Invariant 6, TC-1001).
