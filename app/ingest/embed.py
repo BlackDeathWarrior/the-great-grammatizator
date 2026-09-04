@@ -39,6 +39,10 @@ def ensure_collection() -> None:
         log.info("created qdrant collection %s", s.qdrant_collection)
 
 
+# The provider caps inputs per request; a 500-page PDF exceeds it comfortably.
+_EMBED_BATCH = 96
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
     """Embed via the provider SDK directly.
 
@@ -56,9 +60,16 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
     from openai import OpenAI
 
-    client = OpenAI(api_key=s.embedding_api_key)
-    resp = client.embeddings.create(model=s.embedding_model, input=texts)
-    return [d.embedding for d in resp.data]
+    # Batched: a long source sends every chunk in one request otherwise, and
+    # the provider rejects the whole batch over its input limit - losing an
+    # extraction that had already succeeded.
+    client = OpenAI(api_key=s.embedding_api_key, timeout=s.embedding_timeout)
+    vectors: list[list[float]] = []
+    for start in range(0, len(texts), _EMBED_BATCH):
+        batch = texts[start : start + _EMBED_BATCH]
+        resp = client.embeddings.create(model=s.embedding_model, input=batch)
+        vectors.extend(d.embedding for d in resp.data)
+    return vectors
 
 
 def _offline_vector(text: str, dim: int) -> list[float]:
