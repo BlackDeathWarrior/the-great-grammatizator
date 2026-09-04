@@ -233,7 +233,9 @@ async def test_one_generator_failing_does_not_stop_the_others(monkeypatch, all_p
     result = await build.run_job("j_partial", CONTENT, Parameters(), ALL_SEVEN, analysis=ANALYSIS)
 
     assert result["artefacts"]["advisory"].status is ArtefactStatus.FAILED
-    assert result["artefacts"]["advisory"].provider_error_count == 1
+    # A permanently-down provider is retried with backoff before giving up, so
+    # the count is one per attempt rather than one per artefact.
+    assert result["artefacts"]["advisory"].provider_error_count == build._PROVIDER_ATTEMPTS
     # TC-0609: a provider error never touches the QA budget.
     assert result["artefacts"]["advisory"].retry_count == 0
 

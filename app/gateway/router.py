@@ -214,6 +214,10 @@ async def complete(
         "model": alias,
         "messages": messages,
         "temperature": temperature,
+        # Without this a hung connection stalls the artefact until arq's job
+        # timeout 900s later. preflight() always passed one; the real call
+        # path did not.
+        "timeout": get_settings().request_timeout,
     }
     if response_format is not None:
         kwargs["response_format"] = response_format

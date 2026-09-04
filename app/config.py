@@ -33,8 +33,16 @@ class Settings(BaseSettings):
     video_max_seconds: int = 600  # 10 min hard gate, TC-0107/TC-0108
     qa_max_retries: int = 3  # 3 strikes then stop the job, TC-0607
     parse_max_retries: int = 2  # separate counter, never burns a QA retry, TC-0405
-    qa_concurrency: int = 2  # cap so 4 checkers don't fire at once, TC-0904
+    qa_concurrency: int = 2  # cap so the checkers don't fire at once, TC-0904
     tone_threshold: float = 0.75
+
+    # Timeouts. Without these a hung connection is indistinguishable from slow
+    # work, and the only thing that eventually notices is the arq job timeout
+    # 900s later - by which point the operator has watched a job sit at
+    # "running" for fifteen minutes with no way to tell why.
+    request_timeout: int = 60  # one model call
+    embedding_timeout: int = 30  # one embeddings batch
+    fanout_concurrency: int = 3  # generators in flight at once, TC-0904
 
     storage_dir: str = "/data/storage"
 

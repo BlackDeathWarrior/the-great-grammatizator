@@ -36,6 +36,42 @@ from app.graph.state import (
 
 log = logging.getLogger(__name__)
 
+# A provider error is infrastructure, so it must not spend the QA budget
+# (Invariant 8). But returning immediately meant one transient 429 - outliving
+# LiteLLM's own internal retries - permanently killed one format of seven for
+# the whole job. Retry it here, bounded, on its own counter.
+_PROVIDER_ATTEMPTS = 3
+_PROVIDER_BACKOFF_SECONDS = 2.0
+
+
+async def _with_provider_retry(coro_fn, *, what: str, artefact: Artefact):
+    """Run coro_fn, retrying provider failures with exponential backoff.
+
+    Raises the final ProviderError if every attempt fails. Every failure bumps
+    the artefact's provider_error_count, which is diagnostic and gates nothing.
+    """
+    last: router.ProviderError | None = None
+    for attempt in range(_PROVIDER_ATTEMPTS):
+        try:
+            return await coro_fn()
+        except router.ProviderError as exc:
+            last = exc
+            artefact.provider_error_count += 1
+            if attempt == _PROVIDER_ATTEMPTS - 1:
+                break
+            delay = _PROVIDER_BACKOFF_SECONDS * (2**attempt)
+            log.warning(
+                "%s: provider error on %s (attempt %d/%d), retrying in %.0fs: %s",
+                artefact.output_type,
+                what,
+                attempt + 1,
+                _PROVIDER_ATTEMPTS,
+                delay,
+                exc,
+            )
+            await asyncio.sleep(delay)
+    raise last  # type: ignore[misc]
+
 
 async def run_artefact(
     format_id: str,
@@ -64,13 +100,20 @@ async def run_artefact(
     # Bounded by the QA budget: at most one initial attempt plus qa_max_retries.
     for attempt in range(settings.qa_max_retries + 1):
         try:
-            generated = await generator.generate(
-                spec,
-                content,
-                analysis,
-                parameters,
-                fix_notes=fix_notes,
-                attempt=attempt,
+            # Loop variables bound as defaults: a bare closure would read
+            # whatever fix_notes/attempt held when the retry finally ran, not
+            # when it was scheduled (ruff B023).
+            generated = await _with_provider_retry(
+                lambda _notes=fix_notes, _n=attempt: generator.generate(
+                    spec,
+                    content,
+                    analysis,
+                    parameters,
+                    fix_notes=_notes,
+                    attempt=_n,
+                ),
+                what="generation",
+                artefact=artefact,
             )
         except ParseFailure as exc:
             # The model never spoke the protocol. Separate counter; the QA
@@ -81,12 +124,12 @@ async def run_artefact(
             log.warning("%s: parse failure, QA counter unchanged: %s", format_id, exc)
             return artefact, ""
         except router.ProviderError as exc:
-            # Infrastructure. Diagnostic only - never counts against quality
-            # (Invariant 8, TC-0609).
-            artefact.provider_error_count += 1
+            # Every retry is spent. Infrastructure, so still diagnostic only and
+            # never counted against quality (Invariant 8, TC-0609); the count
+            # was already incremented per failed attempt.
             artefact.status = ArtefactStatus.FAILED
-            artefact.error = f"provider error: {exc}"
-            log.warning("%s: provider error: %s", format_id, exc)
+            artefact.error = f"provider error after {_PROVIDER_ATTEMPTS} attempts: {exc}"
+            log.warning("%s: provider error, retries exhausted: %s", format_id, exc)
             return artefact, ""
 
         # Carry the counters forward; generate() returns a fresh artefact.
@@ -98,11 +141,16 @@ async def run_artefact(
         artefact = generated
 
         try:
-            qa = await runner.run(spec, artefact, content, parameters, analysis, job_id=job_id)
+            qa = await _with_provider_retry(
+                lambda _a=artefact: runner.run(
+                    spec, _a, content, parameters, analysis, job_id=job_id
+                ),
+                what="QA",
+                artefact=artefact,
+            )
         except router.ProviderError as exc:
-            artefact.provider_error_count += 1
             artefact.status = ArtefactStatus.FAILED
-            artefact.error = f"provider error during QA: {exc}"
+            artefact.error = f"provider error during QA after {_PROVIDER_ATTEMPTS} attempts: {exc}"
             return artefact, ""
 
         artefact, message = verdict_policy.apply(qa, artefact)
