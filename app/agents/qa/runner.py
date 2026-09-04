@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 
 # Checkers whose verdict is load-bearing. If one of these cannot run, the
 # artefact is unverified and must not be delivered as though it passed.
-_FAIL_CLOSED = frozenset({CheckerName.GROUNDING, CheckerName.SAFETY})
+_FAIL_CLOSED = frozenset({CheckerName.GROUNDING, CheckerName.SAFETY, CheckerName.EDITORIAL})
 
 
 async def run(
@@ -43,7 +43,7 @@ async def run(
     job_id: str = "",
 ) -> QAResult:
     """Run every applicable checker and collect their verdicts."""
-    from app.agents.qa import format_check, grounding, reuse, safety, tone
+    from app.agents.qa import editorial, format_check, grounding, reuse, safety, tone
 
     # Deterministic checkers: no model call, no reason to gate them behind the
     # semaphore (TC-0503).
@@ -90,6 +90,7 @@ async def run(
         guarded(lambda: grounding.check(artefact, content, job_id=job_id), CheckerName.GROUNDING),
         guarded(lambda: tone.check(artefact, parameters), CheckerName.TONE),
         guarded(lambda: safety.check(artefact), CheckerName.SAFETY),
+        guarded(lambda: editorial.check(artefact, content, parameters), CheckerName.EDITORIAL),
     )
     results.extend(llm_results)
 

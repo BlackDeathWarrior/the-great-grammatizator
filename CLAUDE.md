@@ -8,9 +8,14 @@ Implemented and running. All 11 architecture layers are built; **180 tests pass,
 3 skip (98 P0)** against the live compose stack. Provider keys are configured and
 jobs generate real artefacts end to end.
 
-Measured, not estimated: 67s and 93s for the two-format golden path, 123s for all
-seven formats, 53 model calls (TC-1203/1204). The one non-functional target still
-missed is **TC-1202** - a single artefact takes ~30-45s against a 20s goal.
+Measured, not estimated. Before the editorial checker: 67s and 93s for the
+two-format golden path, 123s for seven formats, 53 model calls (TC-1203/1204).
+
+**TC-1202 is missed, and by more than it was.** A single artefact now takes
+~80s against a 20s target: five checkers instead of four, and quality failures
+that genuinely retry rather than passing flagged. The retries are the point -
+the output is measurably better - but the cost is real and unhidden. Caching QA
+checker responses is the next lever; only generation is cached today.
 
 Known gaps, stated not hidden. `EMBEDDING_API_KEY` is unset, so `embed_texts`
 falls back to deterministic hash-derived vectors: retrieval works but **cannot
@@ -63,10 +68,14 @@ Layers, each knowing only the one below:
    run once per job, cached on the job row, shared by every generator. Classifies source
    provenance here. Web enrichment is allowlisted but the provider is a stub.
 7. **Output subagents** — one per selected format, driven by the output registry.
-8. **QA subagents** — five independent checkers per artefact, capped at
-   `qa_concurrency`: grounding, format, tone, safety, and source-reuse (the last only for
-   copyrighted provenance). Format and source-reuse are deterministic and provably make
-   zero model calls; safety is a deterministic PII pass *then* an LLM policy call.
+8. **QA subagents** — six independent checkers per artefact, capped at
+   `qa_concurrency`: grounding, format, tone, safety, editorial, and source-reuse (the
+   last only for copyrighted provenance). Format and source-reuse are deterministic and
+   provably make zero model calls; safety is a deterministic PII pass *then* an LLM
+   policy call; editorial measures verbatim source overlap deterministically and feeds
+   that figure to its model call. Grounding, safety and editorial fail **closed**: a
+   checker that could not run withholds the artefact as unverified rather than passing
+   it.
 9. **Export** — structured JSON → files. Video = TTS + SRT + title cards + ffmpeg.
 10. **Langfuse** — traces, versioned prompts, eval runs.
 11. **Docker Compose** — five services: qdrant `:6333`, postgres `:5432`, redis `:6379`,

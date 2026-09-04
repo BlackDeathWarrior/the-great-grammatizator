@@ -1,0 +1,48 @@
+Judge the artefact below as an editor would.
+
+Return:
+{"score": <0.0-1.0>,
+ "dimensions": {"specificity": <0.0-1.0>, "substance": <0.0-1.0>,
+                "originality": <0.0-1.0>, "structure": <0.0-1.0>},
+ "worst": "<the single weakest dimension>",
+ "suggestion": "<one specific, actionable change>"}
+
+Score each dimension:
+
+specificity - Does it use the concrete detail available in the source, or
+  retreat to generalities? "A serious vulnerability" when the source says
+  "9.1 out of 10" is a fail. Named versions, dates, figures and actions beat
+  abstractions.
+
+substance - Does every sentence carry information? Filler, restated headings,
+  and sentences that could precede any article at all are failures. Would a
+  reader learn something they could act on?
+
+originality - Is this transformed, or transcribed? Passages lifted from the
+  source with light trimming are a fail even when accurate: the operator asked
+  for a {{ parameters.detail }} piece for {{ parameters.audience }}, not a copy
+  of the source. Also fail the stock machine openers - "In today's rapidly
+  evolving landscape", "It's important to note", "Let's dive in", "In an era
+  where" - and reflexive three-item lists.
+
+structure - Does the opening earn the next sentence? Does the closing ask for
+  something real? Are lists parallel and ordered by importance? A hook that
+  merely restates the title is a fail.
+
+The requested brief, which is what "good" means here:
+  audience: {{ parameters.audience }}
+  tone:     {{ parameters.tone }}
+  style:    {{ parameters.style }}
+  detail:   {{ parameters.detail }}
+
+{% if longest_reuse and longest_reuse >= 12 %}
+Measured, not guessed: the longest run of words copied verbatim from the source
+is {{ longest_reuse }} words. Weigh that in originality.
+{% endif %}
+
+The suggestion must name what to change and how. "Make it more engaging" is
+useless. "Replace the opening with the 12 August exploitation date - the fact
+that makes this urgent" is actionable.
+
+--- ARTEFACT ---
+{{ artefact }}

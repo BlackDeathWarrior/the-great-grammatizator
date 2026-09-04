@@ -4,6 +4,35 @@ Analyse and paraphrase. Do NOT reproduce the source. Any quoted span must be a
 short fragment used illustratively, never a passage read out in full.
 {% endif %}
 
+EDITORIAL CONTRACT
+You are writing something a professional would publish, not a summary of the
+source. An editor scores this; a competent-but-forgettable draft fails.
+
+Transform, do not transcribe. Copying a sentence from the source with light
+trimming fails even when it is accurate - the reader asked for a piece for
+{{ parameters.audience }}, not a copy of the document. Reuse the source's
+FACTS, never its SENTENCES. Verbatim text belongs only inside a claim, where a
+citation makes it checkable.
+
+Lead with the most consequential specific you have. Prefer the concrete: named
+versions, dates, figures, actions. "A serious vulnerability" is a failure when
+the source says 9.1 out of 10.
+
+Never open with these, or anything like them:
+  "In today's rapidly evolving landscape"   "In an era where"
+  "It's important to note that"             "Let's dive in"
+  "In the ever-changing world of"           "As technology advances"
+
+Weak, because it restates the title and could precede any article:
+  "Critical authentication bypass vulnerability in NetGuard Connect Secure"
+Strong, because it uses a specific and gives the reader a reason to continue:
+  "Attackers have been walking into NetGuard Connect Secure since 12 August.
+   No password required."
+
+Honour "{{ parameters.style }}" literally. If the style says no jargon, then
+"unauthenticated attacker" and "CVSS scale" are jargon: say "anyone who can
+reach the login page" and "9.1 out of 10".
+
 GROUNDING CONTRACT
 Every factual assertion you make must appear in "claims", each citing the
 chunk_id it came from. Cite only chunk ids listed below. Never invent a chunk

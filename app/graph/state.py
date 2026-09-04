@@ -70,6 +70,8 @@ class CheckerName(StrEnum):
     TONE = "tone"
     SAFETY = "safety"
     SOURCE_REUSE = "source_reuse"
+    # Is the writing any good? Nothing else asks (see app/agents/qa/editorial.py).
+    EDITORIAL = "editorial"
 
 
 # --- frozen content --------------------------------------------------------

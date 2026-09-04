@@ -146,6 +146,23 @@ def example_a_provider(monkeypatch):
         if "policy concerns" in system:
             return json.dumps({"safe": True, "reason": "no exploit detail"})
 
+        if "demanding editor" in system:
+            # Example A is about the TONE arc, so editorial passes throughout
+            # and leaves the scripted 0.61 -> 0.84 the only moving part.
+            return json.dumps(
+                {
+                    "score": 0.85,
+                    "dimensions": {
+                        "specificity": 0.9,
+                        "substance": 0.85,
+                        "originality": 0.8,
+                        "structure": 0.85,
+                    },
+                    "worst": "originality",
+                    "suggestion": "",
+                }
+            )
+
         # --- generation ---
         if "Executive briefing" in prompt or "executive briefing" in prompt:
             return json.dumps(EXEC_SUMMARY)
