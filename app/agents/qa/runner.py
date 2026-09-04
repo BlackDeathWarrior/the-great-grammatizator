@@ -14,8 +14,10 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from pydantic import ValidationError
+
 from app.formats.registry import FormatSpec
-from app.gateway import router
+from app.gateway import cache, router
 from app.graph.state import (
     AnalysisResult,
     Artefact,
@@ -55,10 +57,25 @@ async def run(
 
     sem = router.qa_semaphore()
 
-    async def guarded(coro_fn, name: CheckerName):
+    async def guarded(coro_fn, name: CheckerName, cache_extra: str = ""):
+        # A checker is a pure function of the artefact it is shown, so the same
+        # content judged twice is a bought answer. That happens constantly on a
+        # retry: one field changes and all four checkers rerun from scratch.
+        # Not keyed on job_id or attempt - two jobs producing identical content
+        # should share a verdict, as TC-0205 requires of generation.
+        key = cache.checker_key(str(name), artefact.content, cache_extra)
+        hit = cache.get(key)
+        if hit is not None:
+            try:
+                return CheckerResult.model_validate_json(hit)
+            except ValidationError:
+                log.warning("discarding malformed cached verdict for %s", name)
+
         async with sem:
             try:
-                return await coro_fn()
+                result = await coro_fn()
+                cache.put(key, result.model_dump_json())
+                return result
             except router.ProviderError:
                 # Infrastructure, not quality. Surface it so the caller can
                 # retry with backoff without touching the QA counter (TC-0609).
@@ -79,6 +96,8 @@ async def run(
                     "failing closed" if fails_closed else "advisory, passing",
                     exc,
                 )
+                # Never cached: a checker error is a fact about this moment,
+                # not about the artefact.
                 return CheckerResult(
                     checker=name,
                     passed=not fails_closed,
@@ -87,10 +106,27 @@ async def run(
                 )
 
     llm_results = await asyncio.gather(
-        guarded(lambda: grounding.check(artefact, content, job_id=job_id), CheckerName.GROUNDING),
-        guarded(lambda: tone.check(artefact, parameters), CheckerName.TONE),
+        # Grounding verifies claims AGAINST THE SOURCE, so the source is part
+        # of what identifies the verdict: the same claim text can be supported
+        # by one document and unsupported by another.
+        guarded(
+            lambda: grounding.check(artefact, content, job_id=job_id),
+            CheckerName.GROUNDING,
+            content.source_hash,
+        ),
+        # Tone and editorial judge against the operator's brief, so the brief
+        # is part of what identifies the verdict.
+        guarded(
+            lambda: tone.check(artefact, parameters),
+            CheckerName.TONE,
+            parameters.cache_fragment(),
+        ),
         guarded(lambda: safety.check(artefact), CheckerName.SAFETY),
-        guarded(lambda: editorial.check(artefact, content, parameters), CheckerName.EDITORIAL),
+        guarded(
+            lambda: editorial.check(artefact, content, parameters),
+            CheckerName.EDITORIAL,
+            parameters.cache_fragment() + "|" + content.source_hash,
+        ),
     )
     results.extend(llm_results)
 

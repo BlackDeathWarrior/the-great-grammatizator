@@ -51,6 +51,29 @@ def cache_key(
     return _PREFIX + hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def checker_key(checker: str, artefact_content: Any, extra: str = "") -> str:
+    """Key for a QA verdict.
+
+    A checker is a pure function of the artefact it is shown: the same content
+    judged by the same checker yields the same verdict, so re-asking costs
+    tokens and latency for an answer already known. This matters most on a
+    retry, where the artefact usually changes in one place and the checkers all
+    run again from scratch.
+
+    Deliberately NOT keyed on job_id or attempt: two jobs that generate
+    identical content should share a verdict, exactly as TC-0205 requires of
+    generation. `extra` carries anything outside the content that changes the
+    judgement - a threshold, the operator's parameters for tone.
+    """
+    payload = json.dumps(
+        {"checker": checker, "content": artefact_content, "extra": extra},
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return _PREFIX + "qa:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def _redis():
     import redis
 

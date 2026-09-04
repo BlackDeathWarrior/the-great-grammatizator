@@ -35,6 +35,20 @@ from app.graph.state import (
 ANALYSIS = AnalysisResult(objective="inform", audience="general public")
 
 
+@pytest.fixture(autouse=True)
+def _no_qa_cache(monkeypatch):
+    """These tests inject checker failures, so a cached verdict would mask them.
+
+    The cache is keyed on artefact content, and every test here uses the same
+    artefact - which is exactly the sharing the cache exists to do, and exactly
+    what must not happen while asserting how a crash is handled.
+    """
+    from app.gateway import cache
+
+    monkeypatch.setattr(cache, "get", lambda _key: None)
+    monkeypatch.setattr(cache, "put", lambda _key, _value, **_kw: None)
+
+
 def _content() -> ContentObject:
     return ContentObject(
         source_id="s_1",
