@@ -351,3 +351,53 @@ def test_the_tone_cache_key_includes_the_brief():
     b = cache.checker_key("tone", body, Parameters(audience="executives").cache_fragment())
 
     assert a != b
+
+
+# === the checker must be able to finish its own sentence ====================
+
+
+@pytest.mark.p0
+def test_the_editorial_call_reserves_room_for_its_reply():
+    """It asks for a nested object where the other checkers want a flat one.
+
+    On the provider default the reply was truncated mid-key, failed to parse,
+    and - because this checker fails closed - the artefact was withheld as
+    "unverified" for what was really a token limit. Every artefact in a live
+    job hit this.
+    """
+    import inspect
+
+    source = inspect.getsource(editorial.check)
+
+    assert "max_tokens" in source, "no token budget: the reply can be truncated"
+
+
+@pytest.mark.p1
+def test_the_scoring_scale_is_anchored():
+    """An unanchored "be hard to please" produced 0.15 for a fair draft.
+
+    The checker ranks reliably; its absolute numbers only mean something if
+    the bands are spelled out.
+    """
+    import pathlib
+
+    system = (
+        pathlib.Path(editorial.__file__).parents[2]
+        / "prompts"
+        / "templates"
+        / "editorial@v1.system.txt"
+    ).read_text(encoding="utf-8")
+
+    assert "THIS IS A PASS" in system, "no band is marked as passing"
+    assert "0.9-1.0" in system and "Below 0.3" in system
+
+
+@pytest.mark.p0
+def test_the_threshold_sits_below_the_measured_noise_band():
+    """Measured spread on identical input is ~0.10 (0.32-0.42 over five runs).
+
+    A threshold inside that band makes the same draft pass or fail at random,
+    which is worse than no gate: it teaches the operator that the checker is
+    arbitrary.
+    """
+    assert get_settings().editorial_threshold <= 0.30

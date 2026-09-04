@@ -1,6 +1,10 @@
 Write a tweet or short thread about the source below.
 
 Keys: tweets (array of strings, max {{ constraints.tweets_max }}), hashtags, claims.
+
+Every hashtag MUST begin with "#". Write ["#CyberSecurity", "#PatchNow"], not
+["CyberSecurity", "PatchNow"] - one without the hash is rejected before the
+content is ever read, and the whole draft is thrown away.
 EVERY tweet must be at most {{ constraints.max_chars_per_tweet }} characters,
 counted strictly. A single tweet is fine if the material fits.
 

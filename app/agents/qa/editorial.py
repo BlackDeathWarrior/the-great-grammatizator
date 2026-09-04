@@ -97,6 +97,11 @@ async def check(
         ],
         response_format={"type": "json_object"},
         temperature=0.0,
+        # This checker asks for a nested object - four sub-scores plus a
+        # suggestion - where the others want a flat one. On the default budget
+        # the reply was truncated mid-key, failed to parse, and the artefact
+        # was withheld as unverified for what was really a token limit.
+        max_tokens=400,
     )
 
     data = _parse(raw)

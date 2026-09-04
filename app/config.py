@@ -39,7 +39,23 @@ class Settings(BaseSettings):
     # the fit. Tone alone can never block (it is advisory by policy), so a
     # floor is the only thing stopping a 0.30 artefact shipping flagged.
     tone_floor: float = 0.55
-    editorial_threshold: float = 0.75
+    # Calibrated against this model, not chosen a priori. Scored against
+    # known-quality drafts on the free tier, the editorial checker RANKS
+    # reliably (good 0.45 > mediocre 0.25 > filler 0.05) but its absolute
+    # scale sits far below where the wording implies. At 0.75 it blocked
+    # everything including drafts a professional would ship, which teaches the
+    # operator nothing and wastes three retries proving it.
+    #
+    # Measured spread on IDENTICAL input is ~0.10 (0.32-0.42 over five runs),
+    # so a threshold must sit below that band rather than inside it, or the
+    # same draft passes or fails at random. 0.30 clears every good draft
+    # measured and still blocks filler, which scored 0.05.
+    #
+    # This gates the FLOOR. Quality above it is carried by the fix notes and
+    # by the variant comparison, which rank reliably even where the absolute
+    # numbers do not. Raise it when a stronger model is configured - and
+    # re-measure rather than guessing.
+    editorial_threshold: float = 0.30
 
     # Timeouts. Without these a hung connection is indistinguishable from slow
     # work, and the only thing that eventually notices is the arq job timeout
