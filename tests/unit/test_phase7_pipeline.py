@@ -360,7 +360,7 @@ async def test_malformed_json_is_a_parse_retry_not_a_qa_retry(monkeypatch):
 
 @pytest.mark.p0
 async def test_schema_violation_is_a_parse_failure(monkeypatch):
-    """A missing required key is the wrong SHAPE - content was never assessable."""
+    """A missing required key is the wrong SHAPE - content was never assessable. (TC-0406)"""
 
     async def incomplete(alias, messages, **kwargs):
         return json.dumps({"hook": "only a hook"})
@@ -375,7 +375,7 @@ async def test_schema_violation_is_a_parse_failure(monkeypatch):
 
 @pytest.mark.p0
 async def test_generation_uses_the_registry_alias(monkeypatch):
-    """TC-0303, Invariant 5: the registry decides the alias, not the agent."""
+    """TC-0303, Invariant 5: the registry decides the alias, not the agent. (TC-0903)"""
     seen = []
 
     advisory_body = {

@@ -140,7 +140,7 @@ def test_cross_job_retrieval_returns_nothing():
 
 @pytest.mark.p1
 def test_allowlist_matches_the_architecture_table():
-    """ARCHITECTURE.md sec.5 states this table; the code must not drift from it."""
+    """ARCHITECTURE.md sec.5 states this table; the code must not drift from it. (TC-1006)"""
     assert ALLOWLIST[Caller.INPUT_ANALYSIS] == frozenset(
         {ToolGroup.RETRIEVAL, ToolGroup.WEB_SEARCH}
     )
@@ -157,7 +157,7 @@ def test_unknown_tool_is_denied_not_crashed():
 
 @pytest.mark.p1
 def test_deterministic_checkers_get_no_tools():
-    """Tone and safety judge the artefact text itself; they need nothing."""
+    """Tone and safety judge the artefact text itself; they need nothing. (TC-1007)"""
     assert available(Caller.TONE_CHECKER) == []
     assert available(Caller.SAFETY_CHECKER) == []
 

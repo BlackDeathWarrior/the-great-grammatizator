@@ -189,7 +189,7 @@ def test_srt_cue_count_matches_scene_count(tmp_path):
 
 @pytest.mark.p1
 def test_video_package_always_writes_package_and_subtitles(tmp_path):
-    """The text package is the deliverable; media is a bonus on top."""
+    """The text package is the deliverable; media is a bonus on top. (TC-0709)"""
     paths = video.render_package(VIDEO_PACKAGE, str(tmp_path), "vid")
 
     assert any(p.endswith("vid.json") for p in paths)
@@ -202,7 +202,7 @@ def test_video_package_always_writes_package_and_subtitles(tmp_path):
 
 @pytest.mark.p1
 def test_video_duration_matches_the_declared_scene_durations(tmp_path):
-    """TC-0703/0704: the mp4 runs as long as duration_sec says.
+    """TC-0703/0704: the mp4 runs as long as duration_sec says. (TC-0704, TC-0707)
 
     Regression: the first implementation used ffmpeg -shortest, so each scene
     lasted as long as its TTS narration instead of its declared duration. The
@@ -248,7 +248,7 @@ def test_title_cards_are_drawn_locally(tmp_path):
 
 @pytest.mark.p0
 def test_every_registered_renderer_is_implemented():
-    """A registry entry naming an unimplemented renderer would fail at export.
+    """A registry entry naming an unimplemented renderer would fail at export. (TC-0307)
 
     Checked here rather than at render time so the gap surfaces in CI, not
     mid-demo.

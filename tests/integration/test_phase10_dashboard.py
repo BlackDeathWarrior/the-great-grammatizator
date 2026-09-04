@@ -87,7 +87,7 @@ def test_unknown_source_is_rejected(client):
 
 @pytest.mark.p0
 def test_status_reports_partial_progress_honestly(client, source_id):
-    """TC-0803: "0 of 7 done", never "complete" while work remains."""
+    """TC-0803: "0 of 7 done", never "complete" while work remains. (TC-0802)"""
     formats = registry.ids()
     job_id = client.post("/jobs", json={"source_ids": [source_id], "formats": formats}).json()[
         "job_id"
@@ -210,7 +210,7 @@ def test_operator_message_is_surfaced_not_a_stack_trace(client, source_id):
     ["../../../../etc/passwd", "..%2f..%2f..%2fetc%2fpasswd", "....//....//etc/passwd"],
 )
 def test_download_refuses_path_traversal(client, attack):
-    """The download path is built from URL segments, so it must be contained.
+    """The download path is built from URL segments, so it must be contained. (TC-0708)
 
     Not in the TC register - found while writing the endpoint. An operator-facing
     download route that accepts arbitrary paths would serve any file in the

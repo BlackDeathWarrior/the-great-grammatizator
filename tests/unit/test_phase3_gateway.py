@@ -71,7 +71,7 @@ def test_no_provider_named_outside_the_router():
 @pytest.mark.p0
 @repo_only
 def test_provider_settings_are_read_only_by_the_gateway():
-    """Invariant 5, the part that has teeth.
+    """Invariant 5, the part that has teeth. (TC-0907)
 
     config.py must spell the provider key names; that is unavoidable. What
     matters is that only the gateway reads them - a module that reads
@@ -176,6 +176,7 @@ def test_prompt_version_participates_in_the_key():
 
 @pytest.mark.p1
 def test_pii_is_detected_and_redacted():
+    """TC-0507: an artefact containing personal data is caught."""
     text = "Contact alice@example.com or call about SSN 123-45-6789."
     kinds = guardrails.find_pii(text)
     assert "email" in kinds
@@ -211,3 +212,52 @@ def test_qa_semaphore_matches_configured_concurrency():
     sem = router.qa_semaphore()
     assert sem._value == get_settings().qa_concurrency
     router.reset()
+
+
+# --- preflight --------------------------------------------------------------
+
+
+@pytest.mark.p0
+async def test_preflight_reports_a_dead_model_id(monkeypatch):
+    """TC-0908: every configured model id must answer a trivial completion.
+
+    Every id inherited from the original architecture was dead on the first
+    live run. This turns that from a job dying mid-demo into a startup warning
+    naming the id.
+    """
+    import litellm
+
+    class _Entry(dict):
+        pass
+
+    class _FakeRouter:
+        model_list = [
+            {"model_name": "fast", "litellm_params": {"model": "vendor/alive", "api_key": "k"}},
+            {"model_name": "long", "litellm_params": {"model": "vendor/dead", "api_key": "k"}},
+        ]
+
+    async def fake_completion(model, **kwargs):
+        if "dead" in model:
+            raise RuntimeError("model_not_found: does not exist")
+        return object()
+
+    monkeypatch.setattr(router, "get_router", lambda: _FakeRouter())
+    monkeypatch.setattr(litellm, "acompletion", fake_completion)
+
+    rows = await router.preflight()
+
+    assert len(rows) == 2
+    alive = next(r for r in rows if r["model"] == "vendor/alive")
+    dead = next(r for r in rows if r["model"] == "vendor/dead")
+    assert alive["ok"] is True
+    assert dead["ok"] is False
+    assert "does not exist" in dead["error"]
+
+
+@pytest.mark.p1
+async def test_preflight_without_a_provider_reports_it(monkeypatch):
+    """No configured provider is itself the thing worth warning about."""
+    monkeypatch.setattr(router, "get_router", lambda: None)
+    rows = await router.preflight()
+    assert rows and rows[0]["ok"] is False
+    assert "no provider" in rows[0]["error"]

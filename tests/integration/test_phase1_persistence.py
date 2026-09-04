@@ -120,7 +120,7 @@ def test_one_source_many_jobs(session):
 
 @pytest.mark.p1
 def test_qa_results_are_kept_per_attempt(session):
-    """Worked Example A shows tone 0.61 -> 0.84 across a retry.
+    """Worked Example A shows tone 0.61 -> 0.84 across a retry. (TC-0810)
 
     Overwriting the row would lose the evidence the dashboard and eval runs need.
     """
@@ -145,7 +145,7 @@ def test_qa_results_are_kept_per_attempt(session):
 
 @pytest.mark.p1
 def test_one_artefact_per_format_per_job(session):
-    """UC-03: one artefact record is created per selected format."""
+    """UC-03: one artefact record is created per selected format. (TC-0809)"""
     src = _source(session)
     job = Job(formats=["linkedin_post"])
     job.sources.append(JobSource(source_id=src.id))

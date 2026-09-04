@@ -270,6 +270,7 @@ async def test_example_a_retry_is_isolated_to_one_artefact(example_a_provider):
 
 @pytest.mark.p1
 async def test_example_a_exec_summary_passes_clean(example_a_provider):
+    """TC-0401."""
     artefact, _ = await build.run_artefact(
         "exec_summary", CONTENT, ANALYSIS, PARAMETERS, job_id="j_exec"
     )
