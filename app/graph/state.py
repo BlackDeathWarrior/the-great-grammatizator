@@ -9,7 +9,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Any, TypedDict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # --- enums -----------------------------------------------------------------
 
@@ -150,8 +150,21 @@ class AnalysisResult(BaseModel):
 # --- generation parameters -------------------------------------------------
 
 
+# A parameter describes an audience or an intent; it is not a document. The
+# cap is generous enough for "second-year CS students who have not seen memory
+# safety before" and small enough that no parameter can carry a prompt.
+MAX_PARAMETER_CHARS = 200
+
+
 class Parameters(BaseModel):
-    """Closed vocabularies with defaults, never free text (UC-02, TC-0201/0202).
+    """The generation brief: who it is for, how it should read (UC-02).
+
+    Validated for SHAPE, not membership of a fixed list. The dashboard offers
+    closed vocabularies because a dropdown gives the tone checker something
+    concrete to compare against (TC-0202), but POST /jobs used to accept any
+    string at all - the docs call this "a real hole" (TC-0206). A value that is
+    blank, or long enough to be a smuggled instruction, is refused everywhere:
+    on the API, in the dashboard form, and from the interview.
 
     Part of the cache key: changing tone must produce a fresh generation
     (TC-0204).
@@ -163,6 +176,22 @@ class Parameters(BaseModel):
     detail: str = "brief"
     objective: str = "inform"
     style: str = "plain"
+
+    @field_validator("audience", "tone", "language", "detail", "objective", "style")
+    @classmethod
+    def _usable(cls, v: str, info) -> str:
+        v = (v or "").strip()
+        if not v:
+            raise ValueError(f"{info.field_name} cannot be blank")
+        if len(v) > MAX_PARAMETER_CHARS:
+            raise ValueError(
+                f"{info.field_name} is {len(v)} characters; keep it under "
+                f"{MAX_PARAMETER_CHARS}. Parameters describe an audience or an "
+                "intent, not a document."
+            )
+        if "\n" in v:
+            raise ValueError(f"{info.field_name} must be a single line")
+        return v
 
     def cache_fragment(self) -> str:
         return "|".join(f"{k}={v}" for k, v in sorted(self.model_dump().items()))

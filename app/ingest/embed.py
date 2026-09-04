@@ -55,7 +55,15 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         return []
 
     if not s.embedding_api_key:
-        log.warning("no embedding key set; using deterministic offline vectors")
+        # Loud, not just logged. "If a component is allowed to fail silently,
+        # something must periodically assert it is actually working" - and a
+        # log line nobody reads is how retrieval came to look healthy while
+        # ranking nothing (docs/v2/ARCHITECTURE.md §13.2, POC.md §5).
+        _mark_degraded()
+        log.warning(
+            "EMBEDDING_API_KEY is not set: using deterministic hash vectors. "
+            "Retrieval will return chunks but CANNOT rank them by meaning."
+        )
         return [_offline_vector(t, s.embedding_dim) for t in texts]
 
     from openai import OpenAI
@@ -70,6 +78,30 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         resp = client.embeddings.create(model=s.embedding_model, input=batch)
         vectors.extend(d.embedding for d in resp.data)
     return vectors
+
+
+# Set the first time the offline fallback is used, so the API and the
+# dashboard can tell the operator that retrieval is not semantic - rather than
+# leaving them to infer it from a log line in a container.
+_DEGRADED = False
+
+
+def is_degraded() -> bool:
+    """True when embeddings are hash-derived rather than semantic."""
+    return _DEGRADED
+
+
+def degraded_reason() -> str:
+    return (
+        "Embeddings are running offline: retrieval returns chunks in document "
+        "order and cannot rank them by meaning. Set EMBEDDING_API_KEY for "
+        "semantic retrieval."
+    )
+
+
+def _mark_degraded() -> None:
+    global _DEGRADED
+    _DEGRADED = True
 
 
 def _offline_vector(text: str, dim: int) -> list[float]:

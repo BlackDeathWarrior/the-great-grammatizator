@@ -63,6 +63,9 @@ class JobDetail(BaseModel):
     operator_message: str | None
     parameters: dict
     artefacts: list[ArtefactOut]
+    # Degraded modes the operator should know about, surfaced rather than left
+    # in a container log (POC.md §5: silent success is the worst failure mode).
+    warnings: list[str] = []
 
 
 @router.post("/jobs", response_model=JobOut, status_code=202)
@@ -228,7 +231,15 @@ def _detail(session, job: Job) -> JobDetail:
         operator_message=job.operator_message,
         parameters=job.parameters or {},
         artefacts=artefacts,
+        warnings=_active_warnings(),
     )
+
+
+def _active_warnings() -> list[str]:
+    """Degraded modes worth telling the operator about."""
+    from app.ingest import embed
+
+    return [embed.degraded_reason()] if embed.is_degraded() else []
 
 
 @router.get("/jobs", response_model=list[JobOut])
