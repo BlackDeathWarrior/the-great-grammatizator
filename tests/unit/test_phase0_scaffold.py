@@ -45,11 +45,17 @@ def test_persistent_volumes_are_mounted():
 
 
 @repo_only
-def test_doc_diagram_links_resolve():
-    """Both docs linked diagrams/*.svg while the files sat in docs/ (fixed Phase 0)."""
-    for doc in ("ARCHITECTURE.md", "USE-CASES.md"):
-        text = (ROOT / "docs" / doc).read_text(encoding="utf-8")
-        for line in text.splitlines():
-            if "](diagrams/" in line:
-                rel = line.split("](", 1)[1].split(")", 1)[0]
-                assert (ROOT / "docs" / rel).exists(), f"{doc} links missing {rel}"
+def test_doc_image_links_resolve():
+    """Every relative image link in the docs must point at a file that exists.
+
+    Two ways this has broken: the diagrams/*.svg links while the files sat flat
+    beside them, and the v1 -> docs/v1/ move that left every path one level off.
+    """
+    for doc in sorted((ROOT / "docs").rglob("*.md")):
+        for line in doc.read_text(encoding="utf-8").splitlines():
+            if "![" not in line or "](" not in line:
+                continue
+            rel = line.split("](", 1)[1].split(")", 1)[0]
+            if rel.startswith(("http://", "https://", "#")):
+                continue
+            assert (doc.parent / rel).exists(), f"{doc.name} links missing {rel}"

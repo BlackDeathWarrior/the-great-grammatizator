@@ -206,7 +206,7 @@ until approved.
 
 ## 7. Rules for working on this
 
-From `docs/CLAUDE.md`, which remains the owner's working-style spec and has not
+From `docs/v1/CLAUDE.md`, which remains the owner's working-style spec and has not
 been superseded. The short version:
 
 - **Plan, then act.** Anything touching more than one file gets a plan first.

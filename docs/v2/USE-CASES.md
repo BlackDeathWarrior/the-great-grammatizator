@@ -3,7 +3,7 @@
 What the platform does, from the operator's side. Every use case below is
 either **built** (there is code and a test id) or marked **not built**.
 
-Supersedes `docs/USE-CASES.md`. The two worked examples at the end are the
+Supersedes `docs/v1/USE-CASES.md`. The two worked examples at the end are the
 important part of this document — they are the demo scripts, and Example A has
 been observed end to end against live providers.
 

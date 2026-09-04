@@ -21,7 +21,7 @@ and the gap between intent and outcome is itself useful information.
 Where the two disagree, **v2 is what the code does**. `ARCHITECTURE.md` §12
 lists the three places they diverge and why.
 
-`docs/CLAUDE.md` is **not** superseded. It is the owner's working-style spec —
+`docs/v1/CLAUDE.md` is **not** superseded. It is the owner's working-style spec —
 plan then act, define done, stay in scope, show evidence, ask before adding a
 dependency — and still applies.
 

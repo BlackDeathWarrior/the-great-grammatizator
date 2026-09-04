@@ -4,24 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Status
 
-Implemented and running. All 11 architecture layers are built; 177 tests pass
-(96 P0) against the live compose stack.
+Implemented and running. All 11 architecture layers are built; **180 tests pass,
+3 skip (98 P0)** against the live compose stack. Provider keys are configured and
+jobs generate real artefacts end to end.
 
-Not yet done: no provider keys are configured, so generation raises a clean
-`ProviderError` until `GROQ_API_KEY` / `GEMINI_API_KEY` / `OPENROUTER_API_KEY`
-are set in `.env`. Everything up to the model call — ingestion, chunking,
-embedding, retrieval, the registry, QA plumbing, export, dashboard — runs
-without them. Latency and call-budget numbers (TC-1203/1204) still need
-measuring against a real provider before the demo.
+Measured, not estimated: 67s and 93s for the two-format golden path, 123s for all
+seven formats, 53 model calls (TC-1203/1204). The one non-functional target still
+missed is **TC-1202** - a single artefact takes ~30-45s against a 20s goal.
+
+Known gaps, stated not hidden. `EMBEDDING_API_KEY` is unset, so `embed_texts`
+falls back to deterministic hash-derived vectors: retrieval works but **cannot
+rank by meaning**, and generators currently see every chunk inline rather than a
+top-k selection (docs/v2/ARCHITECTURE.md §13.2). No auth (§13.1). `language` is a
+parameter that nothing acts on (§13.3). The `long` alias may return 429 on the
+Gemini free tier; the cross-alias fallback to `fast` covers it.
 
 ## Documents (read at session start, not every turn)
 
+**`docs/v2/` is the current spec.** It describes what is built and running; §13
+marks design intent that has no code, and a claim without a test id beside it is
+a gap, not a fact. `docs/v1/` is the original design, kept for history - where the
+two disagree, v2 wins.
+
 | File | Contents |
 |---|---|
-| `docs/ARCHITECTURE.md` | The 11 layers, per-layer design rationale, Docker Compose, known gaps. The primary spec. |
-| `docs/USE-CASES.md` | UC-01..UC-14, parameter schema, two fully worked end-to-end examples (A: advisory → LinkedIn + exec summary; B: literary excerpt → video package). |
-| `docs/TEST-CASES.md` | TC-<area><nn>, P0 = blocks the demo. Build to the P0s. |
-| `docs/CLAUDE.md` | Working-style expectations from the project owner (plan-then-act, define done, stay in scope, show evidence, ask before adding a dependency). |
+| `docs/v2/ARCHITECTURE.md` | The primary spec. The 11 layers as built, §12 divergences from v1, §13 planned-not-built, §14 known gaps. |
+| `docs/v2/USE-CASES.md` | UC-01..UC-16, each marked Built / Partial / Stub / Not built. Three worked examples, two observed live. |
+| `docs/v2/TEST-CASES.md` | TC-<area><nn> reconciled against the suite, P0 = blocks the demo, plus a ranked list of the ten gap ids. |
+| `docs/v2/POC.md` | Status, five failure post-mortems worth reading, tiered backlog, demo script. |
+| `docs/v1/CLAUDE.md` | Working-style expectations from the project owner (plan-then-act, define done, stay in scope, show evidence, ask before adding a dependency). **Not superseded.** |
 
 ## What this is
 
@@ -39,22 +50,29 @@ Layers, each knowing only the one below:
 2. **API ingestion** — `POST /sources` (hash → extract → normalise → chunk → embed),
    `POST /jobs` (references `source_id`, enqueues), `GET /jobs/{id}` (polled). Fully
    deterministic, **no LLM**.
-3. **LiteLLM gateway** — guardrails → Router + fallback → prompt cache. Cache key is
-   `source_hash + output_type + parameters`.
+3. **Model gateway** (`app/gateway/`) — deterministic guardrails → router + fallback →
+   prompt cache. Two aliases only, `fast` and `long`. Cache key is
+   `source_hash + output_type + parameters + prompt_version + attempt_salt`; the salt
+   means a retry is never served the artefact that just failed QA.
 4. **LangGraph orchestration** — one `JobState` TypedDict, every node writes into it.
-5. **MCP gateway + tool registry** — per-agent tool allowlist. Purpose-built tools
-   (`search_chunks(job_id, query, k)`), never a raw Qdrant client.
-6. **Input analysis subagents** — web search, content analysis, input analysis. Runs
-   once per job, cached, shared by every generator. Classifies source provenance here.
+5. **Tool registry** (`app/tools/`) — plain Python with per-caller allowlists and
+   MCP-shaped signatures; v1 offered this as a fallback to a real MCP server and it is
+   what shipped. Purpose-built tools (`search_chunks(job_id, query, k)`), never a raw
+   Qdrant client. No write/delete tool is registered anywhere.
+6. **Input analysis** — **one** structured call (not three subagents; see Deviations),
+   run once per job, cached on the job row, shared by every generator. Classifies source
+   provenance here. Web enrichment is allowlisted but the provider is a stub.
 7. **Output subagents** — one per selected format, driven by the output registry.
-8. **QA subagents** — 4 parallel independent checkers per artefact (grounding, format,
-   tone, safety) + source-reuse for copyrighted sources. Format and source-reuse are
-   deterministic; the other three are model calls.
+8. **QA subagents** — five independent checkers per artefact, capped at
+   `qa_concurrency`: grounding, format, tone, safety, and source-reuse (the last only for
+   copyrighted provenance). Format and source-reuse are deterministic and provably make
+   zero model calls; safety is a deterministic PII pass *then* an LLM policy call.
 9. **Export** — structured JSON → files. Video = TTS + SRT + title cards + ffmpeg.
 10. **Langfuse** — traces, versioned prompts, eval runs.
-11. **Docker Compose** — qdrant `:6333`, postgres `:5432`, app `:8000`.
+11. **Docker Compose** — five services: qdrant `:6333`, postgres `:5432`, redis `:6379`,
+   app `:8000`, and the arq `worker`.
 
-## Invariants — decided, do not relitigate (from `docs/CLAUDE.md` §Project invariants)
+## Invariants — decided, do not relitigate (from `docs/v1/CLAUDE.md` §Project invariants)
 
 1. No LLM anywhere in the ingestion path. Never model-clean source text.
 2. Chunk ids are immutable, created once at ingest. Every factual claim in an artefact
@@ -109,7 +127,9 @@ Bring up the stack (qdrant, postgres, redis, app, worker):
 docker compose up -d
 ```
 
-Dashboard at http://localhost:8000 — upload, pick parameters and formats, watch
+Dashboard at http://127.0.0.1:8000 — upload, pick parameters and formats, watch
+(prefer `127.0.0.1`; some clients resolve `localhost` to IPv6 `::1`, which Docker's
+port mapping does not answer on)
 the job. Tests run in-container, which is the authoritative environment:
 
 ```bash
@@ -170,7 +190,7 @@ so a switch statement will fail CI.
 Three places where the implementation departs from a literal reading. Each is
 documented at the site.
 
-1. **Image ingestion** (`app/ingest/extract/image.py`) — `ARCHITECTURE.md:45`
+1. **Image ingestion** (`app/ingest/extract/image.py`) — `docs/v1/ARCHITECTURE.md:45`
    specifies "vision caption + OCR", but a vision caption is a model call and
    Invariant 1 forbids those in the ingest path. Resolved as OCR at ingest,
    richer visual description deferred to the analysis layer.

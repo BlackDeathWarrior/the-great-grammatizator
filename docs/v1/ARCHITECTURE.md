@@ -5,7 +5,7 @@ Gen AI Platform for Automated Content Transformation.
 One source in, one or more communication artefacts out. Layers top to bottom; each
 layer only knows about the one below it.
 
-![Implementation architecture](diagrams/architecture.svg)
+![Implementation architecture](architecture.svg)
 
 ---
 
