@@ -5,6 +5,8 @@ import pathlib
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import jobs, sources
@@ -55,6 +57,24 @@ app.mount(
     StaticFiles(directory=str(pathlib.Path(__file__).parent / "web" / "static")),
     name="static",
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(_request, exc: RequestValidationError):
+    """Report bad input as 400 with a readable message.
+
+    FastAPI's default is 422 with a nested error structure. The rest of this
+    API answers bad input with 400 and a sentence, and TC-0206 specifies 400,
+    so a rejected parameter should not be the one place that differs.
+    """
+    problems = []
+    for err in exc.errors():
+        field = ".".join(str(p) for p in err.get("loc", ()) if p not in ("body",))
+        msg = str(err.get("msg", "")).removeprefix("Value error, ")
+        problems.append(f"{field}: {msg}" if field else msg)
+
+    return JSONResponse(status_code=400, content={"detail": "; ".join(problems)})
+
 
 app.include_router(sources.router)
 app.include_router(jobs.router)

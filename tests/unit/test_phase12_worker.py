@@ -65,9 +65,7 @@ async def test_a_cancelled_job_is_recorded_not_left_running(monkeypatch):
 @pytest.mark.p0
 async def test_an_unhandled_failure_is_recorded_as_recoverable(monkeypatch):
     recorded: dict = {}
-    monkeypatch.setattr(
-        worker, "_fail_job", lambda j, s, m: recorded.update(status=s, message=m)
-    )
+    monkeypatch.setattr(worker, "_fail_job", lambda j, s, m: recorded.update(status=s, message=m))
 
     async def boom(*_a, **_kw):
         raise RuntimeError("qdrant unreachable")
@@ -86,9 +84,7 @@ async def test_an_unhandled_failure_is_recorded_as_recoverable(monkeypatch):
 async def test_the_operator_message_is_redacted(monkeypatch):
     """A provider's error body can echo prompt text into the dashboard."""
     recorded: dict = {}
-    monkeypatch.setattr(
-        worker, "_fail_job", lambda j, s, m: recorded.update(message=m)
-    )
+    monkeypatch.setattr(worker, "_fail_job", lambda j, s, m: recorded.update(message=m))
 
     async def leaky(*_a, **_kw):
         raise RuntimeError("rejected prompt for alice@example.com")
@@ -168,7 +164,7 @@ def _artefact(status: ArtefactStatus, provider_errors: int = 0) -> Artefact:
 
 @pytest.mark.p0
 def test_a_job_where_everything_was_blocked_is_not_done():
-    """"done" tells the operator to collect output that does not exist."""
+    """ "done" tells the operator to collect output that does not exist."""
     artefacts = {
         "linkedin_post": _artefact(ArtefactStatus.BLOCKED),
         "exec_summary": _artefact(ArtefactStatus.BLOCKED),
