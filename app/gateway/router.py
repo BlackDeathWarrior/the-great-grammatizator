@@ -124,6 +124,50 @@ def reset() -> None:
     _qa_semaphore = None
 
 
+async def preflight() -> list[dict[str, Any]]:
+    """Send one trivial completion per configured deployment.
+
+    Every model id inherited from the original architecture was dead on the
+    first live run - the Groq model no longer existed, the Gemini model was
+    retired, and the OpenRouter free slug had become paid-only. Free-tier ids
+    drift without notice, and the failure surfaces as a job dying mid-demo.
+
+    This turns that into a startup warning naming the dead id (TC-0908).
+    """
+    import litellm
+
+    router_obj = get_router()
+    if router_obj is None:
+        return [{"alias": "-", "model": "-", "ok": False, "error": "no provider configured"}]
+
+    results: list[dict[str, Any]] = []
+    for entry in router_obj.model_list:
+        params = entry["litellm_params"]
+        row = {"alias": entry["model_name"], "model": params["model"], "ok": True, "error": ""}
+        try:
+            await litellm.acompletion(
+                model=params["model"],
+                api_key=params.get("api_key"),
+                messages=[{"role": "user", "content": "ok"}],
+                max_tokens=1,
+                timeout=20,
+            )
+        except Exception as exc:  # noqa: BLE001 - any failure means unusable
+            row["ok"] = False
+            row["error"] = str(exc)[:160]
+            log.warning(
+                "PREFLIGHT FAILED %s (%s): %s",
+                params["model"],
+                entry["model_name"],
+                row["error"],
+            )
+        results.append(row)
+
+    if results and not any(r["ok"] for r in results):
+        log.error("PREFLIGHT: no configured model answered. Generation will fail.")
+    return results
+
+
 async def complete(
     alias: str,
     messages: list[dict[str, str]],

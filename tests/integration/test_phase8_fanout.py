@@ -306,7 +306,7 @@ async def test_commentary_mode_reaches_every_generator(monkeypatch):
 
 @pytest.mark.p0
 def test_no_per_format_branching_in_the_pipeline():
-    """Invariant 4: if you are editing a switch statement, you are doing it wrong.
+    """Invariant 4: if you are editing a switch statement, you are doing it wrong. (TC-0305)
 
     The pipeline modules must not name individual formats. Everything they need
     comes from the registry entry.

@@ -142,7 +142,7 @@ def test_every_schema_is_valid_json_schema():
 
 @pytest.mark.p0
 def test_every_schema_requires_claims_with_chunk_ids():
-    """TC-0403: this is what makes grounding cheap.
+    """TC-0403: this is what makes grounding cheap. (TC-0306)
 
     Without a required claims[] carrying chunk_ids, the checker would have to
     search the whole document instead of verifying against the cited chunk.
@@ -254,3 +254,29 @@ def test_constraints_are_interpolated_into_the_prompt():
         fix_notes=[],
     )
     assert "280" in rendered
+
+
+@pytest.mark.p0
+def test_shared_prompt_shows_the_literal_claims_shape():
+    """TC-0411: the claims contract must show its JSON shape, not just describe it.
+
+    Regression. Prose alone was not enough: models returned
+    {"claim":..., "citations":...} and exhausted every parse retry on every
+    format. The literal example fixed it. This test exists so nobody tidies the
+    example away.
+    """
+    shared = (loader.PROMPTS_DIR / "_shared.jinja").read_text(encoding="utf-8")
+
+    assert '"text"' in shared and '"chunk_id"' in shared, "claims keys not shown literally"
+    assert '"claims": [' in shared, "no example claims array in the shared block"
+
+    # And it must actually reach a rendered generator prompt.
+    rendered = loader.render(
+        "linkedin_post@v1",
+        content=_content(),
+        analysis=AnalysisResult(objective="inform", audience="public"),
+        parameters=Parameters(),
+        constraints=registry.get("linkedin_post").constraints,
+        fix_notes=[],
+    )
+    assert '"chunk_id": "c1"' in rendered

@@ -24,6 +24,27 @@ async def lifespan(app: FastAPI):
         ensure_collection()
     except Exception as exc:  # noqa: BLE001
         logging.getLogger(__name__).warning("qdrant not ready at startup: %s", exc)
+
+    # Probe every configured model id. Free-tier ids drift and the failure
+    # otherwise surfaces as a job dying mid-demo (TC-0908). Never fatal: the
+    # API must still serve /health so the operator can see the warning.
+    try:
+        from app.gateway.router import preflight
+
+        rows = await preflight()
+        dead = [r for r in rows if not r["ok"]]
+        if dead:
+            logging.getLogger(__name__).warning(
+                "%d of %d model deployments unusable: %s",
+                len(dead),
+                len(rows),
+                ", ".join(f"{r['model']} ({r['error'][:60]})" for r in dead),
+            )
+        else:
+            logging.getLogger(__name__).info("preflight: %d model(s) OK", len(rows))
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).warning("preflight skipped: %s", exc)
+
     yield
 
 
