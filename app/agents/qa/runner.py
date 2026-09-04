@@ -28,6 +28,10 @@ from app.graph.state import (
 
 log = logging.getLogger(__name__)
 
+# Checkers whose verdict is load-bearing. If one of these cannot run, the
+# artefact is unverified and must not be delivered as though it passed.
+_FAIL_CLOSED = frozenset({CheckerName.GROUNDING, CheckerName.SAFETY})
+
 
 async def run(
     spec: FormatSpec,
@@ -60,9 +64,26 @@ async def run(
                 # retry with backoff without touching the QA counter (TC-0609).
                 raise
             except Exception as exc:  # noqa: BLE001
-                log.warning("%s checker errored: %s", name, exc)
+                # A checker that crashed did not assess anything. Reporting a
+                # pass here would silently delete the gate: before this, any
+                # bug in safety.check - a bad response shape, a template error,
+                # a ValueError parsing a score - made every artefact "safe".
+                #
+                # Hard checkers therefore fail CLOSED. Tone stays open because
+                # it is advisory by policy (verdict.py): it can never block on
+                # its own, so failing it closed would only cause false retries.
+                fails_closed = name in _FAIL_CLOSED
+                log.warning(
+                    "%s checker errored (%s): %s",
+                    name,
+                    "failing closed" if fails_closed else "advisory, passing",
+                    exc,
+                )
                 return CheckerResult(
-                    checker=name, passed=True, reason=f"checker unavailable: {exc}"
+                    checker=name,
+                    passed=not fails_closed,
+                    reason=f"checker unavailable: {exc}",
+                    checker_error=True,
                 )
 
     llm_results = await asyncio.gather(

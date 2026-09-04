@@ -107,9 +107,12 @@ def _parse(raw: str) -> list[dict]:
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     try:
         data = json.loads(text)
-    except json.JSONDecodeError:
-        log.warning("grounding returned non-JSON; treating as pass to avoid a false block")
-        return []
+    except json.JSONDecodeError as exc:
+        # Previously this returned [] - no failures - so an unparseable
+        # response silently certified every claim as grounded. Raise instead:
+        # the runner turns this into a checker_error and the verdict blocks,
+        # because "we could not check" must never render as "it checked out".
+        raise ValueError(f"grounding returned non-JSON: {text[:120]!r}") from exc
     if isinstance(data, dict):
         data = data.get("claims") or data.get("verdicts") or []
     return data if isinstance(data, list) else []

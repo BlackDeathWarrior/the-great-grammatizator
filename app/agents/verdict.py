@@ -3,6 +3,7 @@
 "Three of four passed" is meaningless when the failure is safety
 (ARCHITECTURE.md sec.8).
 
+  hard checker errored -> block: unverified, never "passed by default"
   safety fail          -> block unconditionally, do not deliver   [TC-0602]
   grounding fail       -> retry with fix notes                    [TC-0603]
   tone below threshold -> retry once, then pass with a warning    [TC-0605]
@@ -28,6 +29,17 @@ RESTART_MESSAGE = (
     "and start a new job."
 )
 
+UNVERIFIED_MESSAGE = (
+    "The {checker} check could not run for {output_type}, so the artefact was "
+    "never verified. It has been withheld rather than delivered unchecked. "
+    "This is an infrastructure fault, not a quality one - retrying the job is "
+    "the right response."
+)
+
+
+# Checkers whose verdict gates delivery. Kept in step with runner._FAIL_CLOSED.
+_HARD_CHECKERS = frozenset({CheckerName.GROUNDING, CheckerName.SAFETY})
+
 
 def decide(qa: QAResult, artefact: Artefact) -> tuple[Verdict, str]:
     """Apply the policy. Returns (verdict, operator_message).
@@ -36,6 +48,19 @@ def decide(qa: QAResult, artefact: Artefact) -> tuple[Verdict, str]:
     combination of other passes can rescue an unsafe artefact.
     """
     settings = get_settings()
+
+    # A hard checker that could not run leaves the artefact UNVERIFIED. Block,
+    # and say so in the operator's own terms - this is not a quality failure,
+    # and a retry would only crash the same way, so it must not spend the QA
+    # budget (Invariant 8).
+    unverified = next(
+        (r for r in qa.results if r.checker_error and r.checker in _HARD_CHECKERS),
+        None,
+    )
+    if unverified is not None:
+        return Verdict.BLOCK, UNVERIFIED_MESSAGE.format(
+            checker=unverified.checker, output_type=artefact.output_type
+        )
 
     safety = qa.by_checker(CheckerName.SAFETY)
     if safety and not safety.passed:

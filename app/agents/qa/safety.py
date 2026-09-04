@@ -46,7 +46,11 @@ async def check(artefact: Artefact) -> CheckerResult:
     )
 
     data = _parse(raw)
-    safe = bool(data.get("safe", True))
+    if "safe" not in data:
+        # The one key this checker exists to produce. Defaulting it to True
+        # would let a model that ignored the schema wave the artefact through.
+        raise ValueError(f"safety response has no 'safe' key: {sorted(data)}")
+    safe = bool(data["safe"])
     reason = data.get("reason", "")
 
     return CheckerResult(
@@ -63,11 +67,18 @@ def _parse(raw: str) -> dict:
         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
     try:
         data = json.loads(text)
-        return data if isinstance(data, dict) else {}
-    except json.JSONDecodeError:
-        # Fail OPEN on a parse error would be wrong for a hard gate, but failing
-        # closed on every malformed response would block healthy artefacts on a
-        # flaky provider. Treat as safe and let the deterministic PII pass -
-        # which already ran - carry the guarantee.
-        log.warning("safety returned non-JSON; deterministic PII pass already cleared it")
-        return {}
+    except json.JSONDecodeError as exc:
+        # This used to return {} - which `data.get("safe", True)` read as SAFE.
+        # The deterministic PII pass does carry a real guarantee, but it only
+        # covers PII: it says nothing about the policy judgement this call was
+        # supposed to make, so treating its absence as a pass overstated what
+        # had been checked.
+        #
+        # Raising routes this through the runner as a checker_error, which the
+        # verdict reports as "unverified, withheld" - an infrastructure fault
+        # the operator can act on, distinct from a quality failure, and it
+        # never spends the QA retry budget.
+        raise ValueError(f"safety returned non-JSON: {text[:120]!r}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"safety returned {type(data).__name__}, expected an object")
+    return data

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import weakref
 from typing import Any
 
 from app.config import get_settings
@@ -40,7 +41,9 @@ _GEMINI_LONG = "gemini/gemini-3.6-flash"
 _OPENROUTER_FAST = "openrouter/meta-llama/llama-3.3-70b-instruct"
 
 _router = None
-_qa_semaphore: asyncio.Semaphore | None = None
+# One semaphore per event loop; see qa_semaphore(). Weak keys so a finished
+# loop does not keep its semaphore (or itself) alive.
+_qa_semaphores: weakref.WeakKeyDictionary[object, asyncio.Semaphore] = weakref.WeakKeyDictionary()
 
 
 class ProviderError(RuntimeError):
@@ -108,20 +111,35 @@ def get_router():
 def qa_semaphore() -> asyncio.Semaphore:
     """Concurrency cap for QA checkers.
 
-    ARCHITECTURE.md sec.3: cap the checkers rather than firing all four at once,
-    or a free tier rate-limits mid-demo (TC-0904).
+    ARCHITECTURE.md sec.3: cap the checkers rather than firing all of them at
+    once, or a free tier rate-limits mid-demo (TC-0904).
+
+    Kept per event loop. An asyncio.Semaphore binds to the loop that first
+    awaits it and raises "bound to a different event loop" on every other one,
+    so a single module global would break the moment a second loop touched it -
+    the API process and the worker, or a worker whose loop is replaced after a
+    restart. The failure is not subtle but it is remote from its cause, and it
+    would surface as every QA checker erroring at once.
     """
-    global _qa_semaphore
-    if _qa_semaphore is None:
-        _qa_semaphore = asyncio.Semaphore(get_settings().qa_concurrency)
-    return _qa_semaphore
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop (a synchronous caller inspecting the cap). Hand back
+        # a fresh one rather than caching under a key we cannot weakly hold.
+        return asyncio.Semaphore(get_settings().qa_concurrency)
+
+    existing = _qa_semaphores.get(loop)
+    if existing is None:
+        existing = asyncio.Semaphore(get_settings().qa_concurrency)
+        _qa_semaphores[loop] = existing
+    return existing
 
 
 def reset() -> None:
-    """Test hook: drop the cached router and semaphore."""
-    global _router, _qa_semaphore
+    """Test hook: drop the cached router and semaphores."""
+    global _router
     _router = None
-    _qa_semaphore = None
+    _qa_semaphores.clear()
 
 
 async def preflight() -> list[dict[str, Any]]:

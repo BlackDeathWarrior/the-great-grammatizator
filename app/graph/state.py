@@ -192,6 +192,11 @@ class CheckerResult(BaseModel):
     # Fix notes must be SPECIFIC - the failing claim or the violated
     # constraint (§8, TC-0604). "Quality insufficient" returns the same output.
     fix_notes: list[str] = Field(default_factory=list)
+    # The checker itself broke - a bad response shape, a template error, a bug.
+    # This is NOT a quality judgement: the artefact was never actually assessed.
+    # A hard checker that could not run must fail CLOSED (the verdict blocks)
+    # rather than reporting a pass nobody verified.
+    checker_error: bool = False
 
 
 class QAResult(BaseModel):

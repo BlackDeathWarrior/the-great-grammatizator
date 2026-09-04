@@ -37,7 +37,18 @@ async def check(artefact: Artefact, parameters: Parameters) -> CheckerResult:
     )
 
     data = _parse(raw)
-    score = float(data.get("score", 1.0))
+    # Tone is advisory: it can never block on its own, so an unreadable
+    # response degrades to "no opinion" (a pass) rather than a false retry.
+    # float() on a non-numeric score used to raise here and be swallowed as a
+    # pass several frames away; keeping it local makes the default deliberate.
+    try:
+        score = float(data.get("score", 1.0))
+    except (TypeError, ValueError):
+        log.warning(
+            "tone returned a non-numeric score %r; scoring as no-opinion",
+            data.get("score"),
+        )
+        score = 1.0
     reason = data.get("reason", "")
     suggestion = data.get("suggestion", "")
 
