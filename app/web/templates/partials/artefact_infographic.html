@@ -1,10 +1,10 @@
-<h3 style="margin-top:0">{{ a.content.headline }}</h3>
+<h3>{{ a.content.headline }}</h3>
 <div class="grid">
   {% for p in a.content.panels %}
-  <div style="border:1px solid var(--line);border-radius:6px;padding:.75rem;text-align:center">
-    <div style="font-size:1.5rem;font-weight:700;color:var(--accent)">{{ p.stat }}</div>
-    <div style="font-weight:600;font-size:.875rem">{{ p.heading }}</div>
-    <div class="muted" style="font-size:.75rem">{{ p.caption }}</div>
+  <div class="item" style="text-align:center">
+    <div class="num" style="font-size:var(--step-2);font-weight:700;color:var(--accent)">{{ p.stat }}</div>
+    <div style="font-weight:600">{{ p.heading }}</div>
+    <div class="muted" style="font-size:var(--step--1)">{{ p.caption }}</div>
   </div>
   {% endfor %}
 </div>

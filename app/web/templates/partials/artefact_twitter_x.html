@@ -1,8 +1,10 @@
 {% for t in a.content.tweets %}
-<div style="border:1px solid var(--line);border-radius:6px;padding:.75rem;margin-bottom:.5rem">
-  <p style="margin:0;white-space:pre-wrap">{{ t }}</p>
+<div class="item">
+  <p class="prose" style="margin:0">{{ t }}</p>
   {# The deterministic checker enforces this; showing the count makes it legible #}
-  <span class="muted" style="font-size:.75rem">{{ t|length }}/280</span>
+  <span class="muted num" style="font-size:.75rem">{{ t|length }}/280</span>
 </div>
 {% endfor %}
-{% if a.content.hashtags %}<p class="muted">{{ a.content.hashtags|join(' ') }}</p>{% endif %}
+{% if a.content.hashtags %}
+<p class="muted">{{ a.content.hashtags|join(' ') }}</p>
+{% endif %}

@@ -1,8 +1,14 @@
-<h3 style="margin-top:0">{{ a.content.title }}
-  <span class="badge failed">{{ a.content.severity }}</span></h3>
+{# Severity drives the badge. It was hardcoded to `failed`, so a low-severity
+   advisory rendered in alarm red. #}
+{% set sev = (a.content.severity or '')|lower %}
+{% set tone = 'failed' if sev in ('critical','high') else ('passed_flagged' if sev == 'medium' else 'pending') %}
+<h3>{{ a.content.title }} <span class="badge {{ tone }}">{{ a.content.severity }}</span></h3>
 <p>{{ a.content.summary }}</p>
 {% if a.content.affected %}
 <p class="muted"><strong>Affected:</strong> {{ a.content.affected|join(', ') }}</p>
 {% endif %}
 <p><strong>Recommendations</strong></p>
 <ul>{% for r in a.content.recommendations %}<li>{{ r }}</li>{% endfor %}</ul>
+{% if a.content.references %}
+<p class="muted"><strong>References:</strong> {{ a.content.references|join(', ') }}</p>
+{% endif %}

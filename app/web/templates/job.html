@@ -1,12 +1,25 @@
 {% extends "base.html" %}
+{% block title %}Job {{ job_id }} &middot; Content Transformation{% endblock %}
 {% block content %}
-<div class="panel">
-  <h2>Job {{ job_id }}</h2>
-  <div hx-get="/ui/jobs/{{ job_id }}/status"
-       hx-trigger="load, every 2s"
-       hx-swap="innerHTML">
-    <p class="muted">Loading&hellip;</p>
+
+{# The polling element REPLACES ITSELF (outerHTML), so the partial it fetches
+   controls whether polling continues. The previous version polled the outer
+   div with innerHTML and rendered an inert marker inside it: nothing the
+   partial did could reach the trigger, so the page polled every 2s forever,
+   contradicting its own comment.
+
+   aria-live: the region rewrites itself while the operator is elsewhere on the
+   page, and a status going from "generating" to "blocked" was silent. #}
+<div id="job-status"
+     role="status"
+     aria-live="polite"
+     hx-get="/ui/jobs/{{ job_id }}/status"
+     hx-trigger="load, every 2s"
+     hx-swap="outerHTML">
+  <div class="panel">
+    <p class="muted">Loading&hellip; <span class="spinner htmx-request"></span></p>
   </div>
 </div>
+
 <p><a href="/">&larr; New job</a></p>
 {% endblock %}

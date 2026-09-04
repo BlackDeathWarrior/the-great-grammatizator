@@ -1,76 +1,127 @@
 {% extends "base.html" %}
+{% block title %}New job &middot; Content Transformation{% endblock %}
 {% block content %}
 
 <div class="panel">
   <h2>1 &middot; Source</h2>
-  <form action="/ui/sources" method="post" enctype="multipart/form-data">
-    <label for="file">Upload a file (pdf, docx, html, image, video)</label>
-    <input type="file" id="file" name="file">
-    <label for="url">&hellip; or paste a URL</label>
-    <input type="url" id="url" name="url" placeholder="https://example.com/advisory">
-    <label for="text">&hellip; or type context directly</label>
-    <textarea id="text" name="text" rows="3"></textarea>
-    <p><button type="submit">Ingest source</button></p>
+  <p class="panel-lead">
+    A document, a page, or a few sentences. It is chunked once, and every claim
+    in the output cites the chunk it came from.
+  </p>
+  <form action="/ui/sources" method="post" enctype="multipart/form-data"
+        hx-disabled-elt="find button[type='submit']">
+    <div class="grid">
+      <div>
+        <label for="file">Upload a file</label>
+        <input type="file" id="file" name="file"
+               accept=".pdf,.docx,.html,.htm,.txt,.md,.png,.jpg,.jpeg,.mp4,.mov,.m4a,.mp3">
+      </div>
+      <div>
+        <label for="url">&hellip; or paste a URL</label>
+        <input type="url" id="url" name="url" placeholder="https://example.com/advisory">
+      </div>
+    </div>
+    <label for="text" style="margin-top:1rem">&hellip; or type context directly</label>
+    <textarea id="text" name="text" rows="3"
+              placeholder="Paste an advisory, a report, or a few lines of context."></textarea>
+    <div class="actions">
+      <button type="submit">Ingest source <span class="spinner"></span></button>
+      <span class="working">Reading and chunking&hellip;</span>
+    </div>
   </form>
 
   {% if sources %}
-  <h2 style="margin-top:1.5rem">Recent sources</h2>
-  <p class="muted" style="font-size:.8125rem">
-    Selecting an existing source skips ingestion entirely.
-  </p>
+  <h2 style="margin-top:2rem">Recent sources</h2>
+  <p class="panel-lead">Selecting an existing source skips ingestion entirely.</p>
   <table>
-    <tr><th>Title</th><th>Type</th><th>Chunks</th><th></th></tr>
-    {% for s in sources %}
-    <tr>
-      <td>{{ s.title[:70] }}</td>
-      <td>{{ s.source_type }}</td>
-      <td>{{ s.chunk_count }}</td>
-      <td><a href="/?source_id={{ s.source_id }}">Use this</a></td>
-    </tr>
-    {% endfor %}
+    <thead>
+      <tr><th>Title</th><th>Type</th><th>Chunks</th><th><span class="muted">Action</span></th></tr>
+    </thead>
+    <tbody>
+      {% for s in sources %}
+      <tr>
+        <td title="{{ s.title }}">{{ s.title[:70] }}{% if s.title|length > 70 %}&hellip;{% endif %}</td>
+        <td><span class="muted">{{ s.source_type }}</span></td>
+        <td class="num">{{ s.chunk_count }}</td>
+        <td><a href="/?source_id={{ s.source_id }}" title="{{ s.source_id }}">Use this</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
   {% endif %}
 </div>
 
 {% if selected_source %}
-<form action="/ui/jobs" method="post">
+<form action="/ui/jobs" method="post" id="job-form">
   <input type="hidden" name="source_id" value="{{ selected_source.source_id }}">
 
   <div class="panel">
-    <h2>2 &middot; Parameters</h2>
-    <p class="muted" style="font-size:.8125rem">
+    <h2>2 &middot; The brief</h2>
+    <p class="panel-lead">
       Source: <strong>{{ selected_source.title[:80] }}</strong>
-      &middot; {{ selected_source.chunk_count }} chunks
+      &middot; <span class="num">{{ selected_source.chunk_count }}</span> chunks.
+      Describe what you want in your own words, or pick from the lists.
     </p>
-    <div class="grid">
-      {% for field, options in vocab.items() %}
-      <div>
-        <label for="{{ field }}">{{ field|replace('_',' ')|title }}</label>
-        <select id="{{ field }}" name="{{ field }}">
-          {% for opt in options %}
-          <option value="{{ opt }}"{% if loop.first %} selected{% endif %}>{{ opt }}</option>
-          {% endfor %}
-        </select>
+
+    {# Two front doors onto the same six fields. The interview is the default
+       and the dominant path; the lists are the escape hatch for an operator
+       who already knows exactly what they want. #}
+    <div class="modes" role="group" aria-label="How to set the brief">
+      <button type="button" id="mode-describe" aria-pressed="true"
+              onclick="showInterview()">Describe it</button>
+      <button type="button" id="mode-lists" aria-pressed="false"
+              onclick="showLists()">Pick from lists</button>
+    </div>
+
+    <div id="interview"
+         hx-post="/ui/interview"
+         hx-trigger="load"
+         hx-vals='{"source_id": "{{ selected_source.source_id }}"}'
+         hx-swap="innerHTML">
+      <p class="muted">Reading your source&hellip; <span class="spinner htmx-request"></span></p>
+    </div>
+
+    {# The manual path. Same select ids, same names - one of these two blocks
+       is always in the DOM, so the closed vocabularies are always present
+       (TC-0202). #}
+    <div id="lists" class="hidden">
+      <div class="grid">
+        {% for field, options in vocab.items() %}
+        <div>
+          <label for="{{ field }}">{{ field|replace('_',' ')|title }}</label>
+          <select id="{{ field }}" name="{{ field }}" form="job-form">
+            {% for opt in options %}
+            <option value="{{ opt }}"{% if loop.first %} selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
   </div>
 
   <div class="panel">
     <h2>3 &middot; Output formats</h2>
+    <p class="panel-lead">
+      Each selected format is generated and checked independently, so one
+      failing does not stop the others.
+    </p>
     <div class="formats">
       {% for f in formats %}
       <label class="format">
         <input type="checkbox" name="formats" value="{{ f.id }}"
                {% if f.id in ('linkedin_post','exec_summary') %}checked{% endif %}>
         <span>
-          <span class="name">{{ f.label }}</span><br>
+          <span class="name">{{ f.label }}</span>
           <span class="desc">{{ f.description }}</span>
         </span>
       </label>
       {% endfor %}
     </div>
-    <p style="margin-top:1rem"><button type="submit">Generate</button></p>
+    <div class="actions">
+      <button type="submit">Generate <span class="spinner"></span></button>
+      <span class="working">Queueing the job&hellip;</span>
+    </div>
   </div>
 </form>
 {% endif %}
@@ -79,12 +130,54 @@
 <div class="panel">
   <h2>Recent jobs</h2>
   <table>
-    <tr><th>Job</th><th>Status</th></tr>
-    {% for j in jobs %}
-    <tr><td><a href="/jobs/{{ j.job_id }}/view">{{ j.job_id }}</a></td><td>{{ j.status }}</td></tr>
-    {% endfor %}
+    <thead><tr><th>Job</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for j in jobs %}
+      <tr>
+        <td><a href="/jobs/{{ j.job_id }}/view">{{ j.job_id }}</a></td>
+        <td><span class="badge {{ j.status }}">{{ j.status.replace('_',' ') }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
 </div>
 {% endif %}
 
+<script>
+  // Swapping which block is in view. Both write the same six field names, and
+  // a disabled select is not submitted - which is what keeps the hidden block
+  // from sending a second value for every field.
+  function showInterview() { setMode(true); }
+  function showLists() { setMode(false); }
+
+  function setMode(describing) {
+    var interview = document.getElementById('interview');
+    var lists = document.getElementById('lists');
+    if (!interview || !lists) return;
+    interview.classList.toggle('hidden', !describing);
+    lists.classList.toggle('hidden', describing);
+    document.getElementById('mode-describe').setAttribute('aria-pressed', String(describing));
+    document.getElementById('mode-lists').setAttribute('aria-pressed', String(!describing));
+    setDisabled(interview, describing ? false : true);
+    setDisabled(lists, describing ? true : false);
+  }
+
+  function setDisabled(host, state) {
+    host.querySelectorAll('select').forEach(function (el) { el.disabled = state; });
+  }
+
+  // The interview owns the fields until the operator says otherwise.
+  document.addEventListener('DOMContentLoaded', function () {
+    var lists = document.getElementById('lists');
+    if (lists) setDisabled(lists, true);
+  });
+
+  // Each swapped-in brief arrives enabled; re-apply whichever mode is showing.
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (e.target.id !== 'interview') return;
+    var describing = document.getElementById('mode-describe')
+      .getAttribute('aria-pressed') === 'true';
+    setMode(describing);
+  });
+</script>
 {% endblock %}
