@@ -19,9 +19,14 @@ ever read:
   ]
 
 Available chunks:
-{% for c in content.chunks %}
+{% for c in content.chunks[:max_chunks] %}
 [{{ c.id }}] {{ c.text[:400] }}
 {% endfor %}
+{% if content.chunks|length > max_chunks %}
+[{{ content.chunks|length - max_chunks }} further chunks omitted to stay within
+the context window. Cite only the chunk ids listed above - a claim citing an
+omitted chunk cannot be verified and will fail the grounding check.]
+{% endif %}
 
 ANALYSIS (shared across all formats for this job)
 objective: {{ analysis.objective }}

@@ -224,6 +224,14 @@ async def complete(
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
 
+    # Guardrail before dispatch. Without this an oversized prompt reaches the
+    # provider, comes back as a context-length error, is classified as a
+    # ProviderError and is then retried - paying for the same rejection three
+    # times before failing with a message that does not say what went wrong.
+    from app.gateway import guardrails
+
+    guardrails.check_scope("\n".join(m.get("content") or "" for m in messages))
+
     from app.observability import record_model_call
 
     record_model_call(alias)
