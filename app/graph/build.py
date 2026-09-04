@@ -192,12 +192,19 @@ async def run_job(
         if analysis is None:
             analysis = await analysis_agent.analyse(content, parameters, job_id=job_id)
 
+        # Capped: seven formats firing at once is the same rate-limit
+        # scenario the QA cap already guards against, and on a free tier it is
+        # the likeliest way to turn a healthy job into seven 429s (TC-0904).
+        # The fan-out is still concurrent, just not unbounded.
+        fanout = asyncio.Semaphore(get_settings().fanout_concurrency)
+
+        async def _capped(fid: str):
+            async with fanout:
+                return await run_artefact(fid, content, analysis, parameters, job_id=job_id)
+
         # One generator failing must not stop the others (TC-0407).
         results = await asyncio.gather(
-            *(
-                run_artefact(fid, content, analysis, parameters, job_id=job_id)
-                for fid in format_ids
-            ),
+            *(_capped(fid) for fid in format_ids),
             return_exceptions=True,
         )
 
@@ -258,6 +265,9 @@ def _job_status(artefacts: dict[str, Artefact], operator_message: str) -> JobSta
     if operator_message:
         return JobStatus.STOPPED_QA_BUDGET
 
+    if not artefacts:
+        return JobStatus.FAILED_PERMANENT
+
     statuses = {a.status for a in artefacts.values()}
     if statuses <= {ArtefactStatus.PASSED, ArtefactStatus.PASSED_FLAGGED}:
         return JobStatus.DONE
@@ -266,4 +276,12 @@ def _job_status(artefacts: dict[str, Artefact], operator_message: str) -> JobSta
     ):
         # Every artefact died on infrastructure: recoverable, worth retrying.
         return JobStatus.FAILED_RECOVERABLE
+    if not statuses & {ArtefactStatus.PASSED, ArtefactStatus.PASSED_FLAGGED}:
+        # Nothing was delivered. Reporting "done" for a job whose every
+        # artefact was blocked or failed tells the operator to go and collect
+        # output that does not exist.
+        return JobStatus.FAILED_RECOVERABLE
+    # A partial result: some artefacts landed, others did not. Still "done" in
+    # the sense that no work remains, and the per-artefact statuses carry the
+    # detail (TC-0803, TC-0610).
     return JobStatus.DONE

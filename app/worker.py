@@ -6,6 +6,7 @@ and because rate limiting and backoff live here (ARCHITECTURE.md sec.2).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 
@@ -15,6 +16,25 @@ from app.config import get_settings
 from app.gateway import guardrails
 
 log = logging.getLogger(__name__)
+
+
+def _fail_job(job_id: str, status, message: str) -> None:
+    """Record a terminal failure. Best effort: never mask the original fault.
+
+    A job left at RUNNING is the worst outcome - the operator has no error to
+    read and no reason to retry - so this runs even on the cancellation path.
+    """
+    from app.db.models import Job
+    from app.db.session import session_scope
+
+    try:
+        with session_scope() as session:
+            job = session.get(Job, job_id)
+            if job is not None:
+                job.status = status
+                job.operator_message = message
+    except Exception:  # noqa: BLE001 - the original failure matters more
+        log.exception("could not record the failure of job %s", job_id)
 
 
 async def ping(ctx: dict) -> dict[str, str]:
@@ -49,17 +69,31 @@ async def run_job_task(ctx: dict, job_id: str) -> dict:
 
     try:
         result = await build.run_job(job_id, content, parameters, format_ids)
+    except asyncio.CancelledError:
+        # arq's job_timeout cancels the coroutine. Without this the job stayed
+        # RUNNING in the database forever: _persist never ran, no message was
+        # written, and the dashboard polled a job that would never settle.
+        # Re-raised after recording - swallowing a cancellation lies to the
+        # event loop about whether we actually stopped.
+        log.error("job %s cancelled (job_timeout is %ss)", job_id, WorkerSettings.job_timeout)
+        _fail_job(
+            job_id,
+            JobStatus.FAILED_RECOVERABLE,
+            "The job ran out of time and was stopped. Nothing was lost - start "
+            "it again, or select fewer formats to shorten it.",
+        )
+        raise
     except Exception as exc:  # noqa: BLE001
         log.exception("job %s failed", job_id)
-        with session_scope() as session:
-            job = session.get(Job, job_id)
-            if job:
-                # Unhandled failures are recoverable by default: the operator
-                # can retry, and a wrong "permanent" would tell them not to.
-                job.status = JobStatus.FAILED_RECOVERABLE
-                # Redacted: a provider's error body can echo back prompt text,
-                # and this string is rendered straight into the dashboard.
-                job.operator_message = guardrails.redact(f"The job failed: {exc}")
+        # Unhandled failures are recoverable by default: the operator can
+        # retry, and a wrong "permanent" would tell them not to. Redacted: a
+        # provider's error body can echo back prompt text, and this string is
+        # rendered straight into the dashboard.
+        _fail_job(
+            job_id,
+            JobStatus.FAILED_RECOVERABLE,
+            guardrails.redact(f"The job failed: {exc}"),
+        )
         return {"error": str(exc)}
 
     _persist(job_id, result)
@@ -91,8 +125,15 @@ async def regenerate_task(ctx: dict, job_id: str, output_type: str, instructions
         job = session.get(Job, job_id)
         if job is None:
             return {"error": "unknown job"}
+        # run_job_task guards this; regenerate did not, and an IndexError here
+        # left the job RUNNING with no message.
+        source_row = job.sources[0].source if job.sources else None
+        if source_row is None:
+            job.status = JobStatus.FAILED_PERMANENT
+            job.operator_message = "This job references no source."
+            return {"error": "no source"}
         job.status = JobStatus.RUNNING
-        content = to_content_object(job.sources[0].source)
+        content = to_content_object(source_row)
         parameters = Parameters(**(job.parameters or {}))
         stored_analysis = job.analysis
 
@@ -123,11 +164,37 @@ async def regenerate_task(ctx: dict, job_id: str, output_type: str, instructions
         {
             "artefacts": {output_type: artefact},
             "analysis": analysis,
-            "status": JobStatus.DONE,
+            # Recomputed from every artefact, not hardcoded. Forcing DONE here
+            # marked the whole job complete on the strength of one regenerated
+            # artefact, even when the other six were blocked or still failing.
+            "status": _recompute_job_status(job_id, output_type, artefact, message),
             "operator_message": message or None,
         },
     )
     return {"job_id": job_id, "output_type": output_type, "status": str(artefact.status)}
+
+
+def _recompute_job_status(job_id: str, output_type: str, regenerated, message: str):
+    """Job status across ALL artefacts, with the regenerated one substituted in."""
+    from app.db.models import Artefact as ArtefactRow
+    from app.db.session import session_scope
+    from app.graph import build
+    from app.graph.state import Artefact, ArtefactStatus
+
+    with session_scope() as session:
+        rows = session.query(ArtefactRow).filter_by(job_id=job_id).all()
+        others = {
+            r.output_type: Artefact(
+                output_type=r.output_type,
+                status=ArtefactStatus(r.status),
+                provider_error_count=r.provider_error_count or 0,
+            )
+            for r in rows
+            if r.output_type != output_type
+        }
+
+    others[output_type] = regenerated
+    return build._job_status(others, message)
 
 
 def _persist(job_id: str, result: dict) -> None:
@@ -197,3 +264,8 @@ class WorkerSettings:
     # Generation plus QA for seven formats needs room; the default 300s would
     # kill a healthy multi-format job.
     job_timeout = 900
+    # These tasks are NOT idempotent: a rerun regenerates every artefact and
+    # pays for every token again. arq's default of 5 would do that silently on
+    # any failure the task did not handle itself, so failures are surfaced to
+    # the operator once instead of retried behind their back.
+    max_tries = 1
