@@ -476,7 +476,9 @@ On the host, prefer `127.0.0.1` over `localhost` — some clients resolve
 
 ## 12. Where v1's design and reality diverged
 
-Three places, each documented at the code site.
+Each documented at the code site. This list is the record a future session is
+told to trust, so a divergence that is not here is a divergence nobody wrote
+down - add to it rather than leaving one implicit.
 
 ### 12.1 Image ingestion is OCR only
 
@@ -499,6 +501,46 @@ v1 §4 implies LangGraph conditional edges throughout. Retries are per artefact
 (Invariant 7) and artefacts are independent; shared graph edges would make one
 artefact's retry state reachable from another. An explicit bounded loop inside
 one fan-out branch says exactly what is meant. The fan-out remains concurrent.
+
+### 12.4 Parameters are entered by interview, and validated by shape
+
+v1's UC-02 mandates closed vocabularies, with a stated reason: free text gives
+the tone checker nothing concrete to compare against. That reason is sound and
+still holds, but the lists were also restrictive - five audiences, four styles,
+no way to say "second-year CS students who have not seen memory safety before".
+
+The interview (`app/agents/interview.py`) replaces the input METHOD, not the
+data contract. It reads the source, proposes a brief, and takes corrections;
+what it produces is the same six structured `Parameters`. The dashboard offers
+both doors onto those fields - "Describe it" and "Pick from lists" - and the
+interview's result lands *in* the dropdowns as an editable confirmation step,
+so the operator always sees and can override what the model decided.
+
+Three consequences worth stating:
+
+- The selects remain in the DOM, so **TC-0202 passes unmodified**. A value the
+  interview proposes that is not in `VOCAB` is added as a selected option
+  rather than discarded.
+- `Parameters` is now validated for **shape** rather than list membership -
+  non-blank, single-line, under 200 characters (TC-0206). A richer audience
+  description gives the tone and editorial checkers *more* to compare against,
+  not less, which is the opposite of what the original constraint feared.
+- The interview is a convenience and never a gate: a provider failure returns
+  a message pointing at the lists, and the operator can always start a job.
+
+### 12.5 A sixth checker judges the writing itself
+
+Format, grounding, safety and source-reuse all check properties *of* an
+artefact; tone judges fit and says so explicitly ("You judge fit only"). None
+of them asked whether the writing was any good, and the first live run shipped
+a LinkedIn post with 36 consecutive words copied from the source that every
+checker passed.
+
+`app/agents/qa/editorial.py` scores specificity, substance, originality and
+structure, and measures verbatim overlap deterministically rather than trusting
+the model to notice it. Editorial failures retry with the failing dimension
+named and block when the budget is spent; tone gains a floor below which an
+artefact is withheld rather than flagged.
 
 ## 13. Planned, not built
 
