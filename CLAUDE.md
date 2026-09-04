@@ -11,11 +11,12 @@ jobs generate real artefacts end to end.
 Measured, not estimated. Before the editorial checker: 67s and 93s for the
 two-format golden path, 123s for seven formats, 53 model calls (TC-1203/1204).
 
-**TC-1202 is missed, and by more than it was.** A single artefact now takes
-~80s against a 20s target: five checkers instead of four, and quality failures
-that genuinely retry rather than passing flagged. The retries are the point -
-the output is measurably better - but the cost is real and unhidden. Caching QA
-checker responses is the next lever; only generation is cached today.
+**TC-1202 is still missed, but by less than before.** A single artefact takes
+~29s against a 20s target, measured with six checkers rather than four. It was
+30-45s with four and no editorial checker, and briefly ~80s once editorial
+landed - the editorial contract in the generator prompt cut the retries, and
+caching QA verdicts cut the rest. An identical rerun is ~3s (TC-1205: provider
+calls near zero on a repeat).
 
 Known gaps, stated not hidden. `EMBEDDING_API_KEY` is unset, so `embed_texts`
 falls back to deterministic hash-derived vectors: retrieval works but **cannot

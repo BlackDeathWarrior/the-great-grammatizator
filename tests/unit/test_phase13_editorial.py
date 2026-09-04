@@ -268,3 +268,86 @@ def test_the_shared_prompt_carries_an_editorial_contract():
     assert "rapidly evolving landscape" in shared
     # And a worked weak-vs-strong pair, the trick that fixed the claims bug.
     assert "Weak, because" in shared and "Strong, because" in shared
+
+
+# === QA verdicts are cached =================================================
+
+
+@pytest.mark.p1
+async def test_an_identical_artefact_is_not_rejudged(monkeypatch):
+    """A checker is a pure function of the artefact it is shown.
+
+    Re-asking costs tokens and latency for an answer already known - and with
+    five checkers per attempt, a retry that changes one field used to rerun
+    every one of them from scratch. TC-1202 is why this matters.
+    """
+    from app.agents.qa import runner
+    from app.formats import registry
+    from app.gateway import cache
+
+    store: dict[str, str] = {}
+    monkeypatch.setattr(cache, "get", lambda k: store.get(k))
+    monkeypatch.setattr(cache, "put", lambda k, v, **_kw: store.__setitem__(k, v))
+
+    calls = {"n": 0}
+
+    async def counting_safety(_artefact):
+        calls["n"] += 1
+        return CheckerResult(checker=CheckerName.SAFETY, passed=True, reason="clean")
+
+    from app.agents.qa import editorial as ed
+    from app.agents.qa import grounding, safety, tone
+
+    monkeypatch.setattr(safety, "check", counting_safety)
+    monkeypatch.setattr(
+        grounding,
+        "check",
+        lambda *a, **k: _passing(CheckerName.GROUNDING),
+    )
+    monkeypatch.setattr(tone, "check", lambda *a, **k: _passing(CheckerName.TONE))
+    monkeypatch.setattr(ed, "check", lambda *a, **k: _passing(CheckerName.EDITORIAL))
+
+    from app.graph.state import Parameters
+
+    spec = registry.get("linkedin_post")
+    artefact = _artefact({"hook": "h", "body": "b", "call_to_action": "c", "hashtags": []})
+
+    for _ in range(3):
+        await runner.run(spec, artefact, _content(), Parameters(), _analysis())
+
+    assert calls["n"] == 1, f"the same artefact was judged {calls['n']} times"
+
+
+async def _passing(name: CheckerName) -> CheckerResult:
+    return CheckerResult(checker=name, passed=True, score=0.9, reason="ok")
+
+
+def _analysis():
+    from app.graph.state import AnalysisResult
+
+    return AnalysisResult(objective="inform", audience="general public")
+
+
+@pytest.mark.p0
+def test_the_grounding_cache_key_includes_the_source():
+    """The same claim can be supported by one document and not another."""
+    from app.gateway import cache
+
+    body = {"hook": "h", "claims": [{"text": "rated 9.1", "chunk_id": "c1"}]}
+    a = cache.checker_key("grounding", body, "sha256:one")
+    b = cache.checker_key("grounding", body, "sha256:two")
+
+    assert a != b, "a verdict would be reused across different sources"
+
+
+@pytest.mark.p1
+def test_the_tone_cache_key_includes_the_brief():
+    """The same text is on-tone for one audience and wrong for another."""
+    from app.gateway import cache
+    from app.graph.state import Parameters
+
+    body = {"hook": "h"}
+    a = cache.checker_key("tone", body, Parameters(audience="engineers").cache_fragment())
+    b = cache.checker_key("tone", body, Parameters(audience="executives").cache_fragment())
+
+    assert a != b
