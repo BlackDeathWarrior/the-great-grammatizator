@@ -111,6 +111,7 @@ async def run_artefact(
                     parameters,
                     fix_notes=_notes,
                     attempt=_n,
+                    job_id=job_id,
                 ),
                 what="generation",
                 artefact=artefact,

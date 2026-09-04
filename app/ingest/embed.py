@@ -37,6 +37,28 @@ def ensure_collection() -> None:
             vectors_config=VectorParams(size=s.embedding_dim, distance=Distance.COSINE),
         )
         log.info("created qdrant collection %s", s.qdrant_collection)
+        return
+
+    # A collection is created with a fixed vector size, so changing embedding
+    # model silently breaks every upsert with a 400 deep inside the client.
+    # Say what actually happened, and what to do about it, at startup.
+    try:
+        info = client.get_collection(s.qdrant_collection)
+        actual = info.config.params.vectors.size
+    except Exception as exc:  # noqa: BLE001 - qdrant's shape varies by version
+        log.warning("could not read the collection's vector size: %s", exc)
+        return
+
+    if actual != s.embedding_dim:
+        log.error(
+            "qdrant collection %r holds %d-dimension vectors but EMBEDDING_DIM "
+            "is %d. Every upsert will fail. The embedding model changed: drop "
+            "the collection and re-ingest, or set EMBEDDING_DIM back to %d.",
+            s.qdrant_collection,
+            actual,
+            s.embedding_dim,
+            actual,
+        )
 
 
 # The provider caps inputs per request; a 500-page PDF exceeds it comfortably.
@@ -66,17 +88,77 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
         )
         return [_offline_vector(t, s.embedding_dim) for t in texts]
 
+    # Batched either way: a long source sends every chunk in one request
+    # otherwise, and the provider rejects the whole batch over its input limit
+    # - losing an extraction that had already succeeded.
+    try:
+        if _is_gemini(s.embedding_model):
+            return _embed_gemini(texts, s)
+        return _embed_openai(texts, s)
+    except Exception as exc:  # noqa: BLE001 - provider SDKs raise many types
+        # Ingestion must never depend on a provider being reachable. Fall back
+        # rather than discarding an extraction that already succeeded - and say
+        # so loudly, because retrieval that cannot rank looks healthy.
+        _mark_degraded()
+        log.warning(
+            "embedding provider failed (%s); falling back to offline vectors. "
+            "Retrieval will return chunks but CANNOT rank them by meaning.",
+            exc,
+        )
+        return [_offline_vector(t, s.embedding_dim) for t in texts]
+
+
+def _is_gemini(model: str) -> bool:
+    return "gemini" in model or model.startswith("models/")
+
+
+def _embed_openai(texts: list[str], s) -> list[list[float]]:
     from openai import OpenAI
 
-    # Batched: a long source sends every chunk in one request otherwise, and
-    # the provider rejects the whole batch over its input limit - losing an
-    # extraction that had already succeeded.
     client = OpenAI(api_key=s.embedding_api_key, timeout=s.embedding_timeout)
     vectors: list[list[float]] = []
     for start in range(0, len(texts), _EMBED_BATCH):
         batch = texts[start : start + _EMBED_BATCH]
         resp = client.embeddings.create(model=s.embedding_model, input=batch)
         vectors.extend(d.embedding for d in resp.data)
+    return vectors
+
+
+def _embed_gemini(texts: list[str], s) -> list[list[float]]:
+    """Gemini embeddings over REST.
+
+    Deliberately not the google SDK: this is one HTTP call, and the ingest path
+    already avoids depending on the gateway's provider stack (ARCHITECTURE §2).
+    """
+    import httpx
+
+    model = (
+        s.embedding_model
+        if s.embedding_model.startswith("models/")
+        else (f"models/{s.embedding_model}")
+    )
+    url = f"https://generativelanguage.googleapis.com/v1beta/{model}:batchEmbedContents"
+
+    vectors: list[list[float]] = []
+    with httpx.Client(timeout=s.embedding_timeout) as client:
+        for start in range(0, len(texts), _EMBED_BATCH):
+            batch = texts[start : start + _EMBED_BATCH]
+            resp = client.post(
+                url,
+                params={"key": s.embedding_api_key},
+                json={
+                    "requests": [
+                        {
+                            "model": model,
+                            "content": {"parts": [{"text": t[:8000]}]},
+                            "outputDimensionality": s.embedding_dim,
+                        }
+                        for t in batch
+                    ]
+                },
+            )
+            resp.raise_for_status()
+            vectors.extend(e["values"] for e in resp.json()["embeddings"])
     return vectors
 
 

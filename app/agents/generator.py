@@ -32,6 +32,56 @@ class ParseFailure(Exception):
     """
 
 
+def _focus(content: ContentObject, analysis: AnalysisResult, *, job_id: str = "") -> ContentObject:
+    """Narrow a long source to the chunks worth showing (top-k).
+
+    Generators used to see every chunk inline in document order, which works
+    for a 3-page advisory and does not for a 60-page report: the prompt either
+    blows the context window or buries the relevant passage among boilerplate.
+
+    Ordering is by relevance to what the operator actually asked for, which is
+    only meaningful once embeddings are real (ARCHITECTURE §13.2). With the
+    offline fallback active this degrades to document order - the same
+    behaviour as before, so a degraded embedder never makes things worse.
+
+    Chunk IDS ARE PRESERVED. Selection changes which chunks are shown, never
+    what they are called, so a claim citing c37 still verifies against c37
+    (Invariant 2).
+    """
+    total = len(content.chunks)
+    if total <= loader.MAX_PROMPT_CHUNKS:
+        return content
+
+    query = " ".join(x for x in (analysis.objective, analysis.audience, content.title) if x).strip()
+
+    ranked_ids: list[str] = []
+    if job_id and query:
+        try:
+            from app.tools.registry import Caller, call
+
+            hits = call(
+                Caller.OUTPUT_GENERATOR,
+                "search_chunks",
+                job_id=job_id,
+                query=query,
+                k=loader.MAX_PROMPT_CHUNKS,
+            )
+            ranked_ids = [h["chunk_id"] for h in hits]
+        except Exception as exc:  # noqa: BLE001 - retrieval must not fail a job
+            log.warning("top-k selection unavailable, using document order: %s", exc)
+
+    keep = {cid for cid in ranked_ids[: loader.MAX_PROMPT_CHUNKS]}
+    if keep:
+        # Document order among the selected chunks: the model reads better
+        # prose than a relevance-shuffled sequence.
+        selected = [c for c in content.chunks if c.id in keep]
+    else:
+        selected = list(content.chunks[: loader.MAX_PROMPT_CHUNKS])
+
+    log.info("focused %d chunks to %d for %s", total, len(selected), content.source_id)
+    return content.model_copy(update={"chunks": selected})
+
+
 async def generate(
     spec: FormatSpec,
     content: ContentObject,
@@ -41,6 +91,7 @@ async def generate(
     fix_notes: list[str] | None = None,
     attempt: int = 0,
     use_cache: bool = True,
+    job_id: str = "",
 ) -> Artefact:
     """Generate one artefact. Raises ProviderError or ParseFailure.
 
@@ -71,7 +122,7 @@ async def generate(
 
     prompt = loader.render(
         spec.prompt_template,
-        content=content,
+        content=_focus(content, analysis, job_id=job_id),
         analysis=analysis,
         parameters=parameters,
         constraints=spec.constraints,

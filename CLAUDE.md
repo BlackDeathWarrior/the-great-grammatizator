@@ -18,12 +18,17 @@ landed - the editorial contract in the generator prompt cut the retries, and
 caching QA verdicts cut the rest. An identical rerun is ~3s (TC-1205: provider
 calls near zero on a repeat).
 
-Known gaps, stated not hidden. `EMBEDDING_API_KEY` is unset, so `embed_texts`
-falls back to deterministic hash-derived vectors: retrieval works but **cannot
-rank by meaning**, and generators currently see every chunk inline rather than a
-top-k selection (docs/v2/ARCHITECTURE.md §13.2). No auth (§13.1). `language` is a
-parameter that nothing acts on (§13.3). The `long` alias may return 429 on the
-Gemini free tier; the cross-alias fallback to `fast` covers it.
+Retrieval is semantic. `EMBEDDING_MODEL=gemini-embedding-001` reuses the Gemini
+key; `search_chunks(job_id, "what is the CVSS score")` returns the severity
+chunk first on a document where it is third (§13.2's own acceptance test). A
+source over `MAX_PROMPT_CHUNKS` is narrowed by top-k relevance, preserving chunk
+ids. The offline hash-vector fallback remains for air-gapped runs and announces
+itself on the job record.
+
+Known gaps, stated not hidden. No auth (§13.1) - the operator profile is a name
+in a cookie, not an identity. `language` is a parameter that nothing acts on
+(§13.3). Gemini's free tier 429s routinely, so both aliases carry two
+deployments; re-probe model ids before a demo, they drift.
 
 ## Documents (read at session start, not every turn)
 
