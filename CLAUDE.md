@@ -127,6 +127,18 @@ auth — deliberate demo scope, documented not hidden.
 - `literary_copyrighted` provenance switches generation to commentary mode (paraphrase,
   short quoted fragments only).
 
+## Human approval and learned preferences
+
+An operator can ask for 2-3 takes on one artefact (`app/graph/variants.py`),
+each written to a deliberately different angle and each QA'd independently.
+Only passing variants are offered; failures are shown marked with a count. The
+chosen variant becomes the artefact.
+
+The difference between chosen and rejected becomes one reusable style note on
+an `operator_profiles` row, injected into that operator's later prompts. Notes
+are sentences, carry their evidence, are capped, and are individually
+deletable. The profile is a name in a cookie, **not** auth (§13.1).
+
 ## Stack
 
 Python 3.11 · FastAPI · LangGraph (+ LangChain adapters only) · LiteLLM Router ·

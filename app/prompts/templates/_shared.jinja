@@ -74,6 +74,25 @@ language: {{ parameters.language }}
 detail:   {{ parameters.detail }}
 objective:{{ parameters.objective }}
 style:    {{ parameters.style }}
+{% if style_notes %}
+
+WHAT THIS OPERATOR PREFERS
+Learned from pieces they chose before. Honour these unless the parameters above
+contradict them, in which case the parameters win - they are this job's brief,
+and these are only habits.
+{% for note in style_notes %}
+- {{ note }}
+{% endfor %}
+{% endif %}
+{% if approach %}
+
+YOUR ANGLE FOR THIS DRAFT
+{{ approach }}
+
+Other drafts are being written to different angles and the operator will pick
+between them, so commit to this one. A hedged draft that splits the difference
+is the one nobody chooses.
+{% endif %}
 {% if fix_notes %}
 
 RETRY - your previous attempt failed quality checks. Fix exactly these:

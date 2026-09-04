@@ -82,6 +82,8 @@ async def run_artefact(
     job_id: str = "",
     on_attempt=None,
     operator_instructions: str = "",
+    approach: str = "",
+    style_notes: list[str] | None = None,
 ) -> tuple[Artefact, str]:
     """Generate one artefact and drive it through QA until settled.
 
@@ -112,6 +114,8 @@ async def run_artefact(
                     fix_notes=_notes,
                     attempt=_n,
                     job_id=job_id,
+                    approach=approach,
+                    style_notes=style_notes or [],
                 ),
                 what="generation",
                 artefact=artefact,

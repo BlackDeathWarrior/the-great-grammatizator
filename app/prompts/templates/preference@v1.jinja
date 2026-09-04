@@ -1,0 +1,16 @@
+Format: {{ output_type }}
+
+The operator chose: {{ chosen }}
+Over: {{ rejected|join('; ') }}
+
+An excerpt of what they chose:
+{{ excerpt }}
+
+Return:
+{"note": "<one instruction for future pieces, under 180 characters, or empty>"}
+
+Write the note as a standing instruction, not a description of this event.
+  Good:  "Open with the concrete figure or date, not a rhetorical question."
+  Good:  "Keep paragraphs to two sentences; break rather than run on."
+  Bad:   "The operator liked variant B."            (names nothing reusable)
+  Bad:   "Mention version 22.7R2.6 where relevant." (specific to this source)

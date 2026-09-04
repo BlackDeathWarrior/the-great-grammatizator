@@ -257,8 +257,110 @@ async def startup(ctx: dict) -> None:
     ctx["settings"] = get_settings()
 
 
+async def variants_task(
+    ctx: dict, job_id: str, output_type: str, count: int, profile_id: str
+) -> dict:
+    """Generate several takes on ONE artefact for the operator to choose between.
+
+    Re-enters at generation like a regenerate, reusing the stored analysis, so
+    the cost is n generations rather than n jobs (Invariant 3).
+    """
+    from app.agents import preferences
+    from app.db.models import Artefact as ArtefactRow
+    from app.db.models import Job, OperatorProfile, Variant
+    from app.db.session import session_scope
+    from app.graph import variants as variants_engine
+    from app.graph.state import AnalysisResult, JobStatus, Parameters
+    from app.ingest.service import to_content_object
+    from app.tools import retrieval
+
+    with session_scope() as session:
+        job = session.get(Job, job_id)
+        if job is None:
+            return {"error": "unknown job"}
+        source_row = job.sources[0].source if job.sources else None
+        if source_row is None:
+            job.status = JobStatus.FAILED_PERMANENT
+            job.operator_message = "This job references no source."
+            return {"error": "no source"}
+
+        job.status = JobStatus.RUNNING
+        content = to_content_object(source_row)
+        parameters = Parameters(**(job.parameters or {}))
+        stored_analysis = job.analysis
+
+        profile = session.get(OperatorProfile, profile_id) if profile_id else None
+        style_notes = preferences.notes_for_prompt(profile.style_notes if profile else [])
+
+    analysis = AnalysisResult(**stored_analysis) if stored_analysis else None
+    if analysis is None:
+        from app.agents import analysis as analysis_agent
+
+        analysis = await analysis_agent.analyse(content, parameters, job_id=job_id)
+
+    retrieval.bind_job(job_id, [content.source_id])
+    try:
+        records = await variants_engine.run(
+            output_type,
+            content,
+            analysis,
+            parameters,
+            job_id=job_id,
+            count=count,
+            style_notes=style_notes,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.exception("variants failed for %s/%s", job_id, output_type)
+        _fail_job(job_id, JobStatus.FAILED_RECOVERABLE, guardrails.redact(str(exc)))
+        return {"error": str(exc)}
+    finally:
+        retrieval.unbind_job(job_id)
+
+    with session_scope() as session:
+        row = (
+            session.query(ArtefactRow)
+            .filter_by(job_id=job_id, output_type=output_type)
+            .one_or_none()
+        )
+        if row is None:
+            return {"error": "unknown artefact"}
+
+        # A fresh round replaces the last one: stale options the operator never
+        # picked would make the choice ambiguous.
+        for old in list(row.variants):
+            session.delete(old)
+        session.flush()
+
+        for rec in records:
+            session.add(
+                Variant(
+                    artefact_id=row.id,
+                    label=rec["label"],
+                    approach=rec["approach"],
+                    content=rec["content"],
+                    claims=rec["claims"],
+                    status=rec["status"],
+                    qa=rec["qa"],
+                    export_paths=rec["export_paths"],
+                )
+            )
+
+        job = session.get(Job, job_id)
+        if job is not None:
+            job.status = JobStatus.DONE
+            offered = len(variants_engine.offerable(records))
+            job.operator_message = (
+                f"{offered} version{'' if offered == 1 else 's'} of {output_type} "
+                "ready to compare. Pick the one you prefer."
+                if offered
+                else f"No version of {output_type} passed the quality checks."
+            )
+
+    return {"job_id": job_id, "output_type": output_type, "variants": len(records)}
+
+
 class WorkerSettings:
-    functions = [ping, run_job_task, regenerate_task]
+    functions = [ping, run_job_task, regenerate_task, variants_task]
     on_startup = startup
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     # Generation plus QA for seven formats needs room; the default 300s would

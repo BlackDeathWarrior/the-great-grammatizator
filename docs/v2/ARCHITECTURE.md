@@ -542,6 +542,46 @@ the model to notice it. Editorial failures retry with the failing dimension
 named and block when the budget is spent; tone gains a floor below which an
 artefact is withheld rather than flagged.
 
+### 12.6 Human approval: several takes, and a preference that lasts
+
+v1's Reviewer actor was named and never built, and §14 recorded that as the
+thing which would make QA verdicts "consequential rather than advisory". This
+is that, arrived at from the other end.
+
+A single draft asks "is this acceptable?", which an operator with nothing to
+compare against almost always answers yes to. Two or three takes ask "which of
+these?", which is answerable at a glance and which produces a signal worth
+keeping. `app/graph/variants.py` generates them against deliberately opposed
+angles - data-led, consequence-led, narrative - because three hedged drafts are
+indistinguishable and teach nothing.
+
+Every variant is QA'd independently and **only passing ones are offered**, so
+the choice is between publishable drafts rather than between a good one and two
+strawmen. Failures are shown marked, with a count, never hidden.
+
+The chosen variant *becomes* the artefact: export, download and the QA record
+all refer to what the operator picked.
+
+**What is learned, and how.** The difference between the winner and the losers
+is turned into one reusable instruction (`app/agents/preferences.py`) stored on
+an operator profile and injected into that operator's later prompts. Three
+constraints keep this honest:
+
+- Notes are **sentences, not weights**. They are shown back in the dashboard
+  and deletable one at a time. A preference the operator cannot read is one
+  they cannot correct.
+- Every note carries **the evidence it came from**, so an operator who
+  disagrees can see the choice it was derived from.
+- Notes are **capped and recent-weighted**, because taste moves and an
+  unbounded pile of instructions would eventually contradict itself.
+
+The model is asked to return an empty note when a choice teaches nothing
+general. An invented rule is worse than no rule: it steers every later job.
+
+**The profile is not authentication** (§13.1). It is a name in a cookie,
+enough to keep two operators' tastes apart and no more. If auth is ever built,
+`operator_profiles` is what a real principal replaces.
+
 ## 13. Planned, not built
 
 Everything below is **design intent**. There is no code and no test id. A future

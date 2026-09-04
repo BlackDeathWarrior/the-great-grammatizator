@@ -188,8 +188,14 @@ def test_operator_message_is_surfaced_not_a_stack_trace(client, source_id):
         "/jobs", json={"source_ids": [source_id], "formats": ["linkedin_post"]}
     ).json()["job_id"]
 
+    from app.graph.state import JobStatus
+
     with session_scope() as s:
         job = s.get(Job, job_id)
+        # The status matters now: operator_message also carries ordinary news
+        # ("3 versions ready to compare"), and announcing that under a "Job
+        # stopped" heading would read as a failure.
+        job.status = JobStatus.STOPPED_QA_BUDGET
         job.operator_message = (
             "Quality checks failed three times for linkedin_post. The job has "
             "been stopped. Review the findings, adjust, and start a new job."

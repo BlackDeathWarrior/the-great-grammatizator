@@ -45,6 +45,11 @@ def _env():
     # _shared.jinja listed every chunk at 400 chars with no cap, so a long
     # source produced a prompt the provider rejects on length, on every retry.
     env.globals["max_chunks"] = MAX_PROMPT_CHUNKS
+    # Optional blocks. StrictUndefined is deliberate - a typo must fail loudly -
+    # so anything a caller MAY omit needs a default here rather than at every
+    # call site.
+    env.globals["style_notes"] = []
+    env.globals["approach"] = ""
     return env
 
 

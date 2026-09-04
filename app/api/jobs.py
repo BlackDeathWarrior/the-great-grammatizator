@@ -51,6 +51,9 @@ class ArtefactOut(BaseModel):
     provider_error_count: int
     export_paths: list[str]
     error: str | None
+    # Alternatives awaiting a decision. Empty for the ordinary single-draft
+    # path, so the dashboard renders variants only when there are some.
+    variants: list[VariantOut] = []
 
 
 class JobDetail(BaseModel):
@@ -66,6 +69,19 @@ class JobDetail(BaseModel):
     # Degraded modes the operator should know about, surfaced rather than left
     # in a container log (POC.md §5: silent success is the worst failure mode).
     warnings: list[str] = []
+
+
+class VariantOut(BaseModel):
+    """One candidate the operator can choose. See app/graph/variants.py."""
+
+    label: str
+    approach: str
+    status: str
+    content: dict | None = None
+    claims: list[dict] = []
+    qa: list[dict] = []
+    export_paths: list[str] = []
+    chosen: bool = False
 
 
 @router.post("/jobs", response_model=JobOut, status_code=202)
@@ -218,6 +234,19 @@ def _detail(session, job: Job) -> JobDetail:
                 provider_error_count=row.provider_error_count,
                 export_paths=row.export_paths or [],
                 error=row.error,
+                variants=[
+                    VariantOut(
+                        label=v.label,
+                        approach=v.approach,
+                        status=v.status,
+                        content=v.content,
+                        claims=v.claims or [],
+                        qa=v.qa or [],
+                        export_paths=v.export_paths or [],
+                        chosen=v.chosen,
+                    )
+                    for v in sorted(row.variants, key=lambda v: v.label)
+                ],
             )
         )
 
