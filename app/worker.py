@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from arq.connections import RedisSettings
 
 from app.config import get_settings
+from app.gateway import guardrails
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +57,9 @@ async def run_job_task(ctx: dict, job_id: str) -> dict:
                 # Unhandled failures are recoverable by default: the operator
                 # can retry, and a wrong "permanent" would tell them not to.
                 job.status = JobStatus.FAILED_RECOVERABLE
-                job.operator_message = f"The job failed: {exc}"
+                # Redacted: a provider's error body can echo back prompt text,
+                # and this string is rendered straight into the dashboard.
+                job.operator_message = guardrails.redact(f"The job failed: {exc}")
         return {"error": str(exc)}
 
     _persist(job_id, result)

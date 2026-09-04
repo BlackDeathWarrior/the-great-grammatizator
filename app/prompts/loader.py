@@ -21,11 +21,17 @@ PROMPTS_DIR = pathlib.Path(__file__).parent / "templates"
 _VERSION_RE = re.compile(r"^(?P<name>.+)@v(?P<version>\d+)\.jinja$")
 
 
+# How many chunks a generation prompt may list. Until real top-k selection
+# lands (docs/v2/ARCHITECTURE.md §13.2) the generator sees chunks in document
+# order, so this is a context-window guard rather than a relevance decision.
+MAX_PROMPT_CHUNKS = 60
+
+
 @functools.lru_cache(maxsize=1)
 def _env():
     from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-    return Environment(
+    env = Environment(
         loader=FileSystemLoader(str(PROMPTS_DIR)),
         # StrictUndefined: a typo in a template name must fail loudly at render
         # time rather than silently producing a prompt with an empty slot.
@@ -34,6 +40,12 @@ def _env():
         lstrip_blocks=True,
         keep_trailing_newline=True,
     )
+    # A global so every template gets it without each caller remembering to
+    # pass it - and StrictUndefined would make forgetting a hard error.
+    # _shared.jinja listed every chunk at 400 chars with no cap, so a long
+    # source produced a prompt the provider rejects on length, on every retry.
+    env.globals["max_chunks"] = MAX_PROMPT_CHUNKS
+    return env
 
 
 def versions(name: str) -> list[int]:
