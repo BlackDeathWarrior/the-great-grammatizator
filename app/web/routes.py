@@ -70,6 +70,8 @@ async def index(request: Request, source_id: str | None = None):
             for j in session.query(Job).order_by(Job.created_at.desc()).limit(8).all()
         ]
 
+    profile_name, style_notes = _profile_summary(request)
+
     selected = next((s for s in sources if s["source_id"] == source_id), None)
     return TEMPLATES.TemplateResponse(
         request,
@@ -80,8 +82,24 @@ async def index(request: Request, source_id: str | None = None):
             "formats": registry.all_formats(),
             "vocab": VOCAB,
             "jobs": recent_jobs,
+            "profile_name": profile_name,
+            "style_notes": style_notes,
         },
     )
+
+
+def _profile_summary(request: Request) -> tuple[str, list[dict]]:
+    """The current operator's name and what has been learned about them."""
+    from app.db.models import OperatorProfile
+
+    profile_id = request.cookies.get(PROFILE_COOKIE, "")
+    if not profile_id:
+        return "", []
+    with session_scope() as session:
+        profile = session.get(OperatorProfile, profile_id)
+        if profile is None:
+            return "", []
+        return profile.name, list(profile.style_notes or [])
 
 
 @router.post("/ui/sources")
@@ -247,6 +265,178 @@ async def ui_regenerate(
     scratch - losing scroll position and any open disclosure in the process.
     """
     await jobs_api.regenerate(job_id, output_type, instructions.strip()[:1000])
+    detail = await jobs_api.get_job(job_id)
+    return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
+
+
+# --- who is asking ---------------------------------------------------------
+
+PROFILE_COOKIE = "operator"
+
+
+def _profile_id(request: Request) -> str:
+    """The current operator profile, or "" when nobody has said who they are.
+
+    A cookie, not a session, and explicitly NOT authentication (§13.1). It
+    exists so preferences have something to hang off; it grants no access and
+    protects nothing. Anyone who edits the cookie becomes that profile, which
+    is fine for a demo and must be replaced wholesale if auth is ever built.
+    """
+    return request.cookies.get(PROFILE_COOKIE, "")
+
+
+@router.post("/ui/profile")
+async def ui_profile(name: str = Form(default="")):
+    """Remember a name so preferences can be kept apart between operators."""
+    from app.db.models import OperatorProfile
+
+    name = " ".join(name.split())[:80]
+    if not name:
+        raise HTTPException(400, "Tell me a name to remember you by.")
+
+    with session_scope() as session:
+        profile = session.query(OperatorProfile).filter_by(name=name).one_or_none()
+        if profile is None:
+            profile = OperatorProfile(name=name)
+            session.add(profile)
+            session.flush()
+        profile_id = profile.id
+
+    response = RedirectResponse("/", status_code=303)
+    # A year: the operator should not have to reintroduce themselves weekly.
+    response.set_cookie(PROFILE_COOKIE, profile_id, max_age=31_536_000, httponly=True)
+    return response
+
+
+@router.post("/ui/profile/forget")
+async def ui_forget_profile():
+    """Sign out of the profile. The learned notes survive for next time."""
+    response = RedirectResponse("/", status_code=303)
+    response.delete_cookie(PROFILE_COOKIE)
+    return response
+
+
+@router.post("/ui/profile/notes/{index}/delete")
+async def ui_delete_note(request: Request, index: int):
+    """Drop one learned note.
+
+    A preference the operator cannot correct is one they have to work around,
+    so every note is individually deletable.
+    """
+    from app.db.models import OperatorProfile
+
+    with session_scope() as session:
+        profile = session.get(OperatorProfile, _profile_id(request))
+        if profile is None:
+            raise HTTPException(404, "No profile.")
+        notes = list(profile.style_notes or [])
+        if 0 <= index < len(notes):
+            notes.pop(index)
+            profile.style_notes = notes
+
+    return RedirectResponse("/", status_code=303)
+
+
+# --- choosing between versions ---------------------------------------------
+
+
+@router.post("/ui/jobs/{job_id}/artefacts/{output_type}/variants", response_class=HTMLResponse)
+async def ui_request_variants(
+    request: Request, job_id: str, output_type: str, count: int = Form(default=2)
+):
+    """Generate several takes for the operator to choose between (UC-08)."""
+    from arq import create_pool
+    from arq.connections import RedisSettings
+
+    count = max(2, min(int(count or 2), 3))
+
+    try:
+        pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
+        await pool.enqueue_job("variants_task", job_id, output_type, count, _profile_id(request))
+    except Exception as exc:  # noqa: BLE001
+        log.error("could not enqueue variants for %s: %s", job_id, exc)
+        raise HTTPException(503, "The queue is unavailable; try again shortly.") from exc
+
+    detail = await jobs_api.get_job(job_id)
+    return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
+
+
+@router.post("/ui/jobs/{job_id}/artefacts/{output_type}/choose", response_class=HTMLResponse)
+async def ui_choose_variant(
+    request: Request, job_id: str, output_type: str, label: str = Form(...)
+):
+    """Record the operator's choice, and learn from it.
+
+    The chosen variant becomes the artefact - so export, download and the QA
+    record all refer to what the operator actually picked, not to whichever
+    draft happened to be generated first.
+    """
+    from app.agents import preferences
+    from app.db.models import Artefact as ArtefactRow
+    from app.db.models import OperatorProfile, Preference
+
+    with session_scope() as session:
+        row = (
+            session.query(ArtefactRow)
+            .filter_by(job_id=job_id, output_type=output_type)
+            .one_or_none()
+        )
+        if row is None:
+            raise HTTPException(404, "No such artefact.")
+
+        chosen = next((v for v in row.variants if v.label == label), None)
+        if chosen is None:
+            raise HTTPException(404, f"No version {label!r} to choose.")
+
+        rejected = [v.approach for v in row.variants if v.label != label and v.approach]
+
+        for v in row.variants:
+            v.chosen = v.label == label
+
+        # The choice IS the artefact from here on.
+        row.content = chosen.content
+        row.claims = chosen.claims or []
+        row.export_paths = chosen.export_paths or []
+        row.status = chosen.status
+
+        chosen_approach = chosen.approach
+        chosen_content = chosen.content
+        profile_id = _profile_id(request)
+
+    # Derived outside the transaction: a model call must not hold a DB
+    # connection open, and the choice is already safely recorded.
+    note = ""
+    if profile_id and rejected:
+        note = await preferences.derive_note(
+            output_type=output_type,
+            chosen_approach=chosen_approach,
+            rejected_approaches=rejected,
+            chosen_content=chosen_content,
+        )
+
+    if profile_id:
+        with session_scope() as session:
+            profile = session.get(OperatorProfile, profile_id)
+            if profile is not None:
+                evidence = {
+                    "output_type": output_type,
+                    "chosen": chosen_approach,
+                    "rejected": rejected,
+                }
+                profile.style_notes = preferences.merge_note(
+                    list(profile.style_notes or []), note, evidence
+                )
+                session.add(
+                    Preference(
+                        profile_id=profile_id,
+                        job_id=job_id,
+                        output_type=output_type,
+                        chosen_approach=chosen_approach,
+                        rejected_approaches=rejected,
+                        note=note,
+                    )
+                )
+
     detail = await jobs_api.get_job(job_id)
     return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
 

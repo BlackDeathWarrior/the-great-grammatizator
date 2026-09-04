@@ -29,9 +29,13 @@
     {% endif %}
 
     {% if job.operator_message %}
-    <div class="stop">
-      <strong>Job stopped.</strong>
-      <p style="margin:.5rem 0 0">{{ job.operator_message }}</p>
+    {# "Job stopped." is the 3-strikes message and TC-0805 asserts it, but the
+       same field now also carries ordinary news like "3 versions ready". A
+       success announced under a failure heading reads as a failure. #}
+    {% set halted = job.status in ('stopped_qa_budget', 'failed_recoverable', 'failed_permanent') %}
+    <div class="{{ 'stop' if halted else 'notice' }}">
+      {% if halted %}<strong>Job stopped.</strong>{% endif %}
+      <p style="margin:0">{{ job.operator_message }}</p>
     </div>
     {% endif %}
 
@@ -121,12 +125,99 @@
       </p>
       {% endif %}
 
+      {% set offered = a.variants | selectattr('status', 'in', ['passed','passed_flagged']) | list %}
+      {% if a.variants %}
+      {# Human approval. The operator compares takes that have all cleared the
+         same QA bar, so this is a choice between publishable drafts rather
+         than between a good one and two strawmen. #}
+      <div class="choose">
+        <h4>
+          {% if a.variants | selectattr('chosen') | list %}
+            You chose version
+            {{ (a.variants | selectattr('chosen') | list | first).label }}
+          {% else %}
+            Which reads better?
+          {% endif %}
+        </h4>
+        {% if offered|length < a.variants|length %}
+        <p class="muted" style="font-size:var(--step--1)">
+          {{ a.variants|length - offered|length }} of {{ a.variants|length }}
+          did not pass the checks and are not offered.
+        </p>
+        {% endif %}
+
+        <div class="variants">
+          {% for v in a.variants %}
+          <div class="variant {{ 'is-chosen' if v.chosen }} {{ 'is-out' if v.status not in ('passed','passed_flagged') }}">
+            <div class="variant-head">
+              <strong>{{ v.label }}</strong>
+              <span class="muted">{{ v.approach }}</span>
+              <span class="badge {{ v.status }}">{{ v.status.replace('_',' ') }}</span>
+            </div>
+
+            {% if v.qa %}
+            <div class="checkers">
+              {% for c in v.qa %}
+              <span class="checker {{ 'ok' if c.passed else 'bad' }}">
+                <span class="mark" aria-hidden="true">{{ '✓' if c.passed else '✗' }}</span>
+                {{ c.checker }}
+                {%- if c.score is not none %} <span class="score">{{ '%.2f'|format(c.score) }}</span>{% endif %}
+                &middot; {{ 'pass' if c.passed else 'fail' }}
+              </span>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if v.content %}
+            <div class="variant-body">
+              {% set a_saved = a %}
+              {% set a = {'content': v.content, 'output_type': a.output_type} %}
+              {% include 'partials/artefact_' ~ a_saved.output_type ~ '.html' ignore missing %}
+              {% set a = a_saved %}
+            </div>
+            {% elif v.error %}
+            <p class="muted">{{ v.error }}</p>
+            {% endif %}
+
+            {% if v.status in ('passed','passed_flagged') and not v.chosen %}
+            <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/choose"
+                  hx-target="#job-status" hx-swap="outerHTML"
+                  hx-disabled-elt="find button[type='submit']">
+              <input type="hidden" name="label" value="{{ v.label }}">
+              <div class="actions">
+                <button type="submit">Use {{ v.label }} <span class="spinner"></span></button>
+              </div>
+            </form>
+            {% elif v.chosen %}
+            <p class="chosen-mark">Chosen &mdash; this is now the artefact.</p>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       {% if a.status in ('passed','passed_flagged','blocked','failed') %}
       {# UC-09. The instructions field was accepted end to end by the backend
          and had no input anywhere, so it always arrived empty. hx-post keeps
          the operator on the live view instead of navigating away. #}
+      {% if not a.variants %}
+      <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/variants"
+            hx-target="#job-status" hx-swap="outerHTML"
+            hx-disabled-elt="find button[type='submit']"
+            style="margin-top:.75rem">
+        <input type="hidden" name="count" value="3">
+        <div class="actions">
+          <button type="submit" class="secondary">
+            Show me 3 versions to compare <span class="spinner"></span>
+          </button>
+          <span class="working">Writing three takes&hellip;</span>
+        </div>
+      </form>
+      {% endif %}
+
       <details style="margin-top:.75rem">
-        <summary>Regenerate this artefact</summary>
+        <summary>Try again for a better result</summary>
         <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/regenerate"
               hx-target="#job-status"
               hx-swap="outerHTML"

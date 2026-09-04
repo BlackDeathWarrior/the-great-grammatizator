@@ -92,6 +92,8 @@ async def generate(
     attempt: int = 0,
     use_cache: bool = True,
     job_id: str = "",
+    approach: str = "",
+    style_notes: list[str] | None = None,
 ) -> Artefact:
     """Generate one artefact. Raises ProviderError or ParseFailure.
 
@@ -108,7 +110,9 @@ async def generate(
         prompt_version=version_tag,
         # A retry must never be served the output that just failed QA, or the
         # fix notes achieve nothing.
-        attempt_salt=str(attempt),
+        # The angle and the operator's learned notes both change the output,
+        # so a variant must never be served another variant's cached draft.
+        attempt_salt=f"{attempt}|{approach}|{'|'.join(style_notes or [])}",
     )
 
     if use_cache and not fix_notes:
@@ -127,6 +131,8 @@ async def generate(
         parameters=parameters,
         constraints=spec.constraints,
         fix_notes=fix_notes,
+        approach=approach,
+        style_notes=style_notes or [],
     )
     system = loader.system(spec.prompt_template)
 

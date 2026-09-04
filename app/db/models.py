@@ -140,6 +140,9 @@ class Artefact(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     job: Mapped[Job] = relationship(back_populates="artefacts")
+    variants: Mapped[list[Variant]] = relationship(
+        back_populates="artefact", cascade="all, delete-orphan"
+    )
     qa_results: Mapped[list[QAResultRow]] = relationship(
         back_populates="artefact", cascade="all, delete-orphan"
     )
@@ -167,3 +170,88 @@ class QAResultRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     artefact: Mapped[Artefact] = relationship(back_populates="qa_results")
+
+
+class OperatorProfile(Base):
+    """Who is asking. Deliberately NOT authentication (§13.1).
+
+    Preferences have to hang off something, and this platform has no identity
+    layer. A profile is a name the operator types once and a cookie remembers -
+    enough to keep two operators' tastes apart and to carry a preference from
+    one job to the next, and honest about being no more than that.
+
+    Nothing here is a security boundary. If auth is ever built, this table is
+    what a real principal would replace.
+    """
+
+    __tablename__ = "operator_profiles"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    # What we have learned this operator likes, newest last. Plain sentences,
+    # not weights: they are injected into the generator prompt, shown back in
+    # the UI, and deletable one by one. A preference the operator cannot read
+    # is a preference they cannot correct.
+    style_notes: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+
+    preferences: Mapped[list[Preference]] = relationship(
+        back_populates="profile", cascade="all, delete-orphan"
+    )
+
+
+class Variant(Base):
+    """One candidate for an artefact, when the operator asked to choose.
+
+    Variants share an artefact row: they are alternative CONTENT for the same
+    (job, output_type), each independently QA'd, so choosing between them is a
+    choice between things that have all passed the same bar.
+    """
+
+    __tablename__ = "variants"
+    __table_args__ = (UniqueConstraint("artefact_id", "label", name="uq_variant_artefact_label"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    artefact_id: Mapped[str] = mapped_column(ForeignKey("artefacts.id"), index=True)
+
+    # "A", "B", "C" - stable within an artefact so a recorded choice stays
+    # meaningful after a reload.
+    label: Mapped[str] = mapped_column(String(8))
+    # What made this one different, in one phrase: the thing the operator is
+    # really choosing between ("data-led opener", "question opener").
+    approach: Mapped[str] = mapped_column(String(120), default="")
+
+    content: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    claims: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(String(24), default=ArtefactStatus.PENDING)
+    qa: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    export_paths: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    chosen: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    artefact: Mapped[Artefact] = relationship(back_populates="variants")
+
+
+class Preference(Base):
+    """A recorded choice: this variant, over those, for this format.
+
+    Kept as evidence rather than a score. The style note derived from a choice
+    can be wrong, and when it is, the operator needs to see what it was derived
+    FROM in order to disagree with it.
+    """
+
+    __tablename__ = "preferences"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("operator_profiles.id"), index=True)
+    job_id: Mapped[str] = mapped_column(String(32), index=True)
+    output_type: Mapped[str] = mapped_column(String(64))
+
+    chosen_approach: Mapped[str] = mapped_column(String(120), default="")
+    rejected_approaches: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    # The note this choice produced, so a note can be traced to its evidence.
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    profile: Mapped[OperatorProfile] = relationship(back_populates="preferences")

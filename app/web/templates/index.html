@@ -2,6 +2,50 @@
 {% block title %}New job &middot; Content Transformation{% endblock %}
 {% block content %}
 
+<div class="panel" id="profile">
+  <h2>Who is asking</h2>
+  {% if profile_name %}
+  <p class="panel-lead">
+    Working as <strong>{{ profile_name }}</strong>. What you pick between
+    versions is remembered here and shapes later drafts.
+  </p>
+  {% if style_notes %}
+  <ul class="notes">
+    {% for n in style_notes %}
+    <li>
+      <span>{{ n.note }}</span>
+      <form action="/ui/profile/notes/{{ loop.index0 }}/delete" method="post">
+        <button type="submit" class="ghost tiny"
+                title="Learned from: chose {{ n.evidence.chosen }} over {{ n.evidence.rejected|join(', ') }}">
+          Forget this
+        </button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">
+    Nothing learned yet. Ask for versions of an artefact and pick one.
+  </p>
+  {% endif %}
+  <form action="/ui/profile/forget" method="post" class="actions">
+    <button type="submit" class="ghost">Not me</button>
+  </form>
+  {% else %}
+  <p class="panel-lead">
+    Optional. Give a name and the platform remembers which versions you prefer,
+    then writes that way next time. No password, no account &mdash; just a label.
+  </p>
+  <form action="/ui/profile" method="post">
+    <label for="name">Your name</label>
+    <input type="text" id="name" name="name" placeholder="Priya" maxlength="80">
+    <div class="actions">
+      <button type="submit">Remember me <span class="spinner"></span></button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+
 <div class="panel">
   <h2>1 &middot; Source</h2>
   <p class="panel-lead">
