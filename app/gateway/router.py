@@ -39,6 +39,8 @@ ALIASES = (FAST, LONG)
 _GROQ_FAST = "groq/openai/gpt-oss-20b"
 _GEMINI_LONG = "gemini/gemini-3.6-flash"
 _OPENROUTER_FAST = "openrouter/meta-llama/llama-3.3-70b-instruct"
+# Long-context second pool for the `long` alias.
+_OPENROUTER_LONG = "openrouter/minimax/minimax-m3:free"
 
 _router = None
 # One semaphore per event loop; see qa_semaphore(). Weak keys so a finished
@@ -85,6 +87,21 @@ def build_router():
             {
                 "model_name": LONG,
                 "litellm_params": {"model": _GEMINI_LONG, "api_key": s.gemini_api_key},
+            }
+        )
+    if s.openrouter_api_key:
+        # `long` had exactly ONE deployment, so a Gemini 429 - routine on the
+        # free tier - had no same-alias alternative and fell across to `fast`,
+        # losing the long context the alias exists to provide. Four of seven
+        # formats ask for `long`, so this was the likeliest way to degrade a
+        # demo (TC-0902, TC-0904).
+        model_list.append(
+            {
+                "model_name": LONG,
+                "litellm_params": {
+                    "model": _OPENROUTER_LONG,
+                    "api_key": s.openrouter_api_key,
+                },
             }
         )
 
