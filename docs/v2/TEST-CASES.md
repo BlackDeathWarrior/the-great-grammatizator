@@ -10,7 +10,7 @@ lives, or says explicitly that it does not exist yet. A row with no test file is
 a gap, not a claim.
 
 ```bash
-docker compose exec app python -m pytest -q          # everything
+docker compose exec app python -m pytest -q          # everything (~110s warm, ~330s cold)
 docker compose exec app python -m pytest -q -m p0    # blocks the demo
 docker compose exec app python -m pytest -q -m "not integration"   # host-runnable
 ```
@@ -209,7 +209,7 @@ routing · 10 tool security · 11 end to end · 12 non-functional · 13 discipli
 | ID | Target | Measured | P |
 |---|---|---|---|
 | TC-1201 | Ingestion < 10s for a 3-page PDF | Sub-second for text sources | P1 |
-| TC-1202 | Single artefact < 20s | ~30s including QA — **over target** | P0 |
+| TC-1202 | Single artefact < 20s | ~30-45s including QA — **over target** | P0 |
 | TC-1203 | Multi-format job under 3 min | **123s for seven formats** | P0 |
 | TC-1204 | Call budget logged | **53 calls** (13 gen + 39 QA + 1 analysis) | P1 |
 | TC-1205 | Cached rerun | Provider calls near zero on an identical repeat | P1 |

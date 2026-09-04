@@ -28,7 +28,7 @@ each claim against the specific chunk it cites.**
 |---|---|
 | Tests | 180 pass, 3 skip. 98 P0 |
 | Formats | 7, all generating |
-| Golden path | 67s — two artefacts, both passed |
+| Golden path | 67-93s over two runs — two artefacts, both passed |
 | Seven-format job | 123s, 53 model calls, six passed, one legitimately blocked |
 | Services | app, worker, postgres, qdrant, redis |
 | Lint | clean |

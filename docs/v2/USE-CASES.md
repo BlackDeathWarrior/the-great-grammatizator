@@ -214,7 +214,7 @@ awareness and patching · plain, no jargon.
 
 **Formats.** `linkedin_post` + `exec_summary`.
 
-**Observed result — 67 seconds:**
+**Observed result — 67s and 93s across two runs:**
 
 | Artefact | Status | QA retries | Grounding | Tone |
 |---|---|---|---|---|
