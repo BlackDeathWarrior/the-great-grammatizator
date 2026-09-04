@@ -1,91 +1,152 @@
-{# Polled by HTMX every 2s. Stops polling once the job settles. #}
-{% if job.done_count == job.total_count %}
-<div hx-get="/ui/jobs/{{ job.job_id }}/status" hx-trigger="none"></div>
-{% endif %}
+{# The live rack. Replaces itself on every poll (hx-swap="outerHTML" on the
+   element in job.html), so THIS element carries the trigger - which is what
+   actually stops the polling once the job settles. #}
+{% set settled = job.status not in ('queued', 'running') %}
+<div id="job-status"
+     role="status"
+     aria-live="polite"
+     aria-busy="{{ 'false' if settled else 'true' }}"
+     {% if not settled %}
+     hx-get="/ui/jobs/{{ job.job_id }}/status"
+     hx-trigger="every 2s"
+     hx-swap="outerHTML"
+     {% endif %}>
 
-<p>
-  <span class="badge {{ job.status }}">{{ job.status }}</span>
-  {# Honest partial reporting - never "complete" while work remains (TC-0803) #}
-  <strong>{{ job.progress }}</strong>
-</p>
-
-{% if job.operator_message %}
-<div class="stop">
-  <strong>Job stopped.</strong>
-  <p style="margin:.5rem 0 0">{{ job.operator_message }}</p>
-</div>
-{% endif %}
-
-{% for a in job.artefacts %}
-<div class="artefact">
-  <div class="artefact-head">
-    <div>
-      <strong>{{ a.label }}</strong>
-      {% if a.retry_count %}
-      <span class="muted" style="font-size:.75rem">
-        &middot; {{ a.retry_count }} QA retr{{ 'y' if a.retry_count == 1 else 'ies' }}
+  <div class="panel">
+    <div class="progress">
+      <span class="badge {{ job.status }}">{{ job.status.replace('_',' ') }}</span>
+      {# Honest partial reporting - never "complete" while work remains (TC-0803) #}
+      <strong class="count">{{ job.progress }}</strong>
+      <span class="track" aria-hidden="true">
+        <i style="width: {{ (100 * job.done_count / job.total_count)|round|int if job.total_count else 0 }}%"></i>
       </span>
-      {% endif %}
-      {% if a.provider_error_count %}
-      <span class="muted" style="font-size:.75rem">
-        &middot; {{ a.provider_error_count }} provider error(s), not counted against quality
-      </span>
-      {% endif %}
     </div>
-    <span class="badge {{ a.status }}">{{ a.status.replace('_',' ') }}</span>
-  </div>
 
-  <div class="artefact-body">
-    {% if a.error %}
-    <p class="muted">{{ a.error }}</p>
-    {% endif %}
-
-    {% if a.qa %}
-    <div class="checkers">
-      {% for c in a.qa %}
-      <span class="checker {{ 'ok' if c.passed else 'bad' }}">
-        {{ c.checker }}{% if c.score is not none %} {{ '%.2f'|format(c.score) }}{% endif %}
-        &middot; {{ 'pass' if c.passed else 'fail' }}
-      </span>
-      {% endfor %}
-    </div>
-    {% for c in a.qa %}
-      {% for note in c.fix_notes %}
-      <div class="fixnote"><strong>{{ c.checker }}:</strong> {{ note }}</div>
-      {% endfor %}
+    {% if job.warnings %}
+    {% for w in job.warnings %}
+    <div class="notice"><strong>Heads up.</strong> {{ w }}</div>
     {% endfor %}
     {% endif %}
 
-    {% if a.content %}
-      {% include 'partials/artefact_' ~ a.output_type ~ '.html' ignore missing %}
+    {% if job.operator_message %}
+    <div class="stop">
+      <strong>Job stopped.</strong>
+      <p style="margin:.5rem 0 0">{{ job.operator_message }}</p>
+    </div>
     {% endif %}
 
-    {% if a.claims %}
-    <details style="margin-top:.75rem">
-      <summary class="muted" style="cursor:pointer;font-size:.8125rem">
-        {{ a.claims|length }} cited claim{{ '' if a.claims|length == 1 else 's' }}
-      </summary>
-      {% for c in a.claims %}
-      <p class="claim">&ldquo;{{ c.text }}&rdquo; &mdash; <code>{{ c.chunk_id }}</code></p>
-      {% endfor %}
-    </details>
-    {% endif %}
-
-    {% if a.export_paths %}
-    <p style="margin-top:.75rem">
-      {% for p in a.export_paths %}
-      <a href="/downloads/{{ job.job_id }}/{{ a.output_type }}/{{ p.split('/')[-1] }}">
-        {{ p.split('/')[-1] }}</a>{% if not loop.last %} &middot; {% endif %}
-      {% endfor %}
-    </p>
-    {% endif %}
-
-    {% if a.status in ('passed','passed_flagged','blocked') %}
-    <form action="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/regenerate"
-          method="post" style="margin-top:.75rem">
-      <button class="secondary" type="submit">Regenerate this artefact</button>
-    </form>
+    {% if not job.artefacts %}
+    <div class="empty">Nothing to show yet. The first artefact will appear here.</div>
     {% endif %}
   </div>
+
+  {% for a in job.artefacts %}
+  <div class="artefact" id="artefact-{{ a.output_type }}">
+    <div class="artefact-head">
+      <div>
+        <strong>{{ a.label }}</strong>
+        {% if a.retry_count %}
+        <span class="counts">
+          &middot; <span class="num">{{ a.retry_count }}</span>
+          QA retr{{ 'y' if a.retry_count == 1 else 'ies' }}
+        </span>
+        {% endif %}
+        {% if a.provider_error_count %}
+        <span class="counts">
+          &middot; <span class="num">{{ a.provider_error_count }}</span>
+          provider error(s), not counted against quality
+        </span>
+        {% endif %}
+        {% if a.parse_retry_count %}
+        <span class="counts">
+          &middot; <span class="num">{{ a.parse_retry_count }}</span>
+          parse retr{{ 'y' if a.parse_retry_count == 1 else 'ies' }}
+        </span>
+        {% endif %}
+      </div>
+      <span class="badge {{ a.status }}">{{ a.status.replace('_',' ') }}</span>
+    </div>
+
+    <div class="artefact-body">
+      {% if a.error %}
+      <p class="muted">{{ a.error }}</p>
+      {% endif %}
+
+      {% if a.qa %}
+      <div class="checkers">
+        {% for c in a.qa %}
+        {# Verdict is never carried by colour alone: the mark and the word
+           carry it too, so this reads correctly in monochrome (WCAG 1.4.1). #}
+        <span class="checker {{ 'ok' if c.passed else 'bad' }}"
+              {% if c.reason %}title="{{ c.reason }}"{% endif %}>
+          <span class="mark" aria-hidden="true">{{ '✓' if c.passed else '✗' }}</span>
+          {{ c.checker }}
+          {%- if c.score is not none %} <span class="score">{{ '%.2f'|format(c.score) }}</span>{% endif %}
+          &middot; {{ 'pass' if c.passed else 'fail' }}
+        </span>
+        {% endfor %}
+      </div>
+      {% for c in a.qa %}
+        {% for note in c.fix_notes %}
+        <div class="fixnote"><strong>{{ c.checker }}:</strong> {{ note }}</div>
+        {% endfor %}
+      {% endfor %}
+      {% endif %}
+
+      {% if a.content %}
+        {% include 'partials/artefact_' ~ a.output_type ~ '.html' ignore missing %}
+      {% endif %}
+
+      {% if a.claims %}
+      <details>
+        <summary>
+          <span class="num">{{ a.claims|length }}</span>
+          cited claim{{ '' if a.claims|length == 1 else 's' }}
+        </summary>
+        {% for c in a.claims %}
+        <p class="claim">&ldquo;{{ c.text }}&rdquo; &mdash; <code>{{ c.chunk_id }}</code></p>
+        {% endfor %}
+      </details>
+      {% endif %}
+
+      {% if a.export_paths %}
+      <p style="margin-top:.75rem">
+        {% for p in a.export_paths %}
+        {# Basename on either separator: a Windows path with backslashes put
+           the whole path in the URL. #}
+        {% set name = p.replace('\\', '/').split('/')[-1] %}
+        <a class="filelink"
+           href="/downloads/{{ job.job_id }}/{{ a.output_type }}/{{ name }}">{{ name }}</a>
+        {% endfor %}
+      </p>
+      {% endif %}
+
+      {% if a.status in ('passed','passed_flagged','blocked','failed') %}
+      {# UC-09. The instructions field was accepted end to end by the backend
+         and had no input anywhere, so it always arrived empty. hx-post keeps
+         the operator on the live view instead of navigating away. #}
+      <details style="margin-top:.75rem">
+        <summary>Regenerate this artefact</summary>
+        <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/regenerate"
+              hx-target="#job-status"
+              hx-swap="outerHTML"
+              hx-disabled-elt="find button[type='submit']"
+              style="margin-top:.5rem">
+          <label for="instructions-{{ a.output_type }}">
+            What should be different? Optional.
+          </label>
+          <input type="text" id="instructions-{{ a.output_type }}" name="instructions"
+                 placeholder="Shorter, and lead with the exploitation date.">
+          <div class="actions">
+            <button class="secondary" type="submit">
+              Regenerate <span class="spinner"></span>
+            </button>
+            <span class="working">Regenerating&hellip;</span>
+          </div>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
 </div>
-{% endfor %}

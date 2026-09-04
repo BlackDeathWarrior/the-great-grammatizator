@@ -1,9 +1,12 @@
-<h3 style="margin-top:0">{{ a.content.title }}</h3>
+<h3>{{ a.content.title }}</h3>
 {% for s in a.content.slides %}
-<div style="border:1px solid var(--line);border-radius:6px;padding:.75rem;margin-bottom:.5rem">
-  <strong>{{ loop.index }}. {{ s.heading }}</strong>
+<div class="item">
+  <div class="item-head">
+    <h4>{{ loop.index }}. {{ s.heading }}</h4>
+    <span class="muted num" style="font-size:.75rem">{{ s.bullets|length }} bullets</span>
+  </div>
   <ul style="margin:.5rem 0">{% for b in s.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
   {# Speaker notes are half the deliverable; a deck without them is unusable #}
-  <p class="muted" style="font-size:.8125rem;margin:0"><em>Notes:</em> {{ s.speaker_notes }}</p>
+  <p class="muted" style="font-size:var(--step--1);margin:0"><em>Notes:</em> {{ s.speaker_notes }}</p>
 </div>
 {% endfor %}

@@ -6,6 +6,7 @@ job status polling, per-artefact results with QA findings, download.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import pathlib
@@ -137,6 +138,89 @@ async def ui_create_job(request: Request):
     return RedirectResponse(f"/jobs/{result.job_id}/view", status_code=303)
 
 
+@router.post("/ui/interview", response_class=HTMLResponse)
+async def ui_interview(request: Request):
+    """One turn of the interview (UC-02, Phase 5).
+
+    Stateless: the transcript comes back with each request rather than living
+    in a session. There is no auth and no session store here, and adding one to
+    hold a two-message conversation would be the wrong trade.
+
+    The interview is a convenience, never a gate. Any failure returns the panel
+    with a message and leaves the lists usable - an operator must always be
+    able to start a job.
+    """
+    from app.agents import interview
+
+    form = await request.form()
+    source_id = str(form.get("source_id") or "")
+    answer = str(form.get("answer") or "").strip()
+
+    # This is the first place operator free text reaches a prompt. Cap it here
+    # as well as in the agent: the dashboard is not the only caller.
+    if len(answer) > interview.MAX_ANSWER_CHARS:
+        answer = answer[: interview.MAX_ANSWER_CHARS]
+
+    transcript = _parse_transcript(str(form.get("transcript") or ""))
+    if answer:
+        transcript.append(interview.Turn(role="operator", text=answer))
+
+    with session_scope() as session:
+        row = session.get(Source, source_id)
+        if row is None:
+            raise HTTPException(404, "No such source.")
+        content = service.to_content_object(row)
+
+    reply = await interview.next_turn(content, transcript)
+    transcript.append(interview.Turn(role="assistant", text=reply.message))
+
+    # The proposal fills the same dropdowns the operator can still edit, so
+    # what the model decided is always visible and always overridable.
+    values = dict(reply.draft)
+    if reply.parameters is not None:
+        values = reply.parameters.model_dump()
+
+    return TEMPLATES.TemplateResponse(
+        request,
+        "partials/interview.html",
+        {
+            "source_id": source_id,
+            "reply": reply,
+            "transcript": transcript,
+            "transcript_json": json.dumps([t.model_dump() for t in transcript]),
+            "vocab": VOCAB,
+            "values": values,
+        },
+    )
+
+
+def _parse_transcript(raw: str) -> list:
+    """Rebuild the conversation from the form field, defensively.
+
+    It round-trips through the browser, so it is untrusted input: a malformed
+    value costs the conversation so far, never a 500.
+    """
+    from app.agents import interview
+
+    try:
+        data = json.loads(raw) if raw else []
+    except json.JSONDecodeError:
+        log.warning("discarding a malformed interview transcript")
+        return []
+    if not isinstance(data, list):
+        return []
+    turns = []
+    for item in data[: interview.MAX_TURNS * 2]:
+        if isinstance(item, dict) and item.get("role") in ("operator", "assistant"):
+            turns.append(
+                interview.Turn(
+                    role=item["role"],
+                    text=str(item.get("text") or "")[: interview.MAX_ANSWER_CHARS],
+                )
+            )
+    return turns
+
+
 @router.get("/jobs/{job_id}/view", response_class=HTMLResponse)
 async def job_view(request: Request, job_id: str):
     return TEMPLATES.TemplateResponse(request, "job.html", {"job_id": job_id})
@@ -153,10 +237,18 @@ async def job_status(request: Request, job_id: str):
     return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
 
 
-@router.post("/ui/jobs/{job_id}/artefacts/{output_type}/regenerate")
-async def ui_regenerate(job_id: str, output_type: str, instructions: str = Form(default="")):
-    await jobs_api.regenerate(job_id, output_type, instructions)
-    return RedirectResponse(f"/jobs/{job_id}/view", status_code=303)
+@router.post("/ui/jobs/{job_id}/artefacts/{output_type}/regenerate", response_class=HTMLResponse)
+async def ui_regenerate(
+    request: Request, job_id: str, output_type: str, instructions: str = Form(default="")
+):
+    """UC-09. Returns the status partial so the operator stays on the live view.
+
+    It used to redirect, which reloaded the page and restarted polling from
+    scratch - losing scroll position and any open disclosure in the process.
+    """
+    await jobs_api.regenerate(job_id, output_type, instructions.strip()[:1000])
+    detail = await jobs_api.get_job(job_id)
+    return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
 
 
 @router.get("/downloads/{job_id}/{output_type}/{filename}")

@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="One source in, cited communication artefacts out.">
   <title>{% block title %}Content Transformation{% endblock %}</title>
+  {# Vendored, not from a CDN: a demo should not depend on someone else's uptime. #}
   <script src="/static/htmx.min.js"></script>
   <link rel="stylesheet" href="/static/app.css">
 </head>
@@ -12,6 +14,6 @@
     <h1><a href="/">Content Transformation</a></h1>
     <p class="sub">One source in. Communication artefacts out, each cited to the source.</p>
   </header>
-  <main>{% block content %}{% endblock %}</main>
+  <main id="main">{% block content %}{% endblock %}</main>
 </body>
 </html>

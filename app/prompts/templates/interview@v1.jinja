@@ -1,0 +1,46 @@
+The source the operator uploaded:
+  title: {{ title }}
+  type:  {{ source_type }}
+
+Opening lines:
+{{ excerpt }}
+
+{% if transcript %}
+The conversation so far:
+{% for turn in transcript %}
+{{ turn.role }}: {{ turn.text }}
+{% endfor %}
+{% else %}
+Nothing has been said yet. This is your opening message.
+{% endif %}
+
+Return one of two shapes.
+
+Still gathering:
+{"done": false,
+ "message": "<your question, or your proposal for them to confirm>",
+ "draft": {"audience": "...", "tone": "...", "detail": "...",
+           "objective": "...", "style": "..."}}
+
+Include "draft" every time with your best current guess, so the operator can
+see what you have understood and correct it directly.
+
+Finished:
+{"done": true,
+ "message": "<one sentence confirming the brief>",
+ "parameters": {"audience": "...", "tone": "...", "detail": "...",
+                "objective": "...", "style": "..."}}
+
+What each field means. Write them as short descriptive phrases, not sentences,
+and keep each under 200 characters:
+
+  audience  - who reads this, specifically. "second-year CS students who have
+              not seen memory safety" is better than "students": the checkers
+              compare the writing against this, so detail helps them.
+  tone      - how it should sound. "informative, urgent", "warm and plain".
+  detail    - how much: brief, moderate, or detailed.
+  objective - what it should achieve. "drive awareness and patching".
+  style     - constraints on the writing. "plain, no jargon", "technical".
+
+Never invent a constraint the operator did not express. If they have not said,
+infer it from the source and say that is what you have done.

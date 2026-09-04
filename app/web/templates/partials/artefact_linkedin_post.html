@@ -1,4 +1,6 @@
 <p><strong>{{ a.content.hook }}</strong></p>
-<p style="white-space:pre-wrap">{{ a.content.body }}</p>
+<p class="prose">{{ a.content.body }}</p>
 <p><em>{{ a.content.call_to_action }}</em></p>
+{% if a.content.hashtags %}
 <p class="muted">{{ a.content.hashtags|join(' ') }}</p>
+{% endif %}

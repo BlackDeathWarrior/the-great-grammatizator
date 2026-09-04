@@ -1,0 +1,59 @@
+{# One turn of the interview. Swapped in by HTMX; the whole conversation and
+   the brief it produces live in here, so the transcript survives each turn. #}
+
+<div class="chat">
+  {% for turn in transcript %}
+  <div class="turn {{ turn.role }}">
+    <span class="who">{{ 'You' if turn.role == 'operator' else 'Assistant' }}</span>
+    {{ turn.text }}
+  </div>
+  {% endfor %}
+</div>
+
+{% if not reply.done %}
+<form hx-post="/ui/interview"
+      hx-target="#interview"
+      hx-swap="innerHTML"
+      hx-disabled-elt="find button[type='submit']">
+  <input type="hidden" name="source_id" value="{{ source_id }}">
+  <input type="hidden" name="transcript" value="{{ transcript_json }}">
+  <label for="answer">Your answer</label>
+  <textarea id="answer" name="answer" rows="2"
+            placeholder="Tell it who this is for and how it should read."></textarea>
+  <div class="actions">
+    <button type="submit">Send <span class="spinner"></span></button>
+    <span class="working">Thinking&hellip;</span>
+    <button type="button" class="ghost" onclick="showLists()">Skip, I&rsquo;ll pick from lists</button>
+  </div>
+</form>
+{% else %}
+<p class="brief-note">
+  {{ reply.message }} Everything below is editable &mdash; change anything that
+  is not right.
+</p>
+{% endif %}
+
+{# The brief. Always rendered, always editable: the interview PROPOSES and the
+   operator decides. These are the same closed-vocabulary selects as the manual
+   path (TC-0202), pre-selected to what the interview understood. A value the
+   interview invented that is not in the list is added as an option, so a
+   richer audience is not silently discarded. #}
+<div class="brief" id="brief">
+  <h3>The brief</h3>
+  <div class="grid">
+    {% for field, options in vocab.items() %}
+    <div>
+      <label for="{{ field }}">{{ field|replace('_',' ')|title }}</label>
+      <select id="{{ field }}" name="{{ field }}" form="job-form">
+        {% set chosen = values.get(field) %}
+        {% if chosen and chosen not in options %}
+        <option value="{{ chosen }}" selected>{{ chosen }}</option>
+        {% endif %}
+        {% for opt in options %}
+        <option value="{{ opt }}"{% if opt == chosen or (not chosen and loop.first) %} selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endfor %}
+  </div>
+</div>
