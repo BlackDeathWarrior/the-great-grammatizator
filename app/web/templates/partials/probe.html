@@ -1,0 +1,6 @@
+{# The verdict of one test call. Swapped in beside the button that asked for
+   it, so the answer appears where the operator is already looking. #}
+<span class="probe {{ 'ok' if result.ok else 'bad' }}" title="{{ result.detail }}">
+  <strong>{{ '✓' if result.ok else '✕' }}</strong>
+  <span>{{ result.detail }}</span>
+</span>

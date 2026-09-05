@@ -43,6 +43,8 @@ _OPENROUTER_FAST = "openrouter/meta-llama/llama-3.3-70b-instruct"
 _OPENROUTER_LONG = "openrouter/minimax/minimax-m3:free"
 
 _router = None
+# The key generation the cached router was built from; see get_router().
+_router_key_version = -1
 # One semaphore per event loop; see qa_semaphore(). Weak keys so a finished
 # loop does not keep its semaphore (or itself) alive.
 _qa_semaphores: weakref.WeakKeyDictionary[object, asyncio.Semaphore] = weakref.WeakKeyDictionary()
@@ -60,17 +62,25 @@ def build_router():
     """Construct the Router. Only entries with a configured key are included."""
     from litellm import Router
 
-    s = get_settings()
+    from app.secrets_store import resolve_key
+
+    # Keys come from the store, which layers a key saved in the dashboard over
+    # the .env fallback. This file still owns every provider NAME (Invariant 5);
+    # the store only decides which credential to hand back.
+    groq_key = resolve_key("groq")
+    gemini_key = resolve_key("gemini")
+    openrouter_key = resolve_key("openrouter")
+
     model_list: list[dict[str, Any]] = []
 
-    if s.groq_api_key:
+    if groq_key:
         model_list.append(
             {
                 "model_name": FAST,
-                "litellm_params": {"model": _GROQ_FAST, "api_key": s.groq_api_key},
+                "litellm_params": {"model": _GROQ_FAST, "api_key": groq_key},
             }
         )
-    if s.openrouter_api_key:
+    if openrouter_key:
         # Second entry under the same alias: a separate rate-limit pool that
         # LiteLLM can fall back to when Groq returns 429 (TC-0902).
         model_list.append(
@@ -78,18 +88,18 @@ def build_router():
                 "model_name": FAST,
                 "litellm_params": {
                     "model": _OPENROUTER_FAST,
-                    "api_key": s.openrouter_api_key,
+                    "api_key": openrouter_key,
                 },
             }
         )
-    if s.gemini_api_key:
+    if gemini_key:
         model_list.append(
             {
                 "model_name": LONG,
-                "litellm_params": {"model": _GEMINI_LONG, "api_key": s.gemini_api_key},
+                "litellm_params": {"model": _GEMINI_LONG, "api_key": gemini_key},
             }
         )
-    if s.openrouter_api_key:
+    if openrouter_key:
         # `long` had exactly ONE deployment, so a Gemini 429 - routine on the
         # free tier - had no same-alias alternative and fell across to `fast`,
         # losing the long context the alias exists to provide. Four of seven
@@ -100,7 +110,7 @@ def build_router():
                 "model_name": LONG,
                 "litellm_params": {
                     "model": _OPENROUTER_LONG,
-                    "api_key": s.openrouter_api_key,
+                    "api_key": openrouter_key,
                 },
             }
         )
@@ -122,9 +132,22 @@ def build_router():
 
 
 def get_router():
-    global _router
-    if _router is None:
+    """The Router, rebuilt whenever a provider key changes anywhere.
+
+    A key saved in the browser lands in Postgres, not in this process's memory,
+    so the worker would otherwise keep using the credential it booted with
+    until someone restarted it. Comparing a cheap counter before each call is
+    what makes "no restart" true in the container that actually runs the job,
+    rather than only in the one that served the form.
+    """
+    global _router, _router_key_version
+
+    from app.secrets_store import current_version
+
+    version = current_version()
+    if _router is None or version != _router_key_version:
         _router = build_router()
+        _router_key_version = version
     return _router
 
 
@@ -157,8 +180,9 @@ def qa_semaphore() -> asyncio.Semaphore:
 
 def reset() -> None:
     """Test hook: drop the cached router and semaphores."""
-    global _router
+    global _router, _router_key_version
     _router = None
+    _router_key_version = -1
     _qa_semaphores.clear()
 
 
@@ -263,3 +287,66 @@ async def complete(
         raise ProviderError(str(exc)) from exc
 
     return resp.choices[0].message.content or ""
+
+
+# The credentials this platform can hold, in the operator's terms. Named here
+# rather than in the settings page or the key store because a list of providers
+# IS provider knowledge, and Invariant 5 keeps that in one file (TC-0901). The
+# dashboard asks for this roster; it does not maintain its own.
+PROVIDER_IDS = ("groq", "gemini", "openrouter", "embedding")
+
+PROVIDER_LABELS = {
+    "groq": "Groq",
+    "gemini": "Gemini",
+    "openrouter": "OpenRouter",
+    "embedding": "Embeddings",
+}
+
+PROVIDER_ROLES = {
+    "groq": "Short-form generation and the QA checkers (the 'fast' alias).",
+    "gemini": "Long structured output - decks, video packages (the 'long' alias).",
+    "openrouter": "Fallback pool. Without it a rate-limited job has nowhere to go.",
+    "embedding": "Semantic retrieval at ingest. Without it search falls back to hash vectors.",
+}
+
+
+# Which Settings field holds each provider's .env fallback. This lives here
+# rather than in the key store because naming GROQ_API_KEY is choosing a
+# provider, and Invariant 5 puts that decision in exactly one file (TC-0907).
+_ENV_FIELDS = {
+    "groq": "groq_api_key",
+    "gemini": "gemini_api_key",
+    "openrouter": "openrouter_api_key",
+    # Embeddings bypass this router by design (ARCHITECTURE.md sec.2) but still
+    # need a credential resolved, and the store must not spell the field name
+    # any more than it spells the others.
+    "embedding": "embedding_api_key",
+}
+
+
+def env_field_for(provider: str) -> str | None:
+    """The Settings attribute holding this provider's .env fallback."""
+    return _ENV_FIELDS.get(provider)
+
+
+def env_key_for(provider: str) -> str:
+    """The .env credential for a provider, or "" when unset."""
+    field = _ENV_FIELDS.get(provider)
+    if field is None:
+        return ""
+    return (getattr(get_settings(), field, "") or "").strip()
+
+
+def probe_model_for(provider: str) -> str | None:
+    """The model id a settings probe should test for this provider.
+
+    Exists so app/secrets_store never has to name a model. Invariant 5 is about
+    where provider strings may live, not only about who calls LiteLLM, and a
+    probe that tested a hardcoded id would drift from the one jobs actually use
+    - reporting a healthy key for a dead deployment.
+    """
+    return {
+        "groq": _GROQ_FAST,
+        "gemini": _GEMINI_LONG,
+        "openrouter": _OPENROUTER_FAST,
+    }.get(provider)

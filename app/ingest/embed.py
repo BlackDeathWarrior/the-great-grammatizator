@@ -76,7 +76,21 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
 
-    if not s.embedding_api_key:
+    # A key saved in the dashboard reaches ingestion too, but only where this
+    # module would otherwise have used one. When the configured key is blank
+    # the offline path is the INTENDED behaviour - overriding it from the store
+    # would make the hash-vector fallback unreachable, and untestable, on any
+    # machine that happens to have a key saved.
+    #
+    # Still bypasses the gateway router by design (ARCHITECTURE.md sec.2,
+    # TC-0905): what is fetched is a credential, not a route.
+    api_key = s.embedding_api_key
+    if api_key:
+        from app.secrets_store import resolve_key
+
+        api_key = resolve_key("embedding") or api_key
+
+    if not api_key:
         # Loud, not just logged. "If a component is allowed to fail silently,
         # something must periodically assert it is actually working" - and a
         # log line nobody reads is how retrieval came to look healthy while
@@ -93,8 +107,8 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     # - losing an extraction that had already succeeded.
     try:
         if _is_gemini(s.embedding_model):
-            return _embed_gemini(texts, s)
-        return _embed_openai(texts, s)
+            return _embed_gemini(texts, s, api_key)
+        return _embed_openai(texts, s, api_key)
     except Exception as exc:  # noqa: BLE001 - provider SDKs raise many types
         # Ingestion must never depend on a provider being reachable. Fall back
         # rather than discarding an extraction that already succeeded - and say
@@ -112,10 +126,10 @@ def _is_gemini(model: str) -> bool:
     return "gemini" in model or model.startswith("models/")
 
 
-def _embed_openai(texts: list[str], s) -> list[list[float]]:
+def _embed_openai(texts: list[str], s, api_key: str) -> list[list[float]]:
     from openai import OpenAI
 
-    client = OpenAI(api_key=s.embedding_api_key, timeout=s.embedding_timeout)
+    client = OpenAI(api_key=api_key, timeout=s.embedding_timeout)
     vectors: list[list[float]] = []
     for start in range(0, len(texts), _EMBED_BATCH):
         batch = texts[start : start + _EMBED_BATCH]
@@ -124,7 +138,7 @@ def _embed_openai(texts: list[str], s) -> list[list[float]]:
     return vectors
 
 
-def _embed_gemini(texts: list[str], s) -> list[list[float]]:
+def _embed_gemini(texts: list[str], s, api_key: str) -> list[list[float]]:
     """Gemini embeddings over REST.
 
     Deliberately not the google SDK: this is one HTTP call, and the ingest path
@@ -145,7 +159,7 @@ def _embed_gemini(texts: list[str], s) -> list[list[float]]:
             batch = texts[start : start + _EMBED_BATCH]
             resp = client.post(
                 url,
-                params={"key": s.embedding_api_key},
+                params={"key": api_key},
                 json={
                     "requests": [
                         {
@@ -285,3 +299,18 @@ def delete_source(source_id: str) -> None:
             filter=Filter(must=[FieldCondition(key="source_id", match=MatchValue(value=source_id))])
         ),
     )
+
+
+def probe_embedding(api_key: str) -> int:
+    """Embed one word with a candidate key; return the vector width.
+
+    Lives here because choosing between the two SDK paths is provider
+    knowledge, and this module is the one exempted to hold it (TC-0905). The
+    settings page needs the answer, not the mechanism.
+
+    Bypasses the offline fallback deliberately: a probe that quietly returned a
+    hash vector would report a broken key as working.
+    """
+    s = get_settings()
+    fn = _embed_gemini if _is_gemini(s.embedding_model) else _embed_openai
+    return len(fn(["ok"], s, api_key)[0])

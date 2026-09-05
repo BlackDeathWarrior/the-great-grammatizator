@@ -61,8 +61,17 @@
   --shadow: 0 1px 2px oklch(24% 0.02 265 / 0.06), 0 4px 12px oklch(24% 0.02 265 / 0.05);
 }
 
+/* Three theme states, and the order matters.
+ *
+ * `:root` alone is the light palette. The OS preference applies only when the
+ * operator has NOT chosen (guarded by :not([data-theme="light"])), so a
+ * deliberate light choice survives a dark desktop. The explicit selectors come
+ * last so a chosen theme wins in both directions.
+ *
+ * Every colour is defined on bare :root first: a token whose only definition
+ * lives inside a media query disappears the moment that query is false. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --ink: oklch(94% 0.01 265);
     --ink-2: oklch(76% 0.015 265);
     --ink-3: oklch(62% 0.02 265);
@@ -85,6 +94,31 @@
 
     --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 6px 18px oklch(0% 0 0 / 0.3);
   }
+}
+
+/* An explicit choice, which must beat the OS in both directions. */
+:root[data-theme="dark"] {
+    --ink: oklch(94% 0.01 265);
+    --ink-2: oklch(76% 0.015 265);
+    --ink-3: oklch(62% 0.02 265);
+    --bg: oklch(17% 0.018 265);
+    --surface: oklch(21% 0.02 265);
+    --surface-2: oklch(25% 0.02 265);
+    --line: oklch(31% 0.02 265);
+    --line-2: oklch(38% 0.022 265);
+
+    --accent: oklch(72% 0.15 258);
+    --accent-ink: oklch(17% 0.02 258);
+    --accent-soft: oklch(30% 0.06 258);
+
+    --pass: oklch(75% 0.16 152);
+    --pass-soft: oklch(28% 0.05 152);
+    --flag: oklch(80% 0.14 75);
+    --flag-soft: oklch(30% 0.05 75);
+    --fail: oklch(72% 0.17 25);
+    --fail-soft: oklch(30% 0.06 25);
+
+    --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 6px 18px oklch(0% 0 0 / 0.3);
 }
 
 * { box-sizing: border-box; }
@@ -622,3 +656,187 @@ button.thumb.down:hover { border-color: var(--fail); color: var(--fail); }
 /* The recorded verdict reads as settled, not as a score. */
 button.thumb.on { background: var(--pass-soft); border-color: var(--pass); color: var(--pass); }
 button.thumb.down.on { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+
+/* === format identity ======================================================
+ *
+ * Seven formats race through one job, and on the status board the operator is
+ * looking for ONE of them - the deck that stalled, the tweet that failed tone.
+ * A per-format hue plus a glyph makes that a glance instead of a read.
+ *
+ * Hues are spaced around the wheel and kept at one chroma and lightness, so no
+ * format shouts louder than another. They are identity, never status: the
+ * verdict colours (--pass/--flag/--fail) are the only things allowed to mean
+ * good or bad, and nothing here may borrow them.
+ */
+:root {
+  --fmt-video_package:  oklch(64% 0.16 22);    /* red-orange */
+  --fmt-linkedin_post:  oklch(64% 0.16 250);   /* blue */
+  --fmt-twitter_x:      oklch(64% 0.16 195);   /* cyan */
+  --fmt-advisory:       oklch(64% 0.16 300);   /* violet */
+  --fmt-infographic:    oklch(64% 0.16 145);   /* green */
+  --fmt-exec_summary:   oklch(64% 0.16 80);    /* amber */
+  --fmt-presentation:   oklch(64% 0.16 340);   /* magenta */
+  --fmt: var(--ink-3);  /* fallback for a format with no hue assigned yet */
+}
+
+/* Set once on any element carrying a format, so descendants can just use
+   var(--fmt) without every rule repeating the mapping. */
+[data-fmt="video_package"] { --fmt: var(--fmt-video_package); }
+[data-fmt="linkedin_post"] { --fmt: var(--fmt-linkedin_post); }
+[data-fmt="twitter_x"]     { --fmt: var(--fmt-twitter_x); }
+[data-fmt="advisory"]      { --fmt: var(--fmt-advisory); }
+[data-fmt="infographic"]   { --fmt: var(--fmt-infographic); }
+[data-fmt="exec_summary"]  { --fmt: var(--fmt-exec_summary); }
+[data-fmt="presentation"]  { --fmt: var(--fmt-presentation); }
+
+/* The glyph. A square of the format's own colour, sized to the text beside
+   it so a row of them lines up whatever the label length. */
+.fmt-dot {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 3px;
+  background: var(--fmt);
+  display: inline-block;
+  flex: none;
+}
+
+/* === shell: tabs ==========================================================
+ *
+ * Two places to be - the studio and its settings - so the nav is two links,
+ * not a menu. It sits in the header rather than a sidebar because at this
+ * count a sidebar is furniture with nothing in it.
+ */
+.nav { display: flex; gap: var(--s1); margin-left: auto; align-items: center; }
+.nav a {
+  color: var(--ink-2);
+  text-decoration: none;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  font-size: var(--step--1);
+  font-weight: 560;
+  border: 1px solid transparent;
+  transition: color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.nav a:hover { color: var(--ink); background: var(--surface-2); }
+.nav a[aria-current="page"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* Theme control. Three states, because "follow the OS" is a real answer and a
+   two-way switch cannot express it. */
+.theme-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.theme-switch button {
+  background: transparent;
+  color: var(--ink-3);
+  border: 0;
+  border-radius: 0;
+  padding: var(--s1) var(--s3);
+  font-size: var(--step--1);
+  box-shadow: none;
+}
+.theme-switch button:hover { background: var(--surface-2); color: var(--ink); filter: none; }
+.theme-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+
+/* Profile chip in the header: who the platform thinks is asking. */
+.whoami {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--step--1);
+  color: var(--ink-2);
+  padding: var(--s1) var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.whoami .avatar {
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.whoami.anon .avatar { background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line-2); }
+
+/* === settings =============================================================
+ * Sections stack in one column. No card inside a card: a section IS the card,
+ * and the rows within it are rows.
+ */
+.settings-nav { display: flex; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s5); }
+.settings-nav a {
+  font-size: var(--step--1);
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--ink-2);
+}
+.settings-nav a:hover { border-color: var(--accent); color: var(--accent); }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.row:last-child { border-bottom: 0; }
+.row .row-main { flex: 1 1 16rem; min-width: 0; }
+.row .row-title { font-weight: 600; display: flex; align-items: center; gap: var(--s2); }
+.row .row-sub { color: var(--ink-3); font-size: var(--step--1); margin-top: 2px; }
+.row form { margin: 0; }
+
+/* Where a key came from. "saved" and "env" are both fine; "none" is the only
+   one that needs to catch the eye. */
+.src {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--ink-3);
+  font-weight: 650;
+}
+.src.saved { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.src.env   { border-color: var(--line-2); color: var(--ink-3); }
+.src.none  { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
+
+/* A key is shown as its last four characters and nothing else. */
+.masked {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--step--1);
+  color: var(--ink-2);
+  letter-spacing: 0.02em;
+}
+
+/* Test-connection verdict, injected by htmx next to the button. */
+.probe { font-size: var(--step--1); display: inline-flex; align-items: center; gap: var(--s2); }
+.probe.ok { color: var(--pass); }
+.probe.bad { color: var(--fail); }
+
+.warn {
+  border: 1px solid var(--flag);
+  background: var(--flag-soft);
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: var(--s3) var(--s4);
+  font-size: var(--step--1);
+  margin-bottom: var(--s4);
+}
+.warn strong { color: var(--flag); }
+
+/* Stat strip on the memory sections: four numbers, tabular, no chrome. */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--s4); margin-bottom: var(--s4); }
+.stat .n { font-size: var(--step-2); font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat .k { font-size: var(--step--1); color: var(--ink-3); }
+
+.thumb { font-size: var(--step-0); }
+.thumb.up { color: var(--pass); }
+.thumb.down { color: var(--fail); }
