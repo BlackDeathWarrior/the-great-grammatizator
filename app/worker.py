@@ -18,6 +18,22 @@ from app.gateway import guardrails
 log = logging.getLogger(__name__)
 
 
+def _style_notes_for(session, profile_id: str) -> list[str]:
+    """The operator's learned preferences, ready for a prompt.
+
+    Empty for an anonymous job, which is the honest outcome: the platform
+    works without a profile, it simply has nobody to learn from.
+    """
+    if not profile_id:
+        return []
+
+    from app.agents import preferences
+    from app.db.models import OperatorProfile
+
+    profile = session.get(OperatorProfile, profile_id)
+    return preferences.notes_for_prompt(profile.style_notes if profile else [])
+
+
 def _fail_job(job_id: str, status, message: str) -> None:
     """Record a terminal failure. Best effort: never mask the original fault.
 
@@ -66,9 +82,14 @@ async def run_job_task(ctx: dict, job_id: str) -> dict:
         content = to_content_object(source_row)
         parameters = Parameters(**(job.parameters or {}))
         format_ids = list(job.formats or [])
+        # What this operator has been teaching us. Loaded here rather than in
+        # build so the pipeline stays free of database concerns.
+        style_notes = _style_notes_for(session, job.profile_id)
 
     try:
-        result = await build.run_job(job_id, content, parameters, format_ids)
+        result = await build.run_job(
+            job_id, content, parameters, format_ids, style_notes=style_notes
+        )
     except asyncio.CancelledError:
         # arq's job_timeout cancels the coroutine. Without this the job stayed
         # RUNNING in the database forever: _persist never ran, no message was
@@ -136,6 +157,7 @@ async def regenerate_task(ctx: dict, job_id: str, output_type: str, instructions
         content = to_content_object(source_row)
         parameters = Parameters(**(job.parameters or {}))
         stored_analysis = job.analysis
+        style_notes = _style_notes_for(session, job.profile_id)
 
     # Reuse the stored analysis. Recomputing it would defeat the whole point of
     # re-entering at generation.
@@ -155,6 +177,7 @@ async def regenerate_task(ctx: dict, job_id: str, output_type: str, instructions
             job_id=job_id,
             # Operator instructions, not machine fix notes (UC-09).
             operator_instructions=instructions,
+            style_notes=style_notes,
         )
     finally:
         retrieval.unbind_job(job_id)
@@ -288,6 +311,7 @@ async def variants_task(
         content = to_content_object(source_row)
         parameters = Parameters(**(job.parameters or {}))
         stored_analysis = job.analysis
+        style_notes = _style_notes_for(session, job.profile_id)
 
         profile = session.get(OperatorProfile, profile_id) if profile_id else None
         style_notes = preferences.notes_for_prompt(profile.style_notes if profile else [])

@@ -12,7 +12,7 @@
         "runtime_target_sec": 240,
         "runtime_tolerance_sec": 45,
         "narration_max_chars_per_scene": 700,
-        "narration_min_chars_per_scene": 220
+        "narration_min_chars_per_scene": 300
       },
       "model_alias": "long",
       "renderer": "video"
@@ -26,7 +26,7 @@
       "constraints": {
         "max_chars": 3000,
         "hashtags_max": 5,
-        "min_chars": 900
+        "min_chars": 1200
       },
       "model_alias": "fast",
       "renderer": "markdown"
@@ -40,8 +40,8 @@
       "constraints": {
         "max_chars_per_tweet": 280,
         "tweets_max": 8,
-        "min_chars_per_tweet": 120,
-        "tweets_min": 3
+        "min_chars_per_tweet": 180,
+        "tweets_min": 4
       },
       "model_alias": "fast",
       "renderer": "markdown"
@@ -55,7 +55,7 @@
       "constraints": {
         "max_chars": 8000,
         "recommendations_min": 1,
-        "min_chars": 1500
+        "min_chars": 1800
       },
       "model_alias": "long",
       "renderer": "docx"
@@ -70,7 +70,7 @@
         "panels_min": 3,
         "panels_max": 8,
         "headline_max_chars": 90,
-        "caption_min_chars": 80
+        "caption_min_chars": 110
       },
       "model_alias": "fast",
       "renderer": "json"
@@ -85,7 +85,7 @@
         "max_chars": 4000,
         "key_points_min": 3,
         "key_points_max": 7,
-        "min_chars": 1200
+        "key_point_min_chars": 180
       },
       "model_alias": "long",
       "renderer": "docx"
@@ -100,7 +100,7 @@
         "slides_min": 4,
         "slides_max": 12,
         "bullets_max_per_slide": 6,
-        "speaker_notes_min_chars": 200
+        "speaker_notes_min_chars": 280
       },
       "model_alias": "long",
       "renderer": "pptx"

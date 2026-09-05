@@ -106,6 +106,7 @@ def _patch_job_lookup(monkeypatch):
         status = JobStatus.QUEUED
         parameters: dict = {}
         formats = ["linkedin_post"]
+        profile_id = ""
         sources = [type("JS", (), {"source": _FakeSourceRow()})()]
         operator_message = None
 

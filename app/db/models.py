@@ -78,6 +78,11 @@ class Job(Base):
     analysis: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     provenance: Mapped[Provenance] = mapped_column(String(24), default=Provenance.ORIGINAL)
 
+    # Who asked for this job, so the worker can load their learned
+    # preferences. Empty when nobody has introduced themselves - the platform
+    # works fine anonymously, it just cannot learn.
+    profile_id: Mapped[str] = mapped_column(String(32), default="", index=True)
+
     # After 3 QA strikes the operator gets a restart instruction, not a stack
     # trace (TC-0805).
     operator_message: Mapped[str | None] = mapped_column(Text, nullable=True)
