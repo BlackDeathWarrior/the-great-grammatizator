@@ -962,3 +962,96 @@ button.thumb.down.on { background: var(--fail-soft); border-color: var(--fail); 
   .stage.is-active .dot,
   .checker.live .mark { animation: none; }
 }
+
+/* === format tiles =========================================================
+ *
+ * Seven formats is enough that a column of identical checkbox rows is the
+ * slow way to pick two. Each tile carries the colour that format keeps for
+ * the whole run, so what is chosen here is recognisable on the status board
+ * afterwards - the identity is the point, not the decoration.
+ */
+.format {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  border-left: 3px solid var(--fmt);
+}
+.format-body { display: block; min-width: 0; }
+.format-top { display: flex; align-items: center; gap: var(--s2); }
+.format .name { display: inline; }
+
+/* What you actually get, read off the registry rather than written per
+   format - a new format describes itself (Invariant 4). */
+.format-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-top: var(--s2);
+}
+.chip {
+  font-size: 0.6875rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--fmt);
+  color: var(--fmt);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.chip.subtle {
+  border-color: var(--line-2);
+  color: var(--ink-3);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Selection is a state, so it reads in the format's own colour rather than
+   in the one accent every control shares. */
+.format:has(input:checked) {
+  border-color: var(--fmt);
+  background: color-mix(in oklch, var(--fmt) 8%, transparent);
+}
+.format:has(input:checked) .fmt-dot {
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--fmt) 25%, transparent);
+}
+.format input { accent-color: var(--fmt); }
+
+/* === artefact identity ==================================================== */
+
+/* A rack of seven artefacts, and the operator is looking for one of them. The
+   stripe is the fastest way to find it without reading a single label. */
+.artefact { border-left: 3px solid var(--fmt); }
+.artefact-head .fmt-dot { margin-right: var(--s1); }
+
+/* === comparing versions ===================================================
+ *
+ * Two or three takes on the same artefact, which is a reading task: the
+ * operator is looking for the difference between them. Side by side makes
+ * that a glance; stacked makes it a memory test.
+ *
+ * The panel is widened only while a comparison is on screen, because the rest
+ * of the page reads better at a text measure.
+ */
+.panel:has(.variants-compare) { max-width: none; }
+
+.variants-compare {
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  align-items: stretch;
+}
+.variants-compare .variant {
+  display: flex;
+  flex-direction: column;
+  /* Equal-height columns so the eye can track across one line of the drafts
+     rather than re-finding its place in each. */
+  gap: var(--s2);
+}
+.variants-compare .variant-body { flex: 1 1 auto; }
+.variants-compare .variant form { margin-top: auto; }
+
+/* On a narrow screen the columns become rows and the comparison is a scroll
+   anyway - so let them breathe instead of squeezing three into a phone. */
+@media (max-width: 48rem) {
+  .variants-compare { grid-template-columns: 1fr; }
+}
+
+/* The job view gets more room than the studio form: a status board is a
+   dashboard, and a form is a document. */
+body:has(#job-status) main { max-width: 82rem; }

@@ -141,14 +141,30 @@
       Each selected format is generated and checked independently, so one
       failing does not stop the others.
     </p>
+    {# Tiles rather than a checkbox list. Seven formats is enough that reading
+       a column of identical rows is the slow way to pick two, and each tile
+       carries the colour that format keeps for the rest of the run - so the
+       thing chosen here is recognisable on the status board later.
+
+       Everything shown comes from the registry: label, description, shape and
+       the file it exports. A new format appears here from config alone
+       (Invariant 4, TC-0302). #}
     <div class="formats">
       {% for f in formats %}
-      <label class="format">
+      <label class="format" data-fmt="{{ f.id }}">
         <input type="checkbox" name="formats" value="{{ f.id }}"
                {% if f.id in ('linkedin_post','exec_summary') %}checked{% endif %}>
-        <span>
-          <span class="name">{{ f.label }}</span>
+        <span class="format-body">
+          <span class="format-top">
+            <span class="fmt-dot"></span>
+            <span class="name">{{ f.label }}</span>
+          </span>
           <span class="desc">{{ f.description }}</span>
+          <span class="format-meta">
+            {% if f.shape %}<span class="chip">{{ f.shape }}</span>{% endif %}
+            {% if f.runtime_hint %}<span class="chip">{{ f.runtime_hint }}</span>{% endif %}
+            <span class="chip subtle">.{{ f.renderer }}</span>
+          </span>
         </span>
       </label>
       {% endfor %}
