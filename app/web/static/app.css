@@ -11,21 +11,35 @@
 :root {
   color-scheme: light dark;
 
-  /* Neutrals, tinted toward the ink hue so the greys agree with each other.
-     Never pure black or white. */
-  --ink: oklch(24% 0.02 265);
-  --ink-2: oklch(43% 0.02 265);
-  --ink-3: oklch(58% 0.015 265);
-  --bg: oklch(98.4% 0.003 265);
-  --surface: oklch(100% 0 0);
-  --surface-2: oklch(96.5% 0.005 265);
-  --line: oklch(90% 0.008 265);
-  --line-2: oklch(83% 0.01 265);
+  /* Neutrals, warmed toward brass so the greys read as machined metal rather
+     than as a spreadsheet. Tinted, never pure black or white - a panel the
+     operator stares at all afternoon should not be lit by a screen-white. */
+  --ink: oklch(24% 0.018 70);
+  --ink-2: oklch(43% 0.018 70);
+  /* Measured, not guessed: at 58% this sat at 3.75:1 on the page ground,
+     under WCAG AA for text below 18.66px - and every muted label in the
+     interface is smaller than that. 52% clears 4.5:1 and still reads as
+     secondary against --ink-2. */
+  --ink-3: oklch(52% 0.016 70);
+  --bg: oklch(97.5% 0.006 80);
+  --surface: oklch(99.4% 0.004 80);
+  --surface-2: oklch(95.5% 0.009 78);
+  --line: oklch(89% 0.012 75);
+  --line-2: oklch(81% 0.018 72);
 
-  /* One accent, for action and focus only. */
-  --accent: oklch(52% 0.17 258);
-  --accent-ink: oklch(99% 0.005 258);
-  --accent-soft: oklch(95% 0.03 258);
+  /* Brass. Action and focus only, and deliberately far from every verdict
+     hue - an operator must never mistake "this button does something" for
+     "this check passed". */
+  --accent: oklch(52% 0.11 65);
+  --accent-ink: oklch(99% 0.01 80);
+  --accent-soft: oklch(94% 0.035 75);
+
+  /* The machine itself: the plate a console is milled from, and the seam
+     between two of them. Used for the pipeline board and the header, which
+     are the parts that should read as apparatus rather than as document. */
+  --plate: oklch(93% 0.014 78);
+  --plate-2: oklch(88.5% 0.018 74);
+  --engrave: oklch(46% 0.02 70);
 
   /* Verdicts. The only other colour in the system, and nothing decorative may
      borrow it: green here always means a check passed. */
@@ -35,6 +49,11 @@
   --flag-soft: oklch(95.5% 0.05 75);
   --fail: oklch(53% 0.19 25);
   --fail-soft: oklch(95.5% 0.04 25);
+
+  /* --flag as TEXT. The token itself doubles as a badge fill, where 58% is
+     right; as 13px text on the page ground it measured 3.77:1, under AA.
+     A warning nobody can read is not a warning. */
+  --flag-ink: oklch(46% 0.12 62);
 
   --radius: 10px;
   --radius-sm: 7px;
@@ -72,18 +91,22 @@
  * lives inside a media query disappears the moment that query is false. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ink: oklch(94% 0.01 265);
-    --ink-2: oklch(76% 0.015 265);
-    --ink-3: oklch(62% 0.02 265);
-    --bg: oklch(17% 0.018 265);
-    --surface: oklch(21% 0.02 265);
-    --surface-2: oklch(25% 0.02 265);
-    --line: oklch(31% 0.02 265);
-    --line-2: oklch(38% 0.022 265);
+    --ink: oklch(93% 0.012 80);
+    --ink-2: oklch(75% 0.016 78);
+    --ink-3: oklch(68% 0.02 75);
+    --bg: oklch(17% 0.014 70);
+    --surface: oklch(21% 0.016 72);
+    --surface-2: oklch(25% 0.018 72);
+    --line: oklch(31% 0.02 72);
+    --line-2: oklch(38% 0.024 70);
 
-    --accent: oklch(72% 0.15 258);
-    --accent-ink: oklch(17% 0.02 258);
-    --accent-soft: oklch(30% 0.06 258);
+    --accent: oklch(78% 0.12 78);
+    --accent-ink: oklch(19% 0.02 70);
+    --accent-soft: oklch(30% 0.045 72);
+
+    --plate: oklch(24% 0.018 72);
+    --plate-2: oklch(29% 0.022 70);
+    --engrave: oklch(70% 0.03 78);
 
     --pass: oklch(75% 0.16 152);
     --pass-soft: oklch(28% 0.05 152);
@@ -91,6 +114,7 @@
     --flag-soft: oklch(30% 0.05 75);
     --fail: oklch(72% 0.17 25);
     --fail-soft: oklch(30% 0.06 25);
+    --flag-ink: oklch(84% 0.13 78);
 
     --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 6px 18px oklch(0% 0 0 / 0.3);
   }
@@ -98,18 +122,22 @@
 
 /* An explicit choice, which must beat the OS in both directions. */
 :root[data-theme="dark"] {
-    --ink: oklch(94% 0.01 265);
-    --ink-2: oklch(76% 0.015 265);
-    --ink-3: oklch(62% 0.02 265);
-    --bg: oklch(17% 0.018 265);
-    --surface: oklch(21% 0.02 265);
-    --surface-2: oklch(25% 0.02 265);
-    --line: oklch(31% 0.02 265);
-    --line-2: oklch(38% 0.022 265);
+    --ink: oklch(93% 0.012 80);
+    --ink-2: oklch(75% 0.016 78);
+    --ink-3: oklch(68% 0.02 75);
+    --bg: oklch(17% 0.014 70);
+    --surface: oklch(21% 0.016 72);
+    --surface-2: oklch(25% 0.018 72);
+    --line: oklch(31% 0.02 72);
+    --line-2: oklch(38% 0.024 70);
 
-    --accent: oklch(72% 0.15 258);
-    --accent-ink: oklch(17% 0.02 258);
-    --accent-soft: oklch(30% 0.06 258);
+    --accent: oklch(78% 0.12 78);
+    --accent-ink: oklch(19% 0.02 70);
+    --accent-soft: oklch(30% 0.045 72);
+
+    --plate: oklch(24% 0.018 72);
+    --plate-2: oklch(29% 0.022 70);
+    --engrave: oklch(70% 0.03 78);
 
     --pass: oklch(75% 0.16 152);
     --pass-soft: oklch(28% 0.05 152);
@@ -117,6 +145,7 @@
     --flag-soft: oklch(30% 0.05 75);
     --fail: oklch(72% 0.17 25);
     --fail-soft: oklch(30% 0.06 25);
+    --flag-ink: oklch(84% 0.13 78);
 
     --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 6px 18px oklch(0% 0 0 / 0.3);
 }
@@ -428,7 +457,7 @@ button.ghost:hover { color: var(--ink); border-color: var(--ink-3); }
   margin-bottom: var(--s2);
   font-size: var(--step--1);
 }
-.fixnote strong { color: var(--flag); }
+.fixnote strong { color: var(--flag-ink); }
 
 .stop {
   background: var(--fail-soft);
@@ -993,7 +1022,7 @@ button.thumb.down.on { background: var(--fail-soft); border-color: var(--fail); 
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
   border: 1px solid var(--fmt);
-  color: var(--fmt);
+  color: var(--fmt-ink);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -1055,3 +1084,355 @@ button.thumb.down.on { background: var(--fail-soft); border-color: var(--fail); 
 /* The job view gets more room than the studio form: a status board is a
    dashboard, and a form is a document. */
 body:has(#job-status) main { max-width: 82rem; }
+
+/* === the machine ==========================================================
+ *
+ * "The Great Grammatizator" - Dahl's apparatus that writes to order. The
+ * conceit earns its keep only where it clarifies: the header is a nameplate,
+ * the pipeline is an indicator panel, and everything an operator uses daily
+ * stays plain. A control that needs decoding is a control that wastes time.
+ */
+
+header {
+  background: linear-gradient(var(--plate), var(--plate-2));
+  border-bottom: 1px solid var(--line-2);
+  align-items: center;
+}
+
+/* Stamped once. The name is not repeated anywhere else in the interface. */
+.nameplate {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.nameplate-mark {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  flex: none;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.35), 0 1px 2px oklch(24% 0.02 70 / 0.25);
+}
+.nameplate-text { min-width: 0; }
+.nameplate-name {
+  display: block;
+  font-size: var(--step-1);
+  font-weight: 680;
+  letter-spacing: 0.005em;
+  /* Engraved rather than printed: a highlight below the letterform, the way a
+     name cut into a plate catches the light. Suppressed in dark, where a
+     bright edge under dark text reads as a rendering fault. */
+  text-shadow: 0 1px 0 oklch(100% 0 0 / 0.5);
+  color: var(--engrave);
+}
+:root[data-theme="dark"] .nameplate-name { text-shadow: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .nameplate-name { text-shadow: none; }
+}
+
+/* === indicator panel ======================================================
+ * The pipeline board, milled from one plate rather than four loose cards.
+ */
+.panel:has(> .pipeline) {
+  background: linear-gradient(var(--plate), var(--plate-2));
+  border-color: var(--line-2);
+}
+
+.stage {
+  background: var(--surface);
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.4);
+}
+
+/* A lamp, not a dot: lit ones glow, dark ones sit recessed. */
+.stage .dot {
+  box-shadow:
+    inset 0 0 0 1px oklch(0% 0 0 / 0.18),
+    inset 0 1px 1px oklch(0% 0 0 / 0.25);
+}
+.stage.is-done .dot,
+.stage.is-active .dot,
+.stage.is-failed .dot {
+  box-shadow:
+    inset 0 0 0 1px oklch(0% 0 0 / 0.1),
+    0 0 6px 1px currentColor;
+  color: inherit;
+}
+.stage.is-done .dot { box-shadow: 0 0 7px 1px color-mix(in oklch, var(--pass) 55%, transparent); }
+.stage.is-failed .dot { box-shadow: 0 0 7px 1px color-mix(in oklch, var(--fail) 55%, transparent); }
+
+/* Engraved labels on the plate. */
+.stage-name {
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.6875rem;
+  color: var(--ink-3);
+}
+.stage-detail { color: var(--ink); font-weight: 560; }
+
+/* === icons ================================================================
+ * Inline SVG, no dependency. Only on actions with a familiar symbol - a verb
+ * nobody draws the same way twice is clearer as a word.
+ */
+.ico {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -0.125em;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+button .ico, .filelink .ico { margin-right: 0.3em; }
+button, .filelink { display: inline-flex; align-items: center; }
+.actions form { display: inline-flex; }
+
+/* One line of context under the source box. Not a panel: who the machine
+   writes as is worth knowing and is not the reason the page was opened. */
+.wholine {
+  margin: calc(var(--s5) * -0.5) 0 var(--s5);
+  padding: 0 var(--s1);
+  color: var(--ink-3);
+  font-size: var(--step--1);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+.wholine strong { color: var(--ink-2); }
+.wholine a { display: inline-flex; align-items: center; gap: 0.25em; text-decoration: none; }
+.wholine a:hover { text-decoration: underline; }
+
+/* The thumbs are the one place an icon carries the meaning rather than
+   decorating a word, so they get a little more of it. */
+.thumb .ico { width: 1.05em; height: 1.05em; }
+
+/* === artefacts that look like what they are ===============================
+ *
+ * Seven formats rendered as seven paragraph stacks made the deck and the
+ * tweet thread indistinguishable at a glance, which is exactly the check an
+ * operator is trying to make: is this the shape I asked for?
+ *
+ * Each layout borrows the geometry of the real thing - a thread, a slide, a
+ * shot list, a panel grid - so the answer is visible before a word is read.
+ * The format's own hue does the tinting via var(--fmt).
+ */
+
+/* --- thread ------------------------------------------------------------- */
+.thread { list-style: none; margin: 0; padding: 0; }
+.tweet {
+  position: relative;
+  padding: var(--s3) var(--s4) var(--s3) calc(var(--s6) + var(--s1));
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  margin-bottom: var(--s2);
+}
+/* The rail that makes a list of boxes read as one thread. */
+.tweet:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: calc(var(--s4) + 0.55rem);
+  top: calc(var(--s3) + 1.5rem);
+  bottom: calc(var(--s3) * -1 - var(--s2));
+  width: 2px;
+  background: var(--line-2);
+}
+.tweet-n {
+  position: absolute;
+  left: var(--s4);
+  top: var(--s3);
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: var(--fmt);
+  color: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+/* White numeral on the hue, so the FILL has to carry the contrast. */
+.tweet-n { background: var(--fmt-ink); }
+.tweet .prose { margin: 0 0 var(--s1); }
+/* --ink-2, not --ink-3: this sits on the tinted tweet ground rather than on
+   the page ground, where the muted tone measured 3.81:1 - under AA at 11px. */
+.tweet-count { font-size: 0.6875rem; color: var(--ink-2); }
+/* Approaching the limit the checker enforces - visible before it fails. */
+.tweet-count.is-near { color: var(--flag-ink); font-weight: 650; }
+
+.tags { display: flex; flex-wrap: wrap; gap: var(--s1); margin: var(--s3) 0 0; }
+.tag-pill {
+  font-size: var(--step--1);
+  color: var(--fmt-ink);
+  border: 1px solid var(--fmt);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+/* --- slides -------------------------------------------------------------- */
+.slides { display: grid; gap: var(--s4); }
+.slide-plate {
+  position: relative;
+  border: 1px solid var(--line-2);
+  border-top: 3px solid var(--fmt);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: var(--s4) var(--s4) var(--s4) var(--s5);
+  /* A deck's proportions, without forcing content to overflow when a slide
+     runs long: the ratio is a floor, not a clamp. */
+  min-height: 9rem;
+  box-shadow: var(--shadow);
+}
+.slide-n {
+  position: absolute;
+  top: var(--s2);
+  right: var(--s3);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.slide-plate h4 { margin: 0 0 var(--s2); font-size: var(--step-1); }
+.slide-plate ul { margin: 0; padding-left: 1.1rem; }
+.slide-plate li { margin-bottom: var(--s1); }
+.slide-notes {
+  margin: var(--s2) 0 0;
+  font-size: var(--step--1);
+  color: var(--ink-3);
+  padding-left: var(--s3);
+  border-left: 2px solid var(--line);
+}
+
+/* Small caps label, used wherever a field needs naming without a heading. */
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-right: 0.35em;
+}
+
+/* --- shot list ----------------------------------------------------------- */
+.runtime { margin: 0 0 var(--s4); color: var(--ink-3); font-size: var(--step--1); }
+.shots { list-style: none; margin: 0; padding: 0; }
+.shot {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--fmt);
+  border-radius: var(--radius-sm);
+  padding: var(--s3) var(--s4);
+  margin-bottom: var(--s3);
+  background: var(--surface-2);
+}
+.shot-head { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
+.shot-n {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--fmt-ink);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+/* Duration as a proportion of the whole, so one scene eating half the runtime
+   is visible without adding the numbers up. */
+.shot-bar {
+  flex: 1 1 auto;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+.shot-bar > i { display: block; height: 100%; background: var(--fmt); }
+.narration { margin: 0 0 var(--s2); font-style: italic; }
+.shot-meta { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--s1) var(--s3); }
+.shot-meta dt {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  padding-top: 0.15em;
+}
+.shot-meta dd { margin: 0; font-size: var(--step--1); color: var(--ink-2); }
+
+/* --- infographic panels --------------------------------------------------- */
+.info-headline { margin: 0 0 var(--s4); }
+.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--s3); }
+.ipanel {
+  margin: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: var(--s4) var(--s3);
+  text-align: center;
+  background: color-mix(in oklch, var(--fmt) 6%, var(--surface));
+}
+/* The statistic is the largest thing in the panel, because that is what an
+   infographic panel is for. */
+.ipanel-stat {
+  font-size: var(--step-3);
+  font-weight: 720;
+  line-height: 1.05;
+  color: var(--fmt-ink);
+}
+.ipanel figcaption { display: block; margin-top: var(--s2); }
+.ipanel figcaption strong { display: block; font-size: var(--step-0); }
+.ipanel figcaption span { display: block; color: var(--ink-3); font-size: var(--step--1); margin-top: 2px; }
+.layout-note { margin: var(--s4) 0 0; font-size: var(--step--1); color: var(--ink-3); }
+
+/* Text weight of each format hue.
+ *
+ * The identity colours sit at 64% lightness, which is right for a border or a
+ * fill and measured 2.87-3.18:1 as text - under WCAG AA. Rather than darken
+ * the identity (and lose the colour that makes a rack of seven scannable),
+ * text gets its own value at the same hue: same family, legible weight.
+ *
+ * Measured on the page ground, not chosen by eye.
+ */
+:root {
+  --fmt-ink-video_package:  oklch(45% 0.17 22);
+  --fmt-ink-linkedin_post:  oklch(45% 0.17 250);
+  --fmt-ink-twitter_x:      oklch(43% 0.13 195);
+  --fmt-ink-advisory:       oklch(45% 0.19 300);
+  --fmt-ink-infographic:    oklch(43% 0.14 145);
+  --fmt-ink-exec_summary:   oklch(43% 0.13 80);
+  --fmt-ink-presentation:   oklch(45% 0.19 340);
+  --fmt-ink: var(--ink-2);
+}
+
+[data-fmt="video_package"] { --fmt-ink: var(--fmt-ink-video_package); }
+[data-fmt="linkedin_post"] { --fmt-ink: var(--fmt-ink-linkedin_post); }
+[data-fmt="twitter_x"]     { --fmt-ink: var(--fmt-ink-twitter_x); }
+[data-fmt="advisory"]      { --fmt-ink: var(--fmt-ink-advisory); }
+[data-fmt="infographic"]   { --fmt-ink: var(--fmt-ink-infographic); }
+[data-fmt="exec_summary"]  { --fmt-ink: var(--fmt-ink-exec_summary); }
+[data-fmt="presentation"]  { --fmt-ink: var(--fmt-ink-presentation); }
+
+/* Dark ground wants the opposite adjustment: lighter, not darker. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fmt-ink-video_package:  oklch(78% 0.13 22);
+    --fmt-ink-linkedin_post:  oklch(78% 0.13 250);
+    --fmt-ink-twitter_x:      oklch(80% 0.12 195);
+    --fmt-ink-advisory:       oklch(78% 0.13 300);
+    --fmt-ink-infographic:    oklch(80% 0.13 145);
+    --fmt-ink-exec_summary:   oklch(82% 0.12 80);
+    --fmt-ink-presentation:   oklch(78% 0.13 340);
+  }
+}
+:root[data-theme="dark"] {
+  --fmt-ink-video_package:  oklch(78% 0.13 22);
+  --fmt-ink-linkedin_post:  oklch(78% 0.13 250);
+  --fmt-ink-twitter_x:      oklch(80% 0.12 195);
+  --fmt-ink-advisory:       oklch(78% 0.13 300);
+  --fmt-ink-infographic:    oklch(80% 0.13 145);
+  --fmt-ink-exec_summary:   oklch(82% 0.12 80);
+  --fmt-ink-presentation:   oklch(78% 0.13 340);
+}

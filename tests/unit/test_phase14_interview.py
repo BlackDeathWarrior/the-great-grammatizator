@@ -278,3 +278,51 @@ def test_the_stylesheet_respects_reduced_motion():
 
     assert "prefers-reduced-motion" in css
     assert "focus-visible" in css, "there was no visible focus state at all"
+
+
+# --- a reply that did not finish --------------------------------------------
+
+
+def test_a_truncated_reply_shows_the_sentence_not_the_protocol():
+    """Found on a live page: the operator was shown a wall of JSON.
+
+    A rate-limited free tier truncates mid-document, and the result still LOOKS
+    like JSON - so the old fallback printed braces, field names and a half
+    draft into the chat bubble. The sentence is in there; show only that.
+    """
+    truncated = (
+        '{"done": false, "message": "This reads like a security advisory. '
+        'Does that match?", "draft": {"audience": "platform eng'
+    )
+
+    message = interview._parse(truncated)["message"]
+
+    assert message == "This reads like a security advisory. Does that match?"
+    assert "{" not in message
+    assert "draft" not in message
+
+
+def test_a_reply_with_nothing_readable_says_so_plainly():
+    message = interview._parse("%%% not json at all %%%")["message"]
+
+    assert "garbled" in message
+    assert "%%%" not in message
+
+
+def test_salvage_does_not_invent_a_draft():
+    """Half a document must not put unseen values into the operator's brief.
+
+    Recovering the message is safe because the operator reads it and answers.
+    Recovering a partial draft would silently set parameters they never saw.
+    """
+    truncated = '{"done": false, "message": "Hello.", "draft": {"audience": "engin'
+
+    assert interview._parse(truncated).get("draft") in (None, {})
+
+
+def test_a_well_formed_reply_is_untouched():
+    data = interview._parse('{"done": true, "message": "Ready.", "draft": {"tone": "formal"}}')
+
+    assert data["done"] is True
+    assert data["message"] == "Ready."
+    assert data["draft"]["tone"] == "formal"

@@ -1,12 +1,16 @@
-<h3>{{ a.content.headline }}</h3>
-<div class="grid">
+{# Panels, drawn as panels. The statistic is the largest thing in each one
+   because that is what an infographic panel is for, and the caption sits
+   under it at reading size. #}
+<h3 class="info-headline">{{ a.content.headline }}</h3>
+<div class="panels">
   {% for p in a.content.panels %}
-  <div class="item" style="text-align:center">
-    <div class="num" style="font-size:var(--step-2);font-weight:700;color:var(--accent)">{{ p.stat }}</div>
-    <div style="font-weight:600">{{ p.heading }}</div>
-    <div class="muted" style="font-size:var(--step--1)">{{ p.caption }}</div>
-  </div>
+  <figure class="ipanel">
+    <div class="ipanel-stat num">{{ p.stat }}</div>
+    <figcaption>
+      <strong>{{ p.heading }}</strong>
+      <span>{{ p.caption }}</span>
+    </figcaption>
+  </figure>
   {% endfor %}
 </div>
-<p class="muted" style="margin-top:.75rem"><strong>Layout:</strong>
-  {{ a.content.layout_recommendation }}</p>
+<p class="layout-note"><span class="label">Layout</span> {{ a.content.layout_recommendation }}</p>

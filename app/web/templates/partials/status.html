@@ -1,3 +1,4 @@
+{% from "partials/icons.html" import download, thumb_up, thumb_down %}
 {# The live rack. Replaces itself on every poll (hx-swap="outerHTML" on the
    element in job.html), so THIS element carries the trigger - which is what
    actually stops the polling once the job settles. #}
@@ -159,7 +160,7 @@
            the whole path in the URL. #}
         {% set name = p.replace('\\', '/').split('/')[-1] %}
         <a class="filelink"
-           href="/downloads/{{ job.job_id }}/{{ a.output_type }}/{{ name }}">{{ name }}</a>
+           href="/downloads/{{ job.job_id }}/{{ a.output_type }}/{{ name }}">{{ download() }}{{ name }}</a>
         {% endfor %}
       </p>
       {% endif %}
@@ -180,7 +181,7 @@
           <input type="hidden" name="liked" value="true">
           <button type="submit" class="thumb {{ 'on' if a.liked }}"
                   aria-pressed="{{ 'true' if a.liked else 'false' }}"
-                  title="This is satisfactory">&#128077; Good</button>
+                  title="This is satisfactory">{{ thumb_up() }}Good</button>
         </form>
         <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/feedback"
               hx-target="#job-status" hx-swap="outerHTML"
@@ -190,7 +191,7 @@
                  placeholder="What was wrong? (optional, but it is what teaches the system)">
           <button type="submit" class="thumb down {{ 'on' if a.liked is not none and not a.liked }}"
                   aria-pressed="{{ 'true' if (a.liked is not none and not a.liked) else 'false' }}"
-                  title="This is not satisfactory">&#128078; Not good</button>
+                  title="This is not satisfactory">{{ thumb_down() }}Not good</button>
         </form>
       </div>
       {% endif %}

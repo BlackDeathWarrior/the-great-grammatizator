@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from pydantic import BaseModel, Field
 
@@ -166,8 +167,36 @@ def _parse(raw: str) -> dict:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        # A malformed turn is not worth failing on: treat what came back as the
-        # message and let the operator answer it.
-        log.warning("interview returned non-JSON; showing it as a message")
-        return {"done": False, "message": text[:500]}
+        # A malformed turn is not worth failing on - but showing the raw reply
+        # is not the answer either. A truncated response (the common case on a
+        # rate-limited free tier) still LOOKS like JSON, so the operator was
+        # shown a wall of braces and field names in the chat bubble.
+        #
+        # Recover the message field if it survived the truncation; otherwise
+        # say plainly that the turn was lost. Either beats printing the
+        # protocol at somebody.
+        log.warning("interview returned non-JSON; recovering what is readable")
+        salvaged = _salvage_message(text)
+        return {
+            "done": False,
+            "message": salvaged
+            or "That reply came back garbled. Say it again, or pick from the lists.",
+        }
     return data if isinstance(data, dict) else {}
+
+
+def _salvage_message(text: str) -> str:
+    """Pull the human sentence out of a JSON reply that did not finish.
+
+    Deliberately narrow: it reads the "message" field and nothing else. Trying
+    to reconstruct the draft from half a document would put values the operator
+    never saw into their brief, which is worse than losing the turn.
+    """
+    match = re.search(r'"message"\s*:\s*"((?:[^"\\]|\\.)*)', text)
+    if not match:
+        return ""
+    try:
+        # Close the string so the standard decoder handles the escapes.
+        return json.loads(f'"{match.group(1)}"')[:500].strip()
+    except json.JSONDecodeError:
+        return ""
