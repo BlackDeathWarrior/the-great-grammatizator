@@ -41,7 +41,13 @@ log = logging.getLogger(__name__)
 # LiteLLM's own internal retries - permanently killed one format of seven for
 # the whole job. Retry it here, bounded, on its own counter.
 _PROVIDER_ATTEMPTS = 3
-_PROVIDER_BACKOFF_SECONDS = 2.0
+# Must outlast the router's own cooldown. LiteLLM benches a deployment for
+# cooldown_time seconds after allowed_fails failures, and while it is benched
+# every call returns "No deployments available" instantly. A 2s/4s backoff
+# spent all three attempts inside a 30s cooldown and reported a dead provider
+# when the provider was merely resting: a seven-format job lost six artefacts
+# to one rate limit early in the run.
+_PROVIDER_BACKOFF_SECONDS = 12.0
 
 
 async def _with_provider_retry(coro_fn, *, what: str, artefact: Artefact):

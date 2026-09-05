@@ -7,12 +7,13 @@
       "prompt_template": "video_package@v1",
       "output_schema": "video_package.schema.json",
       "constraints": {
-        "scenes_min": 3,
+        "scenes_min": 4,
         "scenes_max": 8,
         "runtime_target_sec": 240,
         "runtime_tolerance_sec": 45,
-        "narration_max_chars_per_scene": 700,
-        "narration_min_chars_per_scene": 300
+        "narration_max_chars_per_scene": 1100,
+        "narration_min_chars_per_scene": 550,
+        "visual_min_chars": 80
       },
       "model_alias": "long",
       "renderer": "video"
@@ -54,8 +55,9 @@
       "output_schema": "advisory.schema.json",
       "constraints": {
         "max_chars": 8000,
-        "recommendations_min": 1,
-        "min_chars": 1800
+        "recommendations_min": 4,
+        "summary_min_chars": 500,
+        "recommendation_min_chars": 120
       },
       "model_alias": "long",
       "renderer": "docx"

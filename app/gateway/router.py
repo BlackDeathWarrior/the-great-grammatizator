@@ -113,8 +113,11 @@ def build_router():
         fallbacks=[{FAST: [LONG]}, {LONG: [FAST]}],
         num_retries=2,
         retry_after=2,
-        allowed_fails=3,
-        cooldown_time=30,
+        # A free tier rate-limits routinely, so benching a deployment after
+        # three failures for a full 30 seconds took the `long` alias out for
+        # most of a seven-format run. More tolerance, shorter bench.
+        allowed_fails=8,
+        cooldown_time=10,
     )
 
 

@@ -9,6 +9,18 @@ storyboard_notes, subtitles_srt, visual_recommendations (array),
 discussion_prompts (array), claims.
 
 Total duration_sec should sum to about {{ constraints.runtime_target_sec }} seconds.
+
+NARRATION LENGTH IS NOT OPTIONAL. Speech runs at roughly 15 characters per
+second, so a scene claiming 40 seconds needs about 600 characters of narration
+to fill it. Write between {{ constraints.narration_min_chars_per_scene }} and
+{{ constraints.narration_max_chars_per_scene }} characters per scene, and make
+each scene's duration_sec match what you actually wrote. A scene with two
+sentences and a 45-second duration renders as mostly silence.
+
+Each "visual" must be at least {{ constraints.visual_min_chars }} characters:
+say what is on screen and how it moves, not just the subject. "Diagram of the
+network" is not direction; "slow push in on a network diagram, the affected
+segment highlighted in amber as the narrator names it" is.
 subtitles_srt must be valid SRT whose cue timings match the scene durations.
 visual_recommendations should include what to AVOID - separately licensed material
 such as film stills.

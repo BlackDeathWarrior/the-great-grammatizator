@@ -16,13 +16,19 @@ AIM FOR {{ (constraints.get('min_chars') * 1.25)|round|int }} CHARACTERS, not
 the floor. A draft that lands just under is rejected outright, and writing to
 within a few characters of a limit wastes an attempt on arithmetic rather than
 on the argument.
+{% elif constraints.get('summary_min_chars') %}
+The summary must be at least {{ constraints.get('summary_min_chars') }}
+characters - what happened, who it affects, why it matters - and each
+recommendation at least {{ constraints.get('recommendation_min_chars') }}:
+what to do AND what it achieves, so a reader can judge the priority.
 {% elif constraints.get('key_point_min_chars') %}
 Each key point must be at least {{ constraints.get('key_point_min_chars') }}
 characters: a finding WITH its consequence, not a headline. "Rated 9.1 out of
 10" is a headline; "Rated 9.1 out of 10, the highest this year, because it
 needs no credentials and no user interaction" is a key point.
 {% endif %}
-{% if constraints.get('min_chars') or constraints.get('key_point_min_chars') %}
+{% if constraints.get('min_chars') or constraints.get('key_point_min_chars')
+      or constraints.get('summary_min_chars') %}
 
 Reach that length by SAYING MORE, never by padding. Develop each point: what
 happened, what it means for {{ parameters.audience }}, what to do about it.

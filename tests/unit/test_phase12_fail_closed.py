@@ -49,6 +49,22 @@ def _no_qa_cache(monkeypatch):
     monkeypatch.setattr(cache, "put", lambda _key, _value, **_kw: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_real_provider(monkeypatch):
+    """These are unit tests about ERROR HANDLING, so no checker should reach a
+    provider. Each test patches the one checker it is about and used to leave
+    the other three making live calls, which made the whole file fail whenever
+    a free tier rate-limited or ran out of credit - a fault in the test, not
+    in the code under test.
+    """
+    from app.gateway import router
+
+    async def refuse(*_a, **_kw):
+        raise AssertionError("a unit test reached a real provider")
+
+    monkeypatch.setattr(router, "complete", refuse)
+
+
 def _content() -> ContentObject:
     return ContentObject(
         source_id="s_1",
