@@ -188,6 +188,16 @@ functions at boot:
 docker compose restart worker
 ```
 
+After changing a dependency in `pyproject.toml`, rebuild **both** services.
+`app` and `worker` are separate images from the same Dockerfile, so
+`docker compose build app` leaves the worker on its old image — and since the
+worker is what runs jobs, the missing module surfaces as a job dying, not as a
+failed build:
+
+```bash
+docker compose build app worker && docker compose up -d --force-recreate app worker
+```
+
 Tests marked `integration` need the stack; `pytest -m "not integration"` runs
 on the host. Three scaffold tests skip in-container by design — they assert
 facts about the repo, which `.dockerignore` correctly keeps out of the image.
