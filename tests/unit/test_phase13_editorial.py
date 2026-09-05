@@ -199,9 +199,6 @@ def test_an_artefact_far_below_the_tone_floor_is_blocked_not_flagged():
 
     Without a floor a 0.30 artefact shipped with a warning badge.
     """
-    artefact = _artefact({"hook": "h", "body": "b", "call_to_action": "c", "hashtags": []})
-    artefact.tone_retried = True  # would otherwise pass flagged
-
     qa = QAResult(
         results=[
             CheckerResult(checker=CheckerName.FORMAT, passed=True),
@@ -211,7 +208,19 @@ def test_an_artefact_far_below_the_tone_floor_is_blocked_not_flagged():
             CheckerResult(checker=CheckerName.TONE, passed=False, score=0.30),
         ]
     )
-    decision, message = verdict_policy.decide(qa, artefact)
+
+    # It retries first: blocking on the first attempt denies the generator the
+    # fix note that would have corrected it. A seven-format run blocked two
+    # artefacts at retry_count 0, which reads to the operator as a refusal
+    # where a second attempt would very likely have passed.
+    fresh = _artefact({"hook": "h", "body": "b", "call_to_action": "c", "hashtags": []})
+    assert verdict_policy.decide(qa, fresh)[0] is Verdict.RETRY
+
+    # And it never ships flagged: once the budget is spent, it is withheld.
+    spent = _artefact({"hook": "h", "body": "b", "call_to_action": "c", "hashtags": []})
+    spent.retry_count = get_settings().qa_max_retries
+    spent.tone_retried = True  # would otherwise pass flagged
+    decision, message = verdict_policy.decide(qa, spent)
 
     assert decision is Verdict.BLOCK
     assert "0.30" in message

@@ -91,8 +91,14 @@ def decide(qa: QAResult, artefact: Artefact) -> tuple[Verdict, str]:
 
     # Tone is advisory: it retries once, then passes flagged, so on its own it
     # can never stop anything. That leaves nothing between a 0.30 artefact and
-    # the operator, so a floor blocks outright rather than flagging.
-    if tone is not None and tone.score is not None and tone.score < settings.tone_floor:
+    # the operator, so a floor blocks rather than flags.
+    #
+    # But only AFTER the retries have been spent. Blocking on the first
+    # attempt denied the generator the fix note that would have corrected it -
+    # a seven-format run blocked two artefacts at retry_count 0, so the
+    # operator saw a refusal where a second attempt was very likely to pass.
+    below_floor = tone is not None and tone.score is not None and tone.score < settings.tone_floor
+    if below_floor and artefact.retry_count >= settings.qa_max_retries:
         return (
             Verdict.BLOCK,
             TONE_FLOOR_MESSAGE.format(
@@ -118,7 +124,7 @@ def decide(qa: QAResult, artefact: Artefact) -> tuple[Verdict, str]:
 
     # Tone alone: retry once, then pass flagged. Tone is advisory - it must not
     # be able to consume the whole budget on its own.
-    if artefact.tone_retried:
+    if artefact.tone_retried and not below_floor:
         return Verdict.PASS_FLAGGED, ""
     return Verdict.RETRY, ""
 

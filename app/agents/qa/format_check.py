@@ -116,6 +116,26 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
                 f"(+/-{tolerance}s). Adjust scene durations."
             )
 
+    if "summary_min_chars" in c:
+        floor = c["summary_min_chars"]
+        summary = content.get("summary") or ""
+        if len(summary) < floor:
+            failures.append(
+                f"The summary is only {len(summary)} characters; at least "
+                f"{floor} is expected. Say what happened, who it affects, and "
+                "why it matters - not just the headline fact."
+            )
+
+    if "recommendation_min_chars" in c:
+        floor = c["recommendation_min_chars"]
+        for i, rec in enumerate(content.get("recommendations") or [], start=1):
+            if len(rec or "") < floor:
+                failures.append(
+                    f"Recommendation {i} is only {len(rec or '')} characters; "
+                    f"at least {floor} is expected. Say what to do AND what it "
+                    "achieves, so a reader can judge the priority."
+                )
+
     if "key_point_min_chars" in c:
         floor = c["key_point_min_chars"]
         for i, point in enumerate(content.get("key_points") or [], start=1):
@@ -155,6 +175,17 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
                 failures.append(
                     f"Scene {i}'s narration is only {len(narration)} characters; "
                     f"at least {floor} is expected to fill the scene's duration."
+                )
+
+    if "visual_min_chars" in c:
+        floor = c["visual_min_chars"]
+        for i, scene in enumerate(content.get("scenes") or [], start=1):
+            visual = (scene or {}).get("visual") or ""
+            if len(visual) < floor:
+                failures.append(
+                    f"Scene {i}'s visual direction is only {len(visual)} "
+                    f"characters; at least {floor} is expected. Say what is on "
+                    "screen and how it moves, not just the subject."
                 )
 
     if "narration_max_chars_per_scene" in c:

@@ -83,6 +83,24 @@ def _pad(body: dict, format_id: str) -> dict:
             for t in (body["tweets"] * max(1, c.get("tweets_min", 1)))[: c.get("tweets_min", 3)]
         ]
         assert all(len(t) >= floor for t in body["tweets"])
+    if c.get("scenes_min") and "scenes" in body:
+        # Repeat scenes up to the floor, keeping the total duration on target.
+        scenes = (body["scenes"] * c["scenes_min"])[: c["scenes_min"]]
+        share = c.get("runtime_target_sec", 240) / len(scenes)
+        body["scenes"] = [{**dict(s), "duration_sec": share} for s in scenes]
+    if c.get("visual_min_chars") and "scenes" in body:
+        for scene in body["scenes"]:
+            scene["visual"] = (scene.get("visual", "") + " " + _FILLER)[
+                : int(c["visual_min_chars"] * 2)
+            ]
+    if c.get("summary_min_chars") and "summary" in body:
+        body["summary"] = (body["summary"] + " " + _FILLER)[: int(c["summary_min_chars"] * 2)]
+    if c.get("recommendation_min_chars") and "recommendations" in body:
+        floor = c["recommendation_min_chars"]
+        recs = body["recommendations"] * max(1, c.get("recommendations_min", 1))
+        body["recommendations"] = [
+            (r + " " + _FILLER)[: floor * 2] for r in recs[: c.get("recommendations_min", 4)]
+        ]
     if c.get("key_point_min_chars") and "key_points" in body:
         floor = c["key_point_min_chars"]
         body["key_points"] = [(k + " " + _FILLER)[: floor * 2] for k in body["key_points"]]

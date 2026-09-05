@@ -70,14 +70,25 @@ def test_a_substantial_post_passes():
 @pytest.mark.p0
 def test_every_prose_format_has_a_floor():
     """A maximum without a minimum only constrains one end of the problem."""
-    for fid in ("linkedin_post", "advisory"):
+    # The floor belongs on the field that actually carries the prose. A
+    # single min_chars applied to the wrong field is how a perfectly
+    # substantial advisory - 1527 characters across summary and five
+    # recommendations - got blocked for having a short "summary".
+    floors = {
+        "linkedin_post": "min_chars",
+        "exec_summary": "key_point_min_chars",
+        "advisory": "summary_min_chars",
+        "twitter_x": "min_chars_per_tweet",
+        "presentation": "speaker_notes_min_chars",
+        "video_package": "narration_min_chars_per_scene",
+        "infographic": "caption_min_chars",
+    }
+    for fid, key in floors.items():
         c = registry.get(fid).constraints
-        assert c.get("min_chars"), f"{fid} has no minimum length"
-        assert c["min_chars"] < c["max_chars"], f"{fid}'s floor is above its ceiling"
+        assert c.get(key), f"{fid} has no floor on {key}"
 
-    # exec_summary carries its prose in key_points, so a floor on the body
-    # field would demand a one-paragraph "bottom line" instead.
-    assert registry.get("exec_summary").constraints.get("key_point_min_chars")
+    c = registry.get("linkedin_post").constraints
+    assert c["min_chars"] < c["max_chars"], "the floor is above the ceiling"
 
 
 @pytest.mark.p1
@@ -405,3 +416,62 @@ def test_an_anonymous_job_simply_learns_nothing():
     from app import worker
 
     assert worker._style_notes_for(None, "") == []
+
+
+# === retry backoff must outlast the router's own cooldown ===================
+
+
+@pytest.mark.p0
+def test_provider_backoff_outlasts_the_router_cooldown():
+    """A benched deployment answers "No deployments available" instantly.
+
+    LiteLLM cools a deployment down after allowed_fails failures. A 2s/4s
+    backoff spent all three attempts inside a 30s cooldown and reported a dead
+    provider when the provider was merely resting - a seven-format job lost
+    six artefacts to one rate limit early in the run.
+    """
+    import inspect
+
+    from app.gateway import router
+    from app.graph import build
+
+    source = inspect.getsource(router.build_router)
+    cooldown = int(source.split("cooldown_time=")[1].split(",")[0])
+
+    total_backoff = sum(
+        build._PROVIDER_BACKOFF_SECONDS * (2**i) for i in range(build._PROVIDER_ATTEMPTS - 1)
+    )
+
+    assert total_backoff > cooldown, (
+        f"retries span {total_backoff}s but a deployment is benched for {cooldown}s, "
+        "so every attempt lands inside the cooldown"
+    )
+
+
+@pytest.mark.p1
+def test_a_free_tier_rate_limit_does_not_bench_a_deployment_for_long():
+    """Free tiers 429 routinely; benching hard takes an alias out of a run."""
+    import inspect
+
+    from app.gateway import router
+
+    source = inspect.getsource(router.build_router)
+
+    assert int(source.split("cooldown_time=")[1].split(",")[0]) <= 15
+    assert int(source.split("allowed_fails=")[1].split(",")[0]) >= 5
+
+
+@pytest.mark.p1
+def test_video_narration_matches_the_runtime_it_declares():
+    """Speech runs at roughly 15 chars/second. A 300-char floor on a 40-second
+    scene left it two-thirds silence when rendered."""
+    c = registry.get("video_package").constraints
+
+    scenes = c["scenes_min"]
+    per_scene_seconds = c["runtime_target_sec"] / scenes
+    implied_chars = per_scene_seconds * 15
+
+    assert c["narration_min_chars_per_scene"] >= implied_chars * 0.5, (
+        "the narration floor is far below what the declared duration needs"
+    )
+    assert c["visual_min_chars"], "visual direction has no floor"
