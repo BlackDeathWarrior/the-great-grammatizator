@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block title %}Settings &middot; Content Transformation{% endblock %}
+{% from "partials/icons.html" import save, test, trash, download, upload, cog %}
+{% block title %}Settings &middot; The Great Grammatizator{% endblock %}
 {% block content %}
 
 {# Four sections, one column, in the order an operator meets them: who am I,
@@ -16,9 +17,8 @@
 <div class="panel" id="profiles">
   <h2>Profiles</h2>
   <p class="panel-lead">
-    A profile is a name this browser remembers, so what you pick between
-    versions can be carried into later drafts. There is no password and no
-    account &mdash; anyone using this machine is whoever the cookie says.
+    A name this browser remembers, so what you pick between versions carries
+    into later drafts. No password, no account.
   </p>
 
   {% if profiles %}
@@ -43,10 +43,10 @@
       </form>
       {% endif %}
       <a class="filelink" href="/ui/profiles/{{ p.id }}/export"
-         title="Download this profile's notes and the choices behind them">Export</a>
+         title="Download this profile's notes and the choices behind them">{{ download() }}Export</a>
       <form action="/ui/profiles/{{ p.id }}/delete" method="post"
             onsubmit="return confirm('Delete {{ p.name }} and everything learned about them? This cannot be undone.')">
-        <button type="submit" class="ghost tiny">Delete</button>
+        <button type="submit" class="ghost tiny">{{ trash() }}Delete</button>
       </form>
     </div>
   </div>
@@ -61,7 +61,6 @@
   <div class="row">
     <div class="row-main">
       <div class="row-title">Add a profile</div>
-      <div class="row-sub">Switching to a new profile starts its learning from nothing.</div>
     </div>
     <form action="/ui/profiles/create" method="post" class="actions" style="margin-top:0">
       <input type="text" name="name" placeholder="Priya" maxlength="80" required
@@ -105,7 +104,7 @@
       <textarea name="payload" rows="4" required
                 placeholder='{"version": 1, "name": "Priya", "style_notes": []}'></textarea>
       <div class="actions">
-        <button type="submit" class="secondary">Import</button>
+        <button type="submit" class="secondary">{{ upload() }}Import</button>
       </div>
     </form>
   </details>
@@ -115,9 +114,8 @@
 <div class="panel" id="keys">
   <h2>API keys</h2>
   <p class="panel-lead">
-    Which providers this platform can reach. A key saved here is encrypted, and
-    overrides the matching entry in <code>.env</code> without a restart &mdash;
-    both this app and the worker pick it up within seconds.
+    A key saved here is encrypted and overrides <code>.env</code> without a
+    restart.
   </p>
 
   <div class="warn">
@@ -159,7 +157,7 @@
          not decrypt it for a browser. #}
       <input type="password" name="key" placeholder="Paste a new key" autocomplete="off"
              aria-label="New {{ k.label }} key" style="width:13rem" required>
-      <button type="submit">Save</button>
+      <button type="submit">{{ save() }}Save</button>
     </form>
 
     <div class="actions" style="margin-top:0">
@@ -169,12 +167,12 @@
               hx-swap="innerHTML"
               hx-disabled-elt="this"
               {% if not k.configured %}disabled title="Nothing to test"{% endif %}>
-        Test <span class="spinner"></span>
+        {{ test() }}Test <span class="spinner"></span>
       </button>
       {% if k.source == 'saved' %}
       <form action="/ui/keys/{{ k.id }}/delete" method="post"
             onsubmit="return confirm('Forget the saved {{ k.label }} key? {{ k.env_field }} takes over again.')">
-        <button type="submit" class="ghost tiny">Forget</button>
+        <button type="submit" class="ghost tiny">{{ trash() }}Forget</button>
       </form>
       {% endif %}
       <span id="probe-{{ k.id }}"></span>
@@ -216,9 +214,7 @@
   <!-- style notes -->
   <h2 style="margin-top:var(--s6)">What it has learned about you</h2>
   <p class="panel-lead">
-    Sentences, not weights &mdash; injected into your generator prompts. Each
-    one carries the choice it came from, because a preference you cannot read
-    is one you cannot correct.
+    Injected into your generator prompts. Each carries the choice it came from.
   </p>
 
   {% if memory.style_notes %}
@@ -254,7 +250,6 @@
   <div class="row">
     <div class="row-main">
       <div class="row-title">Add a note yourself</div>
-      <div class="row-sub">Written the way a learned note is: one instruction, in a sentence.</div>
     </div>
     <form action="/ui/memory/notes/add" method="post" class="actions" style="margin-top:0">
       <input type="text" name="note" maxlength="400" required

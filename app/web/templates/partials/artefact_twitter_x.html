@@ -1,10 +1,17 @@
-{% for t in a.content.tweets %}
-<div class="item">
-  <p class="prose" style="margin:0">{{ t }}</p>
-  {# The deterministic checker enforces this; showing the count makes it legible #}
-  <span class="muted num" style="font-size:.75rem">{{ t|length }}/280</span>
-</div>
-{% endfor %}
+{# A thread reads as a thread: numbered, connected by a rail, each tweet in a
+   box the size of the thing it will be posted into. The character count is
+   the deterministic checker's constraint made visible, and turns amber as it
+   approaches the limit - the operator can see which tweet is at risk before
+   the checker says so. #}
+<ol class="thread">
+  {% for t in a.content.tweets %}
+  <li class="tweet">
+    <span class="tweet-n" aria-hidden="true">{{ loop.index }}</span>
+    <p class="prose">{{ t }}</p>
+    <span class="tweet-count num {{ 'is-near' if t|length > 250 }}">{{ t|length }}/280</span>
+  </li>
+  {% endfor %}
+</ol>
 {% if a.content.hashtags %}
-<p class="muted">{{ a.content.hashtags|join(' ') }}</p>
+<p class="tags">{% for h in a.content.hashtags %}<span class="tag-pill">{{ h }}</span>{% endfor %}</p>
 {% endif %}

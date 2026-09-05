@@ -7,7 +7,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="One source in, cited communication artefacts out.">
-  <title>{% block title %}Content Transformation{% endblock %}</title>
+  <title>{% block title %}The Great Grammatizator{% endblock %}</title>
   {# Vendored, not from a CDN: a demo should not depend on someone else's uptime. #}
   <script src="/static/htmx.min.js"></script>
   {# Fingerprinted so an edited stylesheet actually reaches the browser.
@@ -17,10 +17,22 @@
 </head>
 <body>
   <header>
-    <div>
-      <h1><a href="/">Content Transformation</a></h1>
-      <p class="sub">One source in. Communication artefacts out, each cited to the source.</p>
-    </div>
+    {# A nameplate, the way a machine carries one: what it is, and what it does,
+       stamped once and never repeated elsewhere in the interface. #}
+    <a class="nameplate" href="/">
+      <span class="nameplate-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="7" width="18" height="12" rx="2"/>
+          <path d="M7 7V5.5A1.5 1.5 0 0 1 8.5 4h7A1.5 1.5 0 0 1 17 5.5V7"/>
+          <path d="M7 12h4M7 15.5h7M14.5 12h2.5"/>
+        </svg>
+      </span>
+      <span class="nameplate-text">
+        <span class="nameplate-name">The Great Grammatizator</span>
+        <span class="sub">One source in. Communication artefacts out, each cited to the source.</span>
+      </span>
+    </a>
 
     <nav class="nav" aria-label="Sections">
       <a href="/" {% if active_tab == "studio" %}aria-current="page"{% endif %}>Studio</a>

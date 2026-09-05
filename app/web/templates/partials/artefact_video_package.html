@@ -1,22 +1,36 @@
+{# A shot list. Each scene shows its duration as a proportional bar, so an
+   unbalanced package - one scene carrying half the runtime - is visible
+   without adding the numbers up.
+
+   The package is text: script, storyboard, narration, subtitles. Rendering is
+   deterministic TTS and ffmpeg, never generated video (Invariant 10). #}
+{% set total = a.content.scenes | sum(attribute='duration_sec') or 1 %}
 <h3>{{ a.content.title }}</h3>
-<p class="muted" style="font-size:var(--step--1)">
-  A package of text: script, storyboard, narration, subtitles and visual direction.
-  Rendering is deterministic (TTS + ffmpeg), not generated video.
+<p class="runtime">
+  <span class="num">{{ total }}s</span> across
+  <span class="num">{{ a.content.scenes|length }}</span> scenes
 </p>
-{% for s in a.content.scenes %}
-<div class="item">
-  <div class="item-head">
-    <h4>Scene {{ loop.index }}</h4>
-    <span class="muted num" style="font-size:.75rem">{{ s.duration_sec }}s</span>
-  </div>
-  <p style="margin:.5rem 0"><em>&ldquo;{{ s.narration }}&rdquo;</em></p>
-  <p class="muted" style="font-size:var(--step--1);margin:0">
-    <strong>Visual:</strong> {{ s.visual }}<br>
-    <strong>On screen:</strong> {{ s.on_screen_text }}
-  </p>
-</div>
-{% endfor %}
+<ol class="shots">
+  {% for s in a.content.scenes %}
+  <li class="shot">
+    <div class="shot-head">
+      <span class="shot-n" aria-hidden="true">{{ loop.index }}</span>
+      <span class="shot-bar" aria-hidden="true">
+        <i style="width: {{ (100 * s.duration_sec / total)|round|int }}%"></i>
+      </span>
+      <span class="num muted">{{ s.duration_sec }}s</span>
+    </div>
+    <p class="narration">&ldquo;{{ s.narration }}&rdquo;</p>
+    <dl class="shot-meta">
+      <dt>Visual</dt><dd>{{ s.visual }}</dd>
+      <dt>On screen</dt><dd>{{ s.on_screen_text }}</dd>
+    </dl>
+  </li>
+  {% endfor %}
+</ol>
 {% if a.content.visual_recommendations %}
-<p><strong>Visual recommendations</strong></p>
-<ul>{% for v in a.content.visual_recommendations %}<li>{{ v }}</li>{% endfor %}</ul>
+<details>
+  <summary>Visual direction</summary>
+  <ul>{% for v in a.content.visual_recommendations %}<li>{{ v }}</li>{% endfor %}</ul>
+</details>
 {% endif %}

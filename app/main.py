@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Content Transformation Platform", lifespan=lifespan)
+app = FastAPI(title="The Great Grammatizator", lifespan=lifespan)
 
 app.mount(
     "/static",

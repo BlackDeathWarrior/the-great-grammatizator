@@ -1,41 +1,7 @@
 {% extends "base.html" %}
-{% block title %}New job &middot; Content Transformation{% endblock %}
+{% from "partials/icons.html" import upload, cog %}
+{% block title %}New job &middot; The Great Grammatizator{% endblock %}
 {% block content %}
-
-{# What the platform will apply to THIS job, stated once. Managing profiles
-   and notes belongs in Settings; repeating those controls here would be the
-   same job done in two places, and the operator would have to learn which
-   copy is authoritative. #}
-{% if profile_name %}
-<div class="panel" id="profile">
-  <h2>Writing as {{ profile_name }}</h2>
-  <p class="panel-lead">
-    {% if style_notes %}
-    {{ style_notes|length }} learned preference{{ '' if style_notes|length == 1 else 's' }}
-    will shape these drafts.
-    {% else %}
-    Nothing learned yet &mdash; ask for two versions of an artefact and pick one.
-    {% endif %}
-    <a href="/settings#memory">Manage in Settings</a>
-  </p>
-  {% if style_notes %}
-  <ul class="notes">
-    {% for n in style_notes %}
-    <li><span>{{ n.note }}</span></li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-</div>
-{% else %}
-<div class="panel" id="profile">
-  <h2>Working anonymously</h2>
-  <p class="panel-lead">
-    Everything works, but nothing is remembered between jobs.
-    <a href="/settings#profiles">Add a profile</a> and what you pick between
-    versions starts shaping later drafts.
-  </p>
-</div>
-{% endif %}
 
 <div class="panel">
   <h2>1 &middot; Source</h2>
@@ -60,7 +26,7 @@
     <textarea id="text" name="text" rows="3"
               placeholder="Paste an advisory, a report, or a few lines of context."></textarea>
     <div class="actions">
-      <button type="submit">Ingest source <span class="spinner"></span></button>
+      <button type="submit">{{ upload() }}Ingest source <span class="spinner"></span></button>
       <span class="working">Reading and chunking&hellip;</span>
     </div>
   </form>
@@ -85,6 +51,22 @@
   </table>
   {% endif %}
 </div>
+
+{# Who the drafts will be written as. One line, below the source box: it is
+   worth knowing and it is not what the operator came here to do. Managing any
+   of it belongs in Settings. #}
+<p class="wholine">
+  {% if profile_name %}
+    Writing as <strong>{{ profile_name }}</strong>
+    {%- if style_notes %} &middot; {{ style_notes|length }} learned
+      preference{{ '' if style_notes|length == 1 else 's' }} will shape these drafts
+    {%- else %} &middot; nothing learned yet{% endif %}.
+    <a href="/settings#memory">{{ cog() }}Manage</a>
+  {% else %}
+    Writing anonymously &mdash; nothing is remembered between jobs.
+    <a href="/settings#profiles">{{ cog() }}Add a profile</a>
+  {% endif %}
+</p>
 
 {% if selected_source %}
 <form action="/ui/jobs" method="post" id="job-form">
