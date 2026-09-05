@@ -276,8 +276,31 @@ def _persist(job_id: str, result: dict) -> None:
                     )
 
 
+# Modules the worker needs that the API process does not exercise on its own.
+# app and worker are separate images built from the same Dockerfile, so
+# rebuilding one and not the other leaves this container running older code -
+# and the miss surfaces as a JOB dying, minutes in, rather than as a failed
+# build. Named here so a stale image says so at boot instead.
+_REQUIRED_MODULES = ("cryptography",)
+
+
 async def startup(ctx: dict) -> None:
     ctx["settings"] = get_settings()
+
+    missing = []
+    for name in _REQUIRED_MODULES:
+        try:
+            __import__(name)
+        except ImportError:
+            missing.append(name)
+
+    if missing:
+        log.error(
+            "WORKER IMAGE IS STALE: missing %s. Jobs will fail mid-run. "
+            "Rebuild both images: docker compose build app worker "
+            "&& docker compose up -d --force-recreate app worker",
+            ", ".join(missing),
+        )
 
 
 async def variants_task(

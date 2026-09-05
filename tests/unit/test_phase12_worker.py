@@ -227,3 +227,32 @@ def test_regenerate_guards_a_job_with_no_source():
 
     source = inspect.getsource(worker.regenerate_task)
     assert "if job.sources else None" in source
+
+
+# --- stale image guard ------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_stale_worker_image_says_so_at_boot(monkeypatch, caplog):
+    """app and worker are separate images from the same Dockerfile.
+
+    Rebuilding one and not the other leaves this container on older code, and
+    the miss surfaces as a job dying minutes in rather than as a failed build.
+    Boot is the only place it can be said cheaply and early.
+    """
+    monkeypatch.setattr(worker, "_REQUIRED_MODULES", ("a_module_that_is_not_installed",))
+
+    with caplog.at_level("ERROR"):
+        await worker.startup({})
+
+    assert "STALE" in caplog.text
+    # The message has to carry the remedy, or it is just an alarm.
+    assert "docker compose build app worker" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_current_worker_image_boots_quietly(caplog):
+    with caplog.at_level("ERROR"):
+        await worker.startup({})
+
+    assert "STALE" not in caplog.text
