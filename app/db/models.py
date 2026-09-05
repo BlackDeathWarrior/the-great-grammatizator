@@ -193,6 +193,12 @@ class OperatorProfile(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+
+    # Appearance, not learned data: "system", "light" or "dark". It lives here
+    # rather than in style_notes because nothing about it should ever reach a
+    # generator prompt.
+    theme: Mapped[str] = mapped_column(String(16), default="system")
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     # What we have learned this operator likes, newest last. Plain sentences,
@@ -289,3 +295,45 @@ class Feedback(Base):
     # Optional, and the whole point of a dislike. "Too short", "wrong tone".
     reason: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ProviderKey(Base):
+    """A provider credential pasted at runtime, encrypted at rest.
+
+    Layered OVER the env in app/gateway/router.py, which stays the only module
+    permitted to name a provider (Invariant 5). Nothing here weakens that: the
+    row is keyed by an alias the gateway maps, and the plaintext is decrypted
+    inside the gateway and nowhere else.
+
+    Honest about what it is not. The app has no auth (sec.13.1), so encryption
+    here defends against a dumped database and a shoulder-surfed screen - not
+    against someone who can already reach the dashboard. `hint` is the only
+    part the browser is ever given; the ciphertext never leaves the server.
+    """
+
+    __tablename__ = "provider_keys"
+    __table_args__ = (UniqueConstraint("provider", name="uq_provider_keys_provider"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    provider: Mapped[str] = mapped_column(String(32))
+    ciphertext: Mapped[str] = mapped_column(Text)
+    # Last four characters, for recognising a key without revealing it.
+    hint: Mapped[str] = mapped_column(String(32), default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class ProviderKeyVersion(Base):
+    """One row. Bumped whenever a key changes.
+
+    The worker runs in a different container from the web app, so a key saved
+    in the browser cannot reach it through process memory. Both sides compare
+    this counter before a model call and rebuild their router when it moves,
+    which is what makes a pasted key take effect without a restart.
+    """
+
+    __tablename__ = "provider_key_version"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    version: Mapped[int] = mapped_column(Integer, default=0)

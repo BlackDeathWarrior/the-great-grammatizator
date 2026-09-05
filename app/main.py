@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api import jobs, sources
 from app.config import get_settings
 from app.web import routes as web_routes
+from app.web import settings_routes
 
 logging.basicConfig(level=logging.INFO)
 
@@ -79,6 +80,7 @@ async def _validation_error(_request, exc: RequestValidationError):
 app.include_router(sources.router)
 app.include_router(jobs.router)
 app.include_router(web_routes.router)
+app.include_router(settings_routes.router)
 
 
 @app.get("/health")

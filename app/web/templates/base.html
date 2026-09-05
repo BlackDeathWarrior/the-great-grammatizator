@@ -1,5 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+{# The theme is stamped server-side from the operator's profile so the page
+   never renders in the wrong palette and then corrects itself. "system" stamps
+   nothing, which is what lets the prefers-color-scheme block apply. #}
+<html lang="en"{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,8 +14,39 @@
 </head>
 <body>
   <header>
-    <h1><a href="/">Content Transformation</a></h1>
-    <p class="sub">One source in. Communication artefacts out, each cited to the source.</p>
+    <div>
+      <h1><a href="/">Content Transformation</a></h1>
+      <p class="sub">One source in. Communication artefacts out, each cited to the source.</p>
+    </div>
+
+    <nav class="nav" aria-label="Sections">
+      <a href="/" {% if active_tab == "studio" %}aria-current="page"{% endif %}>Studio</a>
+      <a href="/settings" {% if active_tab == "settings" %}aria-current="page"{% endif %}>Settings</a>
+
+      {# Posts back and re-renders, so the choice is stored rather than living
+         in this tab only. `next` returns the operator to where they were. #}
+      <form action="/ui/theme" method="post" class="theme-switch"
+            role="group" aria-label="Colour theme">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        {% for value, label, title in [
+             ("system", "Auto", "Follow the operating system"),
+             ("light", "Light", "Always light"),
+             ("dark", "Dark", "Always dark")] %}
+        <button type="submit" name="theme" value="{{ value }}" title="{{ title }}"
+                aria-pressed="{{ 'true' if (theme or 'system') == value else 'false' }}">{{ label }}</button>
+        {% endfor %}
+      </form>
+
+      {% if profile_name %}
+      <span class="whoami" title="Preferences are learned against this profile">
+        <span class="avatar">{{ profile_name[0]|upper }}</span>{{ profile_name }}
+      </span>
+      {% else %}
+      <a class="whoami anon" href="/settings#profiles" title="No profile: nothing is being learned">
+        <span class="avatar">?</span>Anonymous
+      </a>
+      {% endif %}
+    </nav>
   </header>
   <main id="main">{% block content %}{% endblock %}</main>
 </body>

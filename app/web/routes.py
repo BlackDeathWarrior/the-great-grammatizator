@@ -29,6 +29,36 @@ router = APIRouter(tags=["ui"])
 
 TEMPLATES = Jinja2Templates(directory=str(pathlib.Path(__file__).parent / "templates"))
 
+PROFILE_COOKIE = "operator"
+THEME_COOKIE = "theme"
+
+
+def _shell(request: Request, active_tab: str) -> dict:
+    """Context every page needs: who is asking, and which palette to draw in.
+
+    Centralised because the header renders on every route. A page that forgot
+    to pass `theme` would silently fall back to the OS preference and quietly
+    ignore a choice the operator had made, which looks like the setting is
+    broken rather than unset.
+    """
+    from app.db.models import OperatorProfile
+
+    profile_id = request.cookies.get(PROFILE_COOKIE, "")
+    name, theme = "", "system"
+    if profile_id:
+        with session_scope() as session:
+            profile = session.get(OperatorProfile, profile_id)
+            if profile is not None:
+                name, theme = profile.name, (profile.theme or "system")
+
+    # An anonymous operator still gets a theme; it just lives in a cookie
+    # instead of a profile, because there is no row to hang it on.
+    if not profile_id:
+        theme = request.cookies.get(THEME_COOKIE, "system")
+
+    return {"profile_name": name, "theme": theme, "active_tab": active_tab}
+
+
 # Closed vocabularies, never free text (UC-02, TC-0202). A dropdown gives the
 # tone checker something concrete to compare against; free text gives it noise.
 VOCAB: dict[str, list[str]] = {
@@ -84,6 +114,7 @@ async def index(request: Request, source_id: str | None = None):
             "jobs": recent_jobs,
             "profile_name": profile_name,
             "style_notes": style_notes,
+            **_shell(request, "studio"),
         },
     )
 
@@ -246,7 +277,9 @@ def _parse_transcript(raw: str) -> list:
 
 @router.get("/jobs/{job_id}/view", response_class=HTMLResponse)
 async def job_view(request: Request, job_id: str):
-    return TEMPLATES.TemplateResponse(request, "job.html", {"job_id": job_id})
+    return TEMPLATES.TemplateResponse(
+        request, "job.html", {"job_id": job_id, **_shell(request, "studio")}
+    )
 
 
 @router.get("/ui/jobs/{job_id}/status", response_class=HTMLResponse)
@@ -276,8 +309,6 @@ async def ui_regenerate(
 
 # --- who is asking ---------------------------------------------------------
 
-PROFILE_COOKIE = "operator"
-
 
 def _profile_id(request: Request) -> str:
     """The current operator profile, or "" when nobody has said who they are.
@@ -288,58 +319,6 @@ def _profile_id(request: Request) -> str:
     is fine for a demo and must be replaced wholesale if auth is ever built.
     """
     return request.cookies.get(PROFILE_COOKIE, "")
-
-
-@router.post("/ui/profile")
-async def ui_profile(name: str = Form(default="")):
-    """Remember a name so preferences can be kept apart between operators."""
-    from app.db.models import OperatorProfile
-
-    name = " ".join(name.split())[:80]
-    if not name:
-        raise HTTPException(400, "Tell me a name to remember you by.")
-
-    with session_scope() as session:
-        profile = session.query(OperatorProfile).filter_by(name=name).one_or_none()
-        if profile is None:
-            profile = OperatorProfile(name=name)
-            session.add(profile)
-            session.flush()
-        profile_id = profile.id
-
-    response = RedirectResponse("/", status_code=303)
-    # A year: the operator should not have to reintroduce themselves weekly.
-    response.set_cookie(PROFILE_COOKIE, profile_id, max_age=31_536_000, httponly=True)
-    return response
-
-
-@router.post("/ui/profile/forget")
-async def ui_forget_profile():
-    """Sign out of the profile. The learned notes survive for next time."""
-    response = RedirectResponse("/", status_code=303)
-    response.delete_cookie(PROFILE_COOKIE)
-    return response
-
-
-@router.post("/ui/profile/notes/{index}/delete")
-async def ui_delete_note(request: Request, index: int):
-    """Drop one learned note.
-
-    A preference the operator cannot correct is one they have to work around,
-    so every note is individually deletable.
-    """
-    from app.db.models import OperatorProfile
-
-    with session_scope() as session:
-        profile = session.get(OperatorProfile, _profile_id(request))
-        if profile is None:
-            raise HTTPException(404, "No profile.")
-        notes = list(profile.style_notes or [])
-        if 0 <= index < len(notes):
-            notes.pop(index)
-            profile.style_notes = notes
-
-    return RedirectResponse("/", status_code=303)
 
 
 # --- choosing between versions ---------------------------------------------

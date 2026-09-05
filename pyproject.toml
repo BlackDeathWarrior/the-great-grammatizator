@@ -48,6 +48,11 @@ dependencies = [
     # schema validation
     "jsonschema>=4.23",
 
+    # at-rest encryption for provider keys pasted into the dashboard. The app
+    # has no auth (sec.13.1), so this defends a dumped database - not the
+    # dashboard itself.
+    "cryptography>=43.0",
+
     # export (layer 9)
     "python-pptx>=1.0",
     "reportlab>=4.2",
