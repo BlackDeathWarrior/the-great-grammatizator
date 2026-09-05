@@ -12,7 +12,24 @@
      hx-swap="outerHTML"
      {% endif %}>
 
+  {# The run as four lights. Every state is derived from something that
+     exists - chunks, a cached analysis, an artefact with content, a verdict -
+     so a stalled job shows WHICH step stalled rather than a bar that keeps
+     moving regardless. #}
   <div class="panel">
+    <ol class="pipeline" aria-label="Pipeline">
+      {% for st in job.stages %}
+      <li class="stage is-{{ st.state }}">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="stage-name">{{ st.label }}</span>
+        <span class="stage-detail">{{ st.detail }}</span>
+        <span class="sr-only">
+          {{ st.label }}: {{ st.state }}{% if st.detail %}, {{ st.detail }}{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ol>
+
     <div class="progress">
       <span class="badge {{ job.status }}">{{ job.status.replace('_',' ') }}</span>
       {# Honest partial reporting - never "complete" while work remains (TC-0803) #}
@@ -74,6 +91,27 @@
     <div class="artefact-body">
       {% if a.error %}
       <p class="muted">{{ a.error }}</p>
+      {% endif %}
+
+      {% set live = job.live_checkers.get(a.output_type, []) %}
+      {% if not a.qa and live %}
+      {# Mid-flight. The artefact has no stored verdicts yet, so these come from
+         the progress rows - which is the whole point: an operator can see that
+         grounding is still running rather than that nothing is happening. #}
+      <div class="checkers">
+        {% for c in live %}
+        <span class="checker {{ 'ok' if c.state == 'done' else ('bad' if c.state == 'failed' else 'live') }}"
+              {% if c.reason %}title="{{ c.reason }}"{% endif %}>
+          <span class="mark" aria-hidden="true">
+            {%- if c.state == 'done' %}✓{% elif c.state == 'failed' %}✗{% else %}·{% endif -%}
+          </span>
+          {{ c.checker }}
+          {%- if c.detail %} <span class="score">{{ c.detail }}</span>{% endif %}
+          {%- if c.deterministic %} <span class="tag" title="Provably no model call (TC-0503)">exact</span>
+          {%- elif c.cached %} <span class="tag" title="Verdict reused from an identical artefact">cached</span>{% endif %}
+        </span>
+        {% endfor %}
+      </div>
       {% endif %}
 
       {% if a.qa %}

@@ -337,3 +337,39 @@ class ProviderKeyVersion(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
     version: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class JobProgress(Base):
+    """What the run is doing right now, written as it happens.
+
+    Separate from the artefact rows on purpose. Artefacts and their QA verdicts
+    are persisted in ONE transaction when a job finishes, and that atomicity is
+    worth keeping - a half-written artefact is worse than a late one. But it
+    also means the dashboard could see nothing at all until the very end: a
+    seventy-second job showed "analysing" for sixty-eight seconds and then
+    completed everything at once, which tells an operator watching a stuck job
+    precisely nothing.
+
+    So progress is written on its own, outside that transaction, as the graph
+    reaches each step. It is disposable: losing a row loses a light on a board,
+    never a result.
+
+    (job_id, stage, key) is the identity - stage "qa" with key
+    "linkedin_post:tone" is one checker on one artefact.
+    """
+
+    __tablename__ = "job_progress"
+
+    job_id: Mapped[str] = mapped_column(String(32), primary_key=True, index=True)
+    stage: Mapped[str] = mapped_column(String(32), primary_key=True)
+    # "" for a job-wide stage; an output_type, or "output_type:checker", when
+    # the stage is per artefact.
+    key: Mapped[str] = mapped_column(String(64), primary_key=True, default="")
+
+    # pending | active | done | failed
+    state: Mapped[str] = mapped_column(String(16))
+    detail: Mapped[str] = mapped_column(Text, default="")
+    data: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
