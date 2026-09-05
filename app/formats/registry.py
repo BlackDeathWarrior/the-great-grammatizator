@@ -36,6 +36,51 @@ class FormatSpec(BaseModel):
     def schema(self) -> dict[str, Any]:
         return _load_schema(self.output_schema)
 
+    @property
+    def shape(self) -> str:
+        """What this format produces, in a phrase, derived from its constraints.
+
+        Read off the registry rather than written per format, because a switch
+        on format id here would be exactly what Invariant 4 forbids - a new
+        format has to appear in the dashboard from config alone (TC-0302). The
+        pairs below are named by CONSTRAINT, so a format declaring
+        `slides_min`/`slides_max` describes itself without this file ever
+        learning that decks exist.
+        """
+        c = self.constraints
+        for lo, hi, noun in (
+            ("scenes_min", "scenes_max", "scene"),
+            ("slides_min", "slides_max", "slide"),
+            ("panels_min", "panels_max", "panel"),
+            ("tweets_min", "tweets_max", "tweet"),
+            ("key_points_min", "key_points_max", "key point"),
+        ):
+            if lo in c and hi in c:
+                return f"{c[lo]}–{c[hi]} {noun}s"
+            if lo in c:
+                return f"{c[lo]}+ {noun}s"
+
+        for key, noun in (("recommendations_min", "recommendation"),):
+            if key in c:
+                return f"{c[key]}+ {noun}s"
+
+        # Length-bounded prose: the floor is what an operator actually feels,
+        # since the ceiling is rarely the binding constraint.
+        for key, unit in (("min_chars", ""), ("min_chars_per_tweet", " per tweet")):
+            if key in c:
+                return f"{c[key]}+ characters{unit}"
+
+        return ""
+
+    @property
+    def runtime_hint(self) -> str:
+        """A target duration, where the format has one."""
+        target = self.constraints.get("runtime_target_sec")
+        if not target:
+            return ""
+        minutes = target / 60
+        return f"~{minutes:.0f} min" if minutes >= 1 else f"~{target}s"
+
 
 class UnknownFormat(ValueError):
     """TC-0301: rejected before any job is created."""

@@ -62,9 +62,10 @@
   </div>
 
   {% for a in job.artefacts %}
-  <div class="artefact" id="artefact-{{ a.output_type }}">
+  <div class="artefact" id="artefact-{{ a.output_type }}" data-fmt="{{ a.output_type }}">
     <div class="artefact-head">
       <div>
+        <span class="fmt-dot"></span>
         <strong>{{ a.label }}</strong>
         {% if a.retry_count %}
         <span class="counts">
@@ -215,7 +216,7 @@
         </p>
         {% endif %}
 
-        <div class="variants">
+        <div class="variants variants-compare">
           {% for v in a.variants %}
           <div class="variant {{ 'is-chosen' if v.chosen }} {{ 'is-out' if v.status not in ('passed','passed_flagged') }}">
             <div class="variant-head">
