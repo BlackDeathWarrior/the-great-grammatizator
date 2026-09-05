@@ -61,6 +61,24 @@ class ArtefactOut(BaseModel):
     liked: bool | None = None
 
 
+class StageOut(BaseModel):
+    """One phase of the run, as a light on a board.
+
+    `state` is one of pending / active / done / failed, and every value is
+    DERIVED FROM EVIDENCE rather than assumed: a stage shows done because
+    something it produced exists (chunks, a cached analysis, an artefact row),
+    not because the stage before it finished. A progress bar that runs ahead of
+    the work is worse than no progress bar - it teaches the operator to
+    distrust the one signal they have.
+    """
+
+    id: str
+    label: str
+    state: str
+    # What the stage produced, in the operator's terms: "5 chunks", "3 of 7".
+    detail: str = ""
+
+
 class JobDetail(BaseModel):
     job_id: str
     status: str
@@ -71,6 +89,12 @@ class JobDetail(BaseModel):
     operator_message: str | None
     parameters: dict
     artefacts: list[ArtefactOut]
+    # The run as a sequence, for the pipeline view.
+    stages: list[StageOut] = []
+    # Live per-checker state while a job runs, keyed by output_type. Empty once
+    # it settles - the artefact's own `qa` list carries the same verdicts and is
+    # the authoritative record.
+    live_checkers: dict[str, list[dict]] = {}
     # Degraded modes the operator should know about, surfaced rather than left
     # in a container log (POC.md §5: silent success is the worst failure mode).
     warnings: list[str] = []
@@ -277,8 +301,142 @@ def _detail(session, job: Job) -> JobDetail:
         operator_message=job.operator_message,
         parameters=job.parameters or {},
         artefacts=artefacts,
+        stages=_stages(session, job, artefacts, settled),
+        live_checkers=_checker_rows(job.id),
         warnings=_active_warnings(),
     )
+
+
+def _stages(session, job: Job, artefacts: list[ArtefactOut], settled: int) -> list[StageOut]:
+    """The run as four lights.
+
+    Evidence first, progress second. Each stage is derived from something that
+    EXISTS - chunks on the source, analysis cached on the job row, artefacts
+    with content - and the live progress rows only sharpen a stage that the
+    evidence has already left ambiguous. Done that way round, losing the
+    progress table degrades the board to the coarse-but-correct version rather
+    than to a wrong one.
+
+    Nothing here predicts. A stage that cannot be shown as finished stays
+    active, because an operator watching a stalled job needs to see WHICH step
+    stalled, and a board that always advances cannot tell them.
+    """
+    from app.db.models import Source
+    from app.graph import progress as progress_rows
+
+    live = progress_rows.snapshot(job.id)
+
+    running = job.status in (JobStatus.QUEUED, JobStatus.RUNNING)
+    stopped = job.status in (
+        JobStatus.FAILED_RECOVERABLE,
+        JobStatus.FAILED_PERMANENT,
+        JobStatus.STOPPED_QA_BUDGET,
+    )
+
+    # 1. Ingest. Its output is chunks, and a job cannot exist without them, so
+    #    by the time anyone is watching this is done.
+    chunks = 0
+    for link in job.sources:
+        src = session.get(Source, link.source_id)
+        if src is not None:
+            chunks += len(src.chunks or [])
+    ingest = StageOut(
+        id="ingest",
+        label="Ingest",
+        state="done" if chunks else "active",
+        detail=f"{chunks} chunk{'' if chunks == 1 else 's'}" if chunks else "reading the source",
+    )
+
+    # 2. Analysis. Cached on the job row once written (Invariant 3), but that
+    #    only lands with the final transaction - so the live row is what makes
+    #    this stage light up while the pass is actually happening.
+    analysed = bool(job.analysis)
+    live_analysis = live.get("analysis", {})
+    if analysed:
+        analysis_state = "done"
+        analysis_detail = (job.analysis or {}).get("content_type", "") or "analysed"
+    elif live_analysis:
+        analysis_state = live_analysis["state"]
+        analysis_detail = live_analysis["detail"]
+    else:
+        analysis_state = "active" if running else ("failed" if stopped else "pending")
+        analysis_detail = "one shared pass"
+    analysis = StageOut(
+        id="analysis", label="Analyse", state=analysis_state, detail=analysis_detail
+    )
+
+    # 3. Generation. An artefact counts as written once it HAS content, not
+    #    once its status leaves pending - which happens before the model has
+    #    answered. Mid-run the count comes from the live rows.
+    total = len(artefacts)
+    persisted = sum(1 for a in artefacts if a.content)
+    live_written = sum(
+        1 for k, v in live.items() if v["stage"] == "generate" and v["key"] and v["state"] == "done"
+    )
+    written = max(persisted, live_written)
+    generate = StageOut(
+        id="generate",
+        label="Generate",
+        state=_phase(written, total, running, stopped, upstream_done=analysis_state == "done"),
+        detail=f"{written} of {total}" if total else "waiting on formats",
+    )
+
+    # 4. QA. Counted by artefacts that reached a VERDICT, which is what the
+    #    operator is waiting on - not by individual checker calls, of which
+    #    there are six per artefact per attempt.
+    live_verdicts = sum(
+        1
+        for v in live.values()
+        if v["stage"] == "qa"
+        and v["key"]
+        and ":" not in v["key"]
+        and v["state"] in ("done", "failed")
+    )
+    verdicts = max(settled, live_verdicts)
+    qa = StageOut(
+        id="qa",
+        label="Check",
+        state=_phase(verdicts, total, running, stopped, upstream_done=written > 0),
+        detail=f"{verdicts} of {total} verdicts" if total else "six checkers each",
+    )
+
+    return [ingest, analysis, generate, qa]
+
+
+def _phase(done: int, total: int, running: bool, stopped: bool, *, upstream_done: bool) -> str:
+    """One stage's light, from a count against a total.
+
+    Shared by generate and QA because they answer the same question and had
+    started to disagree about the edge cases when written twice.
+    """
+    if total and done >= total:
+        return "done"
+    if stopped:
+        return "failed" if not done else "done"
+    if done or (running and upstream_done):
+        return "active"
+    return "pending"
+
+
+def _checker_rows(job_id: str) -> dict[str, list[dict]]:
+    """Per-artefact checker state, for the board's chips.
+
+    Keyed by output_type. Only meaningful while a job runs; once it settles the
+    artefact's own qa list is authoritative and carries the same verdicts.
+    """
+    from app.graph import progress as progress_rows
+
+    out: dict[str, list[dict]] = {}
+    for v in progress_rows.snapshot(job_id).values():
+        if v["stage"] != "qa" or ":" not in (v["key"] or ""):
+            continue
+        output_type, checker = v["key"].split(":", 1)
+        out.setdefault(output_type, []).append(
+            {"checker": checker, "state": v["state"], "detail": v["detail"], **(v["data"] or {})}
+        )
+    for rows in out.values():
+        rows.sort(key=lambda r: r["checker"])
+    return out
 
 
 def _active_warnings() -> list[str]:

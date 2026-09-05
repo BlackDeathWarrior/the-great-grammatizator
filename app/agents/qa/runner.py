@@ -50,10 +50,12 @@ async def run(
     # Deterministic checkers: no model call, no reason to gate them behind the
     # semaphore (TC-0503).
     results: list[CheckerResult] = [format_check.check(spec, artefact)]
+    _report(job_id, artefact.output_type, results[0], deterministic=True)
 
     # Source reuse runs only for copyrighted provenance (TC-0512).
     if analysis.commentary_mode:
         results.append(reuse.check(artefact, content))
+        _report(job_id, artefact.output_type, results[-1], deterministic=True)
 
     sem = router.qa_semaphore()
 
@@ -67,14 +69,18 @@ async def run(
         hit = cache.get(key)
         if hit is not None:
             try:
-                return CheckerResult.model_validate_json(hit)
+                cached = CheckerResult.model_validate_json(hit)
+                _report(job_id, artefact.output_type, cached, cached_verdict=True)
+                return cached
             except ValidationError:
                 log.warning("discarding malformed cached verdict for %s", name)
 
+        _report_pending(job_id, artefact.output_type, name)
         async with sem:
             try:
                 result = await coro_fn()
                 cache.put(key, result.model_dump_json())
+                _report(job_id, artefact.output_type, result)
                 return result
             except router.ProviderError:
                 # Infrastructure, not quality. Surface it so the caller can
@@ -98,12 +104,14 @@ async def run(
                 )
                 # Never cached: a checker error is a fact about this moment,
                 # not about the artefact.
-                return CheckerResult(
+                errored = CheckerResult(
                     checker=name,
                     passed=not fails_closed,
                     reason=f"checker unavailable: {exc}",
                     checker_error=True,
                 )
+                _report(job_id, artefact.output_type, errored)
+                return errored
 
     llm_results = await asyncio.gather(
         # Grounding verifies claims AGAINST THE SOURCE, so the source is part
@@ -131,3 +139,68 @@ async def run(
     results.extend(llm_results)
 
     return QAResult(results=results)
+
+
+def _report_pending(job_id: str, output_type: str, name: CheckerName) -> None:
+    """This checker is now in flight.
+
+    Written before the semaphore is acquired rather than after, so a checker
+    waiting on the concurrency cap shows as running rather than as missing.
+    An operator watching a slow job needs to see that tone is QUEUED, not
+    conclude it never started.
+    """
+    from app.graph import progress
+
+    progress.report(
+        job_id,
+        progress.QA,
+        progress.ACTIVE,
+        key=f"{output_type}:{name}",
+        detail="checking",
+        data={"checker": str(name)},
+    )
+
+
+def _report(
+    job_id: str,
+    output_type: str,
+    result: CheckerResult,
+    *,
+    deterministic: bool = False,
+    cached_verdict: bool = False,
+) -> None:
+    """One checker has decided.
+
+    Carries how the verdict was reached alongside it. "format passed" and
+    "format passed without spending a model call" are different facts, and the
+    second is one the architecture makes a claim about (TC-0503) - so the board
+    can show it rather than the operator taking it on trust.
+    """
+    from app.graph import progress
+
+    score = getattr(result, "score", None)
+    if result.checker_error:
+        detail = "could not run"
+    elif score is not None:
+        detail = f"{score:.2f}"
+    else:
+        detail = "passed" if result.passed else "failed"
+
+    progress.report(
+        job_id,
+        progress.QA,
+        progress.DONE if result.passed else progress.FAILED,
+        key=f"{output_type}:{result.checker}",
+        detail=detail,
+        data={
+            "checker": str(result.checker),
+            "passed": result.passed,
+            "score": score,
+            "reason": (result.reason or "")[:200],
+            "checker_error": result.checker_error,
+            # Provably zero model calls (TC-0503), or a verdict bought once and
+            # reused - both worth distinguishing from a fresh model call.
+            "deterministic": deterministic,
+            "cached": cached_verdict,
+        },
+    )

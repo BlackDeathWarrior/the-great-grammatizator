@@ -56,7 +56,30 @@ def _shell(request: Request, active_tab: str) -> dict:
     if not profile_id:
         theme = request.cookies.get(THEME_COOKIE, "system")
 
-    return {"profile_name": name, "theme": theme, "active_tab": active_tab}
+    return {
+        "profile_name": name,
+        "theme": theme,
+        "active_tab": active_tab,
+        "asset_version": _asset_version(),
+    }
+
+
+def _asset_version() -> str:
+    """Fingerprint for the stylesheet URL, from its own mtime.
+
+    A browser that has cached app.css keeps serving it across a rebuild, so an
+    edited rule appears to do nothing at all - and the obvious next move, a
+    hard refresh, is exactly what an operator watching a demo will not do.
+    Cheap to compute, and stat() is not worth caching against a page that
+    already makes several database queries.
+    """
+    try:
+        return str(int(_CSS_PATH.stat().st_mtime))
+    except OSError:
+        return "0"
+
+
+_CSS_PATH = pathlib.Path(__file__).parent / "static" / "app.css"
 
 
 # Closed vocabularies, never free text (UC-02, TC-0202). A dropdown gives the

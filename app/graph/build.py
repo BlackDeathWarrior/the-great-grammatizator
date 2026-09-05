@@ -24,6 +24,7 @@ from app.agents.qa import runner
 from app.config import get_settings
 from app.formats import registry
 from app.gateway import router
+from app.graph import progress
 from app.graph.state import (
     AnalysisResult,
     Artefact,
@@ -99,6 +100,7 @@ async def run_artefact(
     spec = registry.get(format_id)
     settings = get_settings()
     artefact = Artefact(output_type=format_id, status=ArtefactStatus.GENERATING)
+    progress.report(job_id, progress.GENERATE, progress.ACTIVE, key=format_id, detail="writing")
     # UC-09: a regenerate carries the OPERATOR's instructions, not machine fix
     # notes from a failed check. Seeded here so the first attempt already has
     # them; QA fix notes replace them on any subsequent retry.
@@ -150,6 +152,20 @@ async def run_artefact(
         generated.tone_retried = artefact.tone_retried
         generated.status = ArtefactStatus.QA
         artefact = generated
+        progress.report(
+            job_id,
+            progress.GENERATE,
+            progress.DONE,
+            key=format_id,
+            detail=f"attempt {attempt + 1}" if attempt else "written",
+        )
+        progress.report(
+            job_id,
+            progress.QA,
+            progress.ACTIVE,
+            key=format_id,
+            detail="six checkers" if not attempt else f"rechecking, attempt {attempt + 1}",
+        )
 
         try:
             qa = await _with_provider_retry(
@@ -169,8 +185,16 @@ async def run_artefact(
             on_attempt(attempt, artefact, qa)
 
         if artefact.qa_result.verdict is not Verdict.RETRY:
-            if artefact.status in (ArtefactStatus.PASSED, ArtefactStatus.PASSED_FLAGGED):
+            settled_ok = artefact.status in (ArtefactStatus.PASSED, ArtefactStatus.PASSED_FLAGGED)
+            if settled_ok:
                 artefact.export_paths = _export(spec, artefact, job_id)
+            progress.report(
+                job_id,
+                progress.QA,
+                progress.DONE if settled_ok else progress.FAILED,
+                key=format_id,
+                detail=str(artefact.status).replace("_", " "),
+            )
             return artefact, message
 
         fix_notes = artefact.qa_result.all_fix_notes()
@@ -198,11 +222,24 @@ async def run_job(
     from app.agents import analysis as analysis_agent
     from app.tools import retrieval
 
+    # A rerun must not show the previous run's verdicts as though they were
+    # this one's.
+    progress.clear(job_id)
+    for fid in format_ids:
+        progress.report(job_id, progress.GENERATE, progress.PENDING, key=fid)
+
     retrieval.bind_job(job_id, [content.source_id])
     try:
         # Analysis runs ONCE and is shared by every generator (Invariant 3).
         if analysis is None:
+            progress.report(job_id, progress.ANALYSIS, progress.ACTIVE, detail="one shared pass")
             analysis = await analysis_agent.analyse(content, parameters, job_id=job_id)
+        progress.report(
+            job_id,
+            progress.ANALYSIS,
+            progress.DONE,
+            detail=getattr(analysis, "content_type", "") or "analysed",
+        )
 
         # Capped: seven formats firing at once is the same rate-limit
         # scenario the QA cap already guards against, and on a free tier it is
