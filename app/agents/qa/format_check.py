@@ -24,12 +24,23 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
 
     total = len(json.dumps(content))
 
-    if "max_chars" in c:
+    # Every format had a maximum and almost none had a minimum, so a
+    # two-sentence LinkedIn post passed this checker cleanly. Length is
+    # measurable, so it is measured here rather than left to the editorial
+    # checker's judgement.
+    if "min_chars" in c or "max_chars" in c:
         body = _text_len(content)
-        if body > c["max_chars"]:
+        if "max_chars" in c and body > c["max_chars"]:
             failures.append(
                 f"Body is {body} characters; the limit is {c['max_chars']}. "
                 f"Cut roughly {body - c['max_chars']} characters."
+            )
+        if "min_chars" in c and body < c["min_chars"]:
+            failures.append(
+                f"Body is only {body} characters; at least {c['min_chars']} is "
+                f"expected. Develop the points you have with specifics from the "
+                f"source - add roughly {c['min_chars'] - body} characters of "
+                f"substance, not padding."
             )
 
     if "hashtags_max" in c:
@@ -47,6 +58,15 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
                 failures.append(
                     f"Tweet {i} is {len(tweet)} characters; the limit is {limit}. "
                     f"Cut {len(tweet) - limit}."
+                )
+
+    if "min_chars_per_tweet" in c:
+        floor = c["min_chars_per_tweet"]
+        for i, tweet in enumerate(content.get("tweets") or [], start=1):
+            if len(tweet) < floor:
+                failures.append(
+                    f"Tweet {i} is only {len(tweet)} characters; at least {floor} "
+                    "is expected. A tweet that says nothing specific is filler."
                 )
 
     failures += _range(content, "tweets", c.get("tweets_min"), c.get("tweets_max"), "tweets")
@@ -87,6 +107,37 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
                 f"Scenes total {total_sec:.0f}s; the target is {target}s "
                 f"(+/-{tolerance}s). Adjust scene durations."
             )
+
+    if "caption_min_chars" in c:
+        floor = c["caption_min_chars"]
+        for i, panel in enumerate(content.get("panels") or [], start=1):
+            caption = (panel or {}).get("caption") or ""
+            if len(caption) < floor:
+                failures.append(
+                    f"Panel {i}'s caption is only {len(caption)} characters; at "
+                    f"least {floor} is expected. Say what the number means."
+                )
+
+    if "speaker_notes_min_chars" in c:
+        floor = c["speaker_notes_min_chars"]
+        for i, slide in enumerate(content.get("slides") or [], start=1):
+            notes = (slide or {}).get("speaker_notes") or ""
+            if len(notes) < floor:
+                failures.append(
+                    f"Slide {i}'s speaker notes are only {len(notes)} characters; "
+                    f"at least {floor} is expected. The notes are half the "
+                    "deliverable - a deck without them is unusable."
+                )
+
+    if "narration_min_chars_per_scene" in c:
+        floor = c["narration_min_chars_per_scene"]
+        for i, scene in enumerate(content.get("scenes") or [], start=1):
+            narration = (scene or {}).get("narration") or ""
+            if len(narration) < floor:
+                failures.append(
+                    f"Scene {i}'s narration is only {len(narration)} characters; "
+                    f"at least {floor} is expected to fill the scene's duration."
+                )
 
     if "narration_max_chars_per_scene" in c:
         limit = c["narration_max_chars_per_scene"]

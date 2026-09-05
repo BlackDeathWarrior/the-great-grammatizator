@@ -83,16 +83,36 @@ CLAIMS = [
 ALARMIST = "Patch now or face catastrophic breach - your organisation could be next."
 SOFTENED = "Exploitation is already occurring; applying the fix today is the safest course."
 
+# Deliberately substantial. These fixtures used to be ~200-character
+# illustrations, which is exactly the "too short" complaint the length floor
+# now catches - a worked example should model the standard, not fall under it.
 EXEC_SUMMARY = {
     "title": "Critical authentication bypass requires immediate patching",
-    "bottom_line": "A vulnerability in NetGuard Connect Secure is being exploited now.",
+    "bottom_line": (
+        "A vulnerability in NetGuard Connect Secure is being exploited now, and "
+        "any internet-facing instance running a release before 22.7R2.6 should be "
+        "treated as reachable by an unauthenticated attacker until it is patched."
+    ),
     "key_points": [
-        "Rated 9.1 out of 10 on CVSS",
-        "Exploitation confirmed in the wild",
-        "Fixed in 22.7R2.6",
+        "Rated 9.1 out of 10 on CVSS, the highest severity issued for this product "
+        "line this year, because it requires no credentials and no user interaction.",
+        "Exploitation has been confirmed in the wild, so this is a live incident "
+        "rather than a theoretical weakness disclosed ahead of attacker interest.",
+        "Fixed in 22.7R2.6. Earlier releases have no mitigating configuration, so "
+        "upgrading is the only remedy rather than one option among several.",
+        "Anyone who can reach the login page can reach administrative functions, "
+        "which makes network exposure the practical measure of risk here.",
     ],
-    "recommended_action": "Upgrade to 22.7R2.6 immediately.",
-    "residual_risk": "Instances not yet patched remain exposed.",
+    "recommended_action": (
+        "Upgrade every instance to 22.7R2.6 today. Where an immediate upgrade is "
+        "impossible, restrict the portal to known addresses until it completes, and "
+        "review authentication logs back to the first confirmed exploitation."
+    ),
+    "residual_risk": (
+        "Patching closes the door but does not undo an entry made before it. "
+        "Instances exposed while unpatched should be treated as potentially "
+        "compromised until their logs have been reviewed for unfamiliar sessions."
+    ),
     "claims": CLAIMS,
 }
 
@@ -102,7 +122,18 @@ def _linkedin(call_to_action: str) -> dict:
         "hook": "If your organisation uses NetGuard Connect Secure, check your version today.",
         "body": (
             "A vulnerability rated 9.1 out of 10 allows attackers to bypass "
-            "authentication entirely. It is already being exploited."
+            "authentication entirely. It is already being exploited.\n\n"
+            "What that means in practice: anyone who can reach your login page "
+            "can reach administrative functions, without a password, without a "
+            "stolen session, and without anything your users would notice. There "
+            "is no configuration that mitigates it on affected releases.\n\n"
+            "The fix is version 22.7R2.6. Two things are worth doing today rather "
+            "than this week. Install it. Then read your authentication logs back "
+            "to the first confirmed exploitation, because a patch closes the door "
+            "but tells you nothing about who came through it beforehand.\n\n"
+            "If an upgrade genuinely cannot happen today, restrict the portal to "
+            "known addresses in the meantime. Exposure is the practical measure of "
+            "risk here, and reducing it buys time that the patch will spend well."
         ),
         "call_to_action": call_to_action,
         "hashtags": ["#CyberSecurity", "#VPN", "#PatchNow"],

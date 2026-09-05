@@ -255,3 +255,32 @@ class Preference(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     profile: Mapped[OperatorProfile] = relationship(back_populates="preferences")
+
+
+class Feedback(Base):
+    """A thumb up or down on one artefact, from one operator.
+
+    Cheaper than the variant comparison and available on every artefact, not
+    only the ones an operator asked to compare. A dislike is the more useful
+    of the two: it names something that went wrong on work that already
+    cleared every automated check, which is exactly the gap QA cannot see.
+
+    Kept per (artefact, profile) so a second opinion replaces the first rather
+    than double-counting it.
+    """
+
+    __tablename__ = "feedback"
+    __table_args__ = (
+        UniqueConstraint("artefact_id", "profile_id", name="uq_feedback_artefact_profile"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    artefact_id: Mapped[str] = mapped_column(ForeignKey("artefacts.id"), index=True)
+    profile_id: Mapped[str] = mapped_column(String(32), index=True, default="")
+    output_type: Mapped[str] = mapped_column(String(64))
+
+    # True = liked, False = disliked. No middle: a scale invites a shrug.
+    liked: Mapped[bool] = mapped_column()
+    # Optional, and the whole point of a dislike. "Too short", "wrong tone".
+    reason: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

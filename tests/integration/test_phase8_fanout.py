@@ -51,6 +51,50 @@ ANALYSIS = AnalysisResult(objective="inform", audience="general public")
 CLAIMS = [{"text": "rated 9.1", "chunk_id": "c1"}, {"text": "fixed in 22.7R2.6", "chunk_id": "c2"}]
 
 
+# Enough prose to clear the length floors. These fixtures exist to exercise
+# FAN-OUT, not to model good writing, so the filler is generated rather than
+# written - but it has to be present, because a draft under the floor now
+# fails the format checker exactly as a real short draft would.
+_FILLER = (
+    "This paragraph exists to carry the draft past the minimum length the "
+    "format checker now enforces, so the fan-out behaviour under test is not "
+    "masked by a length failure. "
+) * 6
+
+
+def _pad(body: dict, format_id: str) -> dict:
+    """Extend the free-text fields until the format's floor is met."""
+    from app.formats import registry
+
+    c = registry.get(format_id).constraints
+    if c.get("min_chars"):
+        # Pad until the checker's own measure clears the floor, rather than
+        # guessing: _text_len counts more than the single field padded here.
+        from app.agents.qa.format_check import _text_len
+
+        key = next((k for k in ("body", "summary", "bottom_line") if k in body), None)
+        if key:
+            while _text_len(body) < c["min_chars"] and len(body[key]) < c["max_chars"] - 200:
+                body[key] = body[key] + " " + _FILLER
+    if c.get("min_chars_per_tweet") and "tweets" in body:
+        floor = c["min_chars_per_tweet"]
+        body["tweets"] = [
+            (t + " " + _FILLER)[: c["max_chars_per_tweet"]]
+            for t in (body["tweets"] * max(1, c.get("tweets_min", 1)))[: c.get("tweets_min", 3)]
+        ]
+        assert all(len(t) >= floor for t in body["tweets"])
+    if c.get("speaker_notes_min_chars") and "slides" in body:
+        for slide in body["slides"]:
+            slide["speaker_notes"] = (slide.get("speaker_notes", "") + " " + _FILLER)[:600]
+    if c.get("caption_min_chars") and "panels" in body:
+        for panel in body["panels"]:
+            panel["caption"] = (panel.get("caption", "") + " " + _FILLER)[:300]
+    if c.get("narration_min_chars_per_scene") and "scenes" in body:
+        for scene in body["scenes"]:
+            scene["narration"] = (scene.get("narration", "") + " " + _FILLER)[:690]
+    return body
+
+
 def _valid_body(format_id: str) -> dict:
     """A schema-valid payload per format. Shapes come from the Phase 6 schemas."""
     bodies = {
@@ -141,7 +185,7 @@ def _valid_body(format_id: str) -> dict:
             "discussion_prompts": ["What is your patch window?"],
         },
     }
-    body = bodies[format_id]
+    body = _pad(dict(bodies[format_id]), format_id)
     return {**body, "claims": CLAIMS}
 
 

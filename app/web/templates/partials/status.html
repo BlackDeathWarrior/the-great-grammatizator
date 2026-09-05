@@ -125,6 +125,37 @@
       </p>
       {% endif %}
 
+      {% if a.content %}
+      {# Was this any good? The checkers cannot answer that, and a dislike on
+         work that already passed every one of them is the most useful signal
+         the platform gets - it is the gap QA cannot see. #}
+      <div class="rate">
+        <span class="rate-label">
+          {% if a.liked is none %}Was this any good?
+          {% elif a.liked %}You liked this.
+          {% else %}You marked this unsatisfactory.{% endif %}
+        </span>
+        <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/feedback"
+              hx-target="#job-status" hx-swap="outerHTML"
+              hx-disabled-elt="find button">
+          <input type="hidden" name="liked" value="true">
+          <button type="submit" class="thumb {{ 'on' if a.liked }}"
+                  aria-pressed="{{ 'true' if a.liked else 'false' }}"
+                  title="This is satisfactory">&#128077; Good</button>
+        </form>
+        <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/feedback"
+              hx-target="#job-status" hx-swap="outerHTML"
+              hx-disabled-elt="find button">
+          <input type="hidden" name="liked" value="false">
+          <input type="text" name="reason" class="reason"
+                 placeholder="What was wrong? (optional, but it is what teaches the system)">
+          <button type="submit" class="thumb down {{ 'on' if a.liked is not none and not a.liked }}"
+                  aria-pressed="{{ 'true' if (a.liked is not none and not a.liked) else 'false' }}"
+                  title="This is not satisfactory">&#128078; Not good</button>
+        </form>
+      </div>
+      {% endif %}
+
       {% set offered = a.variants | selectattr('status', 'in', ['passed','passed_flagged']) | list %}
       {% if a.variants %}
       {# Human approval. The operator compares takes that have all cleared the

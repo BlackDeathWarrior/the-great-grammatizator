@@ -4,6 +4,18 @@ Analyse and paraphrase. Do NOT reproduce the source. Any quoted span must be a
 short fragment used illustratively, never a passage read out in full.
 {% endif %}
 
+LENGTH
+{% if constraints.get('min_chars') %}
+Write at least {{ constraints.get('min_chars') }} characters of body text, and
+no more than {{ constraints.get('max_chars', 'the stated limit') }}. A draft
+under the floor is rejected before anyone reads it.
+
+Reach that length by SAYING MORE, never by padding. Develop each point: what
+happened, what it means for {{ parameters.audience }}, what to do about it.
+Use the specifics in the chunks - figures, dates, versions, named systems.
+Filler to hit a number fails the editorial check instead, so it buys nothing.
+{% endif %}
+
 EDITORIAL CONTRACT
 You are writing something a professional would publish, not a summary of the
 source. An editor scores this; a competent-but-forgettable draft fails.

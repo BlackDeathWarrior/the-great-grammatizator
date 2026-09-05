@@ -441,6 +441,124 @@ async def ui_choose_variant(
     return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
 
 
+# --- rating an artefact, and learning from it ------------------------------
+
+
+@router.post("/ui/jobs/{job_id}/artefacts/{output_type}/feedback", response_class=HTMLResponse)
+async def ui_feedback(
+    request: Request,
+    job_id: str,
+    output_type: str,
+    liked: str = Form(...),
+    reason: str = Form(default=""),
+):
+    """Thumb up or down, and run an improvement pass over what we now know.
+
+    A dislike is the strongest signal the platform receives: a person
+    rejecting work that already cleared every automated check. That is exactly
+    the gap QA cannot see, so it is the moment to look for a pattern.
+    """
+    from app.db.models import Artefact as ArtefactRow
+    from app.db.models import Feedback
+
+    is_liked = str(liked).lower() in ("1", "true", "yes", "up", "like")
+    reason = " ".join(str(reason or "").split())[:400]
+    profile_id = _profile_id(request)
+
+    with session_scope() as session:
+        row = (
+            session.query(ArtefactRow)
+            .filter_by(job_id=job_id, output_type=output_type)
+            .one_or_none()
+        )
+        if row is None:
+            raise HTTPException(404, "No such artefact.")
+
+        existing = (
+            session.query(Feedback)
+            .filter_by(artefact_id=row.id, profile_id=profile_id)
+            .one_or_none()
+        )
+        if existing is None:
+            session.add(
+                Feedback(
+                    artefact_id=row.id,
+                    profile_id=profile_id,
+                    output_type=output_type,
+                    liked=is_liked,
+                    reason=reason,
+                )
+            )
+        else:
+            # A second opinion replaces the first rather than double-counting.
+            existing.liked = is_liked
+            existing.reason = reason or existing.reason
+
+    # The improvement pass runs outside the write, and only for a known
+    # operator: rules with nobody to belong to would steer every job on the
+    # instance.
+    if profile_id:
+        await _improve(profile_id)
+
+    detail = await jobs_api.get_job(job_id)
+    return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
+
+
+async def _improve(profile_id: str) -> None:
+    """One pass of the self-improvement loop for this operator.
+
+    Reads a window of their recent signals, asks what recurs, and folds any
+    resulting rules into their style notes. Writes prompt text and nothing
+    else - it cannot touch a threshold, a constraint, or code.
+    """
+    from app.agents import improve
+    from app.db.models import Feedback, OperatorProfile, QAResultRow
+
+    with session_scope() as session:
+        rows = (
+            session.query(Feedback)
+            .filter_by(profile_id=profile_id)
+            .order_by(Feedback.created_at.desc())
+            .limit(improve.WINDOW)
+            .all()
+        )
+        dislikes = [{"output_type": f.output_type, "reason": f.reason} for f in rows if not f.liked]
+        liked = [{"output_type": f.output_type} for f in rows if f.liked]
+
+        # Fix notes from the artefacts this operator actually rated: notes
+        # from someone else's jobs are not evidence about their taste.
+        artefact_ids = [f.artefact_id for f in rows]
+        fix_notes: list[str] = []
+        if artefact_ids:
+            for qa in (
+                session.query(QAResultRow)
+                .filter(QAResultRow.artefact_id.in_(artefact_ids))
+                .order_by(QAResultRow.created_at.desc())
+                .limit(200)
+                .all()
+            ):
+                fix_notes.extend(qa.fix_notes or [])
+
+    rules = await improve.derive_rules(dislikes=dislikes, liked=liked, fix_notes=fix_notes)
+    if not rules:
+        return
+
+    with session_scope() as session:
+        profile = session.get(OperatorProfile, profile_id)
+        if profile is None:
+            return
+        profile.style_notes = improve.apply_rules(
+            list(profile.style_notes or []),
+            rules,
+            {
+                "source": "improvement loop",
+                "chosen": f"{len(dislikes)} dislike(s), {len(liked)} like(s)",
+                "rejected": [],
+            },
+        )
+        log.info("improvement loop added %d rule(s) for %s", len(rules), profile_id)
+
+
 @router.get("/downloads/{job_id}/{output_type}/{filename}")
 async def download(job_id: str, output_type: str, filename: str):
     """Serve a rendered artefact (TC-0706).
