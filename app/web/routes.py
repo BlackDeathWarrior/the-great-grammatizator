@@ -151,7 +151,12 @@ async def ui_create_job(request: Request):
     )
 
     result = await jobs_api.create_job(
-        jobs_api.JobIn(source_ids=[source_id], formats=formats, parameters=parameters)
+        jobs_api.JobIn(
+            source_ids=[source_id],
+            formats=formats,
+            parameters=parameters,
+            profile_id=_profile_id(request),
+        )
     )
     return RedirectResponse(f"/jobs/{result.job_id}/view", status_code=303)
 

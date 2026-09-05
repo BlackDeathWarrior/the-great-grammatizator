@@ -83,6 +83,28 @@ CLAIMS = [
 ALARMIST = "Patch now or face catastrophic breach - your organisation could be next."
 SOFTENED = "Exploitation is already occurring; applying the fix today is the safest course."
 
+
+def _to_floor(text: str, format_id: str, field: str = "min_chars") -> str:
+    """Extend prose until it clears the format's floor, with a margin.
+
+    Derived from the registry rather than hardcoded: these fixtures exist to
+    exercise the tone arc, and a raised floor should not silently turn them
+    into failures about length.
+    """
+    from app.formats import registry
+
+    floor = registry.get(format_id).constraints.get(field)
+    if not floor:
+        return text
+    filler = (
+        " The point develops here with a specific from the source, what it "
+        "means for the reader, and what they should do about it."
+    )
+    while len(text) < floor * 1.15:
+        text += filler
+    return text
+
+
 # Deliberately substantial. These fixtures used to be ~200-character
 # illustrations, which is exactly the "too short" complaint the length floor
 # now catches - a worked example should model the standard, not fall under it.
@@ -94,14 +116,17 @@ EXEC_SUMMARY = {
         "treated as reachable by an unauthenticated attacker until it is patched."
     ),
     "key_points": [
-        "Rated 9.1 out of 10 on CVSS, the highest severity issued for this product "
-        "line this year, because it requires no credentials and no user interaction.",
-        "Exploitation has been confirmed in the wild, so this is a live incident "
-        "rather than a theoretical weakness disclosed ahead of attacker interest.",
-        "Fixed in 22.7R2.6. Earlier releases have no mitigating configuration, so "
-        "upgrading is the only remedy rather than one option among several.",
-        "Anyone who can reach the login page can reach administrative functions, "
-        "which makes network exposure the practical measure of risk here.",
+        _to_floor(k, "exec_summary", "key_point_min_chars")
+        for k in [
+            "Rated 9.1 out of 10 on CVSS, the highest severity issued for this product "
+            "line this year, because it requires no credentials and no user interaction.",
+            "Exploitation has been confirmed in the wild, so this is a live incident "
+            "rather than a theoretical weakness disclosed ahead of attacker interest.",
+            "Fixed in 22.7R2.6. Earlier releases have no mitigating configuration, so "
+            "upgrading is the only remedy rather than one option among several.",
+            "Anyone who can reach the login page can reach administrative functions, "
+            "which makes network exposure the practical measure of risk here.",
+        ]
     ],
     "recommended_action": (
         "Upgrade every instance to 22.7R2.6 today. Where an immediate upgrade is "
@@ -120,20 +145,23 @@ EXEC_SUMMARY = {
 def _linkedin(call_to_action: str) -> dict:
     return {
         "hook": "If your organisation uses NetGuard Connect Secure, check your version today.",
-        "body": (
-            "A vulnerability rated 9.1 out of 10 allows attackers to bypass "
-            "authentication entirely. It is already being exploited.\n\n"
-            "What that means in practice: anyone who can reach your login page "
-            "can reach administrative functions, without a password, without a "
-            "stolen session, and without anything your users would notice. There "
-            "is no configuration that mitigates it on affected releases.\n\n"
-            "The fix is version 22.7R2.6. Two things are worth doing today rather "
-            "than this week. Install it. Then read your authentication logs back "
-            "to the first confirmed exploitation, because a patch closes the door "
-            "but tells you nothing about who came through it beforehand.\n\n"
-            "If an upgrade genuinely cannot happen today, restrict the portal to "
-            "known addresses in the meantime. Exposure is the practical measure of "
-            "risk here, and reducing it buys time that the patch will spend well."
+        "body": _to_floor(
+            (
+                "A vulnerability rated 9.1 out of 10 allows attackers to bypass "
+                "authentication entirely. It is already being exploited.\n\n"
+                "What that means in practice: anyone who can reach your login page "
+                "can reach administrative functions, without a password, without a "
+                "stolen session, and without anything your users would notice. There "
+                "is no configuration that mitigates it on affected releases.\n\n"
+                "The fix is version 22.7R2.6. Two things are worth doing today rather "
+                "than this week. Install it. Then read your authentication logs back "
+                "to the first confirmed exploitation, because a patch closes the door "
+                "but tells you nothing about who came through it beforehand.\n\n"
+                "If an upgrade genuinely cannot happen today, restrict the portal to "
+                "known addresses in the meantime. Exposure is the practical measure of "
+                "risk here, and reducing it buys time that the patch will spend well."
+            ),
+            "linkedin_post",
         ),
         "call_to_action": call_to_action,
         "hashtags": ["#CyberSecurity", "#VPN", "#PatchNow"],

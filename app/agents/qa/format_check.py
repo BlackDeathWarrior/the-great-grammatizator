@@ -35,13 +35,21 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
                 f"Body is {body} characters; the limit is {c['max_chars']}. "
                 f"Cut roughly {body - c['max_chars']} characters."
             )
-        if "min_chars" in c and body < c["min_chars"]:
-            failures.append(
-                f"Body is only {body} characters; at least {c['min_chars']} is "
-                f"expected. Develop the points you have with specifics from the "
-                f"source - add roughly {c['min_chars'] - body} characters of "
-                f"substance, not padding."
-            )
+        # Measured on the MAIN PROSE FIELD, not the whole object. Summing
+        # every field let a 685-character body clear a 900 floor once the
+        # hook, call to action and hashtags were counted with it - so the
+        # floor passed while the part the reader actually reads stayed thin.
+        if "min_chars" in c:
+            main = _main_prose(content)
+            if len(main) < c["min_chars"]:
+                failures.append(
+                    f"The main text is only {len(main)} characters; at least "
+                    f"{c['min_chars']} is expected. Add roughly "
+                    f"{c['min_chars'] - len(main)} more characters of substance, "
+                    "not padding: develop each point with a specific from the "
+                    "source - a figure, a date, a version, a named system - and "
+                    "say what it means for the reader and what they should do."
+                )
 
     if "hashtags_max" in c:
         tags = content.get("hashtags") or []
@@ -108,6 +116,16 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
                 f"(+/-{tolerance}s). Adjust scene durations."
             )
 
+    if "key_point_min_chars" in c:
+        floor = c["key_point_min_chars"]
+        for i, point in enumerate(content.get("key_points") or [], start=1):
+            if len(point or "") < floor:
+                failures.append(
+                    f"Key point {i} is only {len(point or '')} characters; at "
+                    f"least {floor} is expected. A key point is a finding with "
+                    "its consequence, not a headline."
+                )
+
     if "caption_min_chars" in c:
         floor = c["caption_min_chars"]
         for i, panel in enumerate(content.get("panels") or [], start=1):
@@ -158,6 +176,21 @@ def check(spec: FormatSpec, artefact: Artefact) -> CheckerResult:
         ),
         fix_notes=failures,
     )
+
+
+# The field a reader actually reads, per format. A floor applied to the whole
+# object is not a floor on the prose.
+_MAIN_FIELDS = ("body", "summary", "bottom_line")
+
+
+def _main_prose(content: dict) -> str:
+    """The principal prose field, or the longest string if none is named."""
+    for key in _MAIN_FIELDS:
+        value = content.get(key)
+        if isinstance(value, str):
+            return value
+    strings = [v for v in content.values() if isinstance(v, str)]
+    return max(strings, key=len) if strings else ""
 
 
 def _text_len(content: dict) -> int:

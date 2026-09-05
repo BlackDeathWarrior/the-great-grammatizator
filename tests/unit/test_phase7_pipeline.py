@@ -112,7 +112,7 @@ def test_tweet_at_the_limit_passes():
     twitter_x now has tweets_min and min_chars_per_tweet, so a single tweet is
     no longer a valid thread however long it is.
     """
-    at_limit = _artefact({"tweets": ["x" * 280] * 3, "claims": []}, "twitter_x")
+    at_limit = _artefact({"tweets": ["x" * 280] * 4, "claims": []}, "twitter_x")
     assert format_check.check(registry.get("twitter_x"), at_limit).passed is True
 
 

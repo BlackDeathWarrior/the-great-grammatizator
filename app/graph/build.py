@@ -186,6 +186,7 @@ async def run_job(
     format_ids: list[str],
     *,
     analysis: AnalysisResult | None = None,
+    style_notes: list[str] | None = None,
 ) -> dict:
     """Run a whole job: analyse once, then fan out across formats."""
     from app.agents import analysis as analysis_agent
@@ -205,7 +206,14 @@ async def run_job(
 
         async def _capped(fid: str):
             async with fanout:
-                return await run_artefact(fid, content, analysis, parameters, job_id=job_id)
+                return await run_artefact(
+                    fid,
+                    content,
+                    analysis,
+                    parameters,
+                    job_id=job_id,
+                    style_notes=style_notes or [],
+                )
 
         # One generator failing must not stop the others (TC-0407).
         results = await asyncio.gather(

@@ -60,7 +60,7 @@ def test_the_fix_note_says_how_much_more_and_warns_against_padding():
 
 @pytest.mark.p1
 def test_a_substantial_post_passes():
-    full = _artefact(_linkedin("Development of the point with a real specific. " * 25))
+    full = _artefact(_linkedin("Development of the point with a real specific. " * 40))
 
     result = format_check.check(registry.get("linkedin_post"), full)
 
@@ -70,10 +70,14 @@ def test_a_substantial_post_passes():
 @pytest.mark.p0
 def test_every_prose_format_has_a_floor():
     """A maximum without a minimum only constrains one end of the problem."""
-    for fid in ("linkedin_post", "exec_summary", "advisory"):
+    for fid in ("linkedin_post", "advisory"):
         c = registry.get(fid).constraints
         assert c.get("min_chars"), f"{fid} has no minimum length"
         assert c["min_chars"] < c["max_chars"], f"{fid}'s floor is above its ceiling"
+
+    # exec_summary carries its prose in key_points, so a floor on the body
+    # field would demand a one-paragraph "bottom line" instead.
+    assert registry.get("exec_summary").constraints.get("key_point_min_chars")
 
 
 @pytest.mark.p1
@@ -277,3 +281,127 @@ def test_the_fan_out_cap_comes_from_config():
     source = pathlib.Path(build.__file__).read_text(encoding="utf-8")
 
     assert "fanout_concurrency" in source
+
+
+# === the floor measures the prose, not the object ===========================
+
+
+@pytest.mark.p0
+def test_the_floor_measures_the_body_not_every_field_combined():
+    """A 685-character body cleared a 900 floor once the hook, call to action
+    and hashtags were summed with it - so the check passed while the part the
+    reader actually reads stayed thin. Observed on a live job."""
+    thin_body_fat_extras = _artefact(
+        {
+            "hook": "A hook." + " padding to inflate the total." * 30,
+            "body": "Short body that a reader would call thin.",
+            "call_to_action": "Act now." + " more padding here." * 30,
+            "hashtags": ["#One", "#Two", "#Three"],
+            "claims": [],
+        }
+    )
+
+    result = format_check.check(registry.get("linkedin_post"), thin_body_fat_extras)
+
+    assert result.passed is False, "extras were counted toward the body's floor"
+    assert any("main text" in n.lower() for n in result.fix_notes)
+
+
+@pytest.mark.p0
+def test_the_generator_is_told_to_aim_above_the_floor():
+    """A draft landing 6 characters short burned all three retries on
+    arithmetic rather than on the argument. Observed on a live job."""
+    from app.graph.state import AnalysisResult, Chunk, ContentObject, Parameters
+    from app.prompts import loader
+
+    spec = registry.get("linkedin_post")
+    content = ContentObject(
+        source_id="s",
+        source_hash="h",
+        source_type="text",
+        title="t",
+        text="body",
+        chunks=[Chunk(id="c1", source_id="s", text="body")],
+    )
+
+    rendered = loader.render(
+        spec.prompt_template,
+        content=content,
+        analysis=AnalysisResult(objective="inform", audience="all"),
+        parameters=Parameters(),
+        constraints=spec.constraints,
+        fix_notes=[],
+    )
+
+    assert "AIM FOR" in rendered
+    assert "MAIN TEXT" in rendered, "the target must name the field it is measured on"
+
+
+@pytest.mark.p1
+def test_exec_summary_is_measured_on_its_key_points():
+    """Its prose lives in key_points; a floor on bottom_line would demand a
+    one-paragraph summary line instead of a substantial briefing."""
+    thin = _artefact(
+        {
+            "title": "Briefing",
+            "bottom_line": "x" * 2000,
+            "key_points": ["Rated 9.1", "Fix available", "Exploited"],
+            "recommended_action": "Upgrade.",
+            "residual_risk": "Some.",
+            "claims": [],
+        },
+        "exec_summary",
+    )
+
+    result = format_check.check(registry.get("exec_summary"), thin)
+
+    assert result.passed is False
+    assert any("key point" in n.lower() for n in result.fix_notes)
+
+
+# === what is learned reaches an ORDINARY job ================================
+
+
+@pytest.mark.p0
+def test_an_ordinary_job_loads_the_operators_learned_notes():
+    """The gap that made the feedback loop cosmetic.
+
+    style_notes were loaded only in variants_task, so a thumb down changed
+    the profile and nothing else: clicking Generate produced output that had
+    never seen a single thing the operator taught the system.
+    """
+    import inspect
+
+    from app import worker
+
+    source = inspect.getsource(worker.run_job_task)
+
+    assert "_style_notes_for" in source, "an ordinary job ignores learned preferences"
+    assert "style_notes=style_notes" in source, "they are loaded but not passed on"
+
+
+@pytest.mark.p0
+def test_a_job_records_which_operator_asked_for_it():
+    """Without this the worker has nothing to look the profile up by."""
+    from app.db.models import Job
+
+    assert hasattr(Job, "profile_id")
+
+
+@pytest.mark.p1
+def test_a_regenerate_also_gets_the_learned_notes():
+    """An operator correcting one artefact should get everything they have
+    taught the system, not a draft written as though they were a stranger."""
+    import inspect
+
+    from app import worker
+
+    assert "style_notes" in inspect.getsource(worker.regenerate_task)
+
+
+@pytest.mark.p1
+def test_an_anonymous_job_simply_learns_nothing():
+    """The platform must work without a profile; it just cannot learn."""
+    from app import worker
+
+    assert worker._style_notes_for(None, "") == []

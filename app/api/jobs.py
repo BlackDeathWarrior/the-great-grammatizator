@@ -24,6 +24,9 @@ class JobIn(BaseModel):
     source_ids: list[str] = Field(min_length=1)
     formats: list[str] = Field(min_length=1)
     parameters: Parameters = Parameters()
+    # Who is asking, so the worker can load their learned preferences. Empty
+    # is fine: the platform works anonymously, it just cannot learn.
+    profile_id: str = ""
 
 
 class JobOut(BaseModel):
@@ -107,6 +110,7 @@ async def create_job(payload: JobIn) -> JobOut:
             status=JobStatus.QUEUED,
             parameters=payload.parameters.model_dump(),
             formats=payload.formats,
+            profile_id=payload.profile_id or "",
         )
         for source_id in payload.source_ids:
             job.sources.append(JobSource(source_id=source_id))

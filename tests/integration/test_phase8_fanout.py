@@ -83,15 +83,24 @@ def _pad(body: dict, format_id: str) -> dict:
             for t in (body["tweets"] * max(1, c.get("tweets_min", 1)))[: c.get("tweets_min", 3)]
         ]
         assert all(len(t) >= floor for t in body["tweets"])
+    if c.get("key_point_min_chars") and "key_points" in body:
+        floor = c["key_point_min_chars"]
+        body["key_points"] = [(k + " " + _FILLER)[: floor * 2] for k in body["key_points"]]
     if c.get("speaker_notes_min_chars") and "slides" in body:
         for slide in body["slides"]:
-            slide["speaker_notes"] = (slide.get("speaker_notes", "") + " " + _FILLER)[:600]
+            slide["speaker_notes"] = (slide.get("speaker_notes", "") + " " + _FILLER)[
+                : int(c["speaker_notes_min_chars"] * 2)
+            ]
     if c.get("caption_min_chars") and "panels" in body:
         for panel in body["panels"]:
-            panel["caption"] = (panel.get("caption", "") + " " + _FILLER)[:300]
+            panel["caption"] = (panel.get("caption", "") + " " + _FILLER)[
+                : int(c["caption_min_chars"] * 2)
+            ]
     if c.get("narration_min_chars_per_scene") and "scenes" in body:
         for scene in body["scenes"]:
-            scene["narration"] = (scene.get("narration", "") + " " + _FILLER)[:690]
+            scene["narration"] = (scene.get("narration", "") + " " + _FILLER)[
+                : min(690, int(c["narration_min_chars_per_scene"] * 2))
+            ]
     return body
 
 
