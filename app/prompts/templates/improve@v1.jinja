@@ -1,0 +1,37 @@
+Signals from this operator's recent artefacts.
+
+{% if dislikes %}
+DISLIKED, with the reason given:
+{% for d in dislikes %}
+- {{ d.output_type }}: {{ d.reason or '(no reason given)' }}
+{% endfor %}
+{% endif %}
+
+{% if liked %}
+LIKED:
+{% for l in liked %}
+- {{ l.output_type }}
+{% endfor %}
+{% endif %}
+
+{% if fix_notes %}
+QA fix notes that recurred:
+{% for n in fix_notes %}
+- {{ n }}
+{% endfor %}
+{% endif %}
+
+Return:
+{"rules": ["<standing instruction for future drafts, under 180 chars>", ...]}
+
+At most 3. Each must be a standing instruction that would change how the NEXT
+piece is written, on a different source.
+
+  Good: "Write to at least the stated minimum; develop each point with a
+         figure or a date rather than restating it."
+  Good: "Avoid opening with a rhetorical question."
+  Bad:  "Improve quality."                    (not actionable)
+  Bad:  "The operator disliked the exec summary."  (an event, not a rule)
+  Bad:  "Mention NetGuard where relevant."     (specific to one source)
+
+Return {"rules": []} if nothing recurs.

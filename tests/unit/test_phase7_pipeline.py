@@ -101,13 +101,18 @@ def test_tweet_over_limit_fails_deterministically():
     over = _artefact({"tweets": ["x" * 281], "claims": []}, "twitter_x")
     result = format_check.check(registry.get("twitter_x"), over)
     assert result.passed is False
-    assert "281" in result.fix_notes[0]
-    assert "280" in result.fix_notes[0]
+    notes = " ".join(result.fix_notes)
+    assert "281" in notes and "280" in notes
 
 
 @pytest.mark.p1
 def test_tweet_at_the_limit_passes():
-    at_limit = _artefact({"tweets": ["x" * 280], "claims": []}, "twitter_x")
+    """Exactly at the ceiling is fine; the thread must also meet the floor.
+
+    twitter_x now has tweets_min and min_chars_per_tweet, so a single tweet is
+    no longer a valid thread however long it is.
+    """
+    at_limit = _artefact({"tweets": ["x" * 280] * 3, "claims": []}, "twitter_x")
     assert format_check.check(registry.get("twitter_x"), at_limit).passed is True
 
 
@@ -117,7 +122,7 @@ def test_too_many_hashtags_fails():
     too_many = _artefact(_linkedin(hashtags=[f"#t{i}" for i in range(7)]))
     result = format_check.check(registry.get("linkedin_post"), too_many)
     assert result.passed is False
-    assert "7 hashtags" in result.fix_notes[0]
+    assert any("7 hashtags" in n for n in result.fix_notes)
 
 
 @pytest.mark.p0
@@ -126,8 +131,8 @@ def test_format_fix_note_names_the_violated_constraint():
     over = _artefact(_linkedin(body="x" * 4000))
     result = format_check.check(registry.get("linkedin_post"), over)
     assert result.passed is False
-    note = result.fix_notes[0]
-    assert "3000" in note and "Cut" in note
+    note = next(n for n in result.fix_notes if "3000" in n)
+    assert "Cut" in note
 
 
 # === grounding ==============================================================
@@ -151,7 +156,7 @@ async def test_invented_chunk_id_is_a_grounding_failure_not_a_crash(monkeypatch)
     result = await grounding.check(bad, _content())
 
     assert result.passed is False
-    assert "c99" in result.fix_notes[0]
+    assert any("c99" in n for n in result.fix_notes)
     assert calls == [], "a nonexistent chunk id needs no model call"
 
 
@@ -159,7 +164,7 @@ async def test_invented_chunk_id_is_a_grounding_failure_not_a_crash(monkeypatch)
 async def test_no_claims_fails_grounding(monkeypatch):
     result = await grounding.check(_artefact(_linkedin(claims=[])), _content())
     assert result.passed is False
-    assert "claims" in result.fix_notes[0]
+    assert any("claims" in n for n in result.fix_notes)
 
 
 @pytest.mark.p0
@@ -182,7 +187,7 @@ async def test_unsupported_claim_is_named_in_the_fix_note(monkeypatch):
     result = await grounding.check(_artefact(_linkedin()), _content())
 
     assert result.passed is False
-    assert "already being exploited" in result.fix_notes[0]
+    assert any("already being exploited" in n for n in result.fix_notes)
     assert result.score == 0.75
 
 

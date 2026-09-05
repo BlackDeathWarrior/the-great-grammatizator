@@ -63,7 +63,15 @@ class Settings(BaseSettings):
     # "running" for fifteen minutes with no way to tell why.
     request_timeout: int = 60  # one model call
     embedding_timeout: int = 30  # one embeddings batch
-    fanout_concurrency: int = 3  # generators in flight at once, TC-0904
+    # Formats run ONE AT A TIME by default. Concurrency looks faster on paper
+    # and is worse in practice here: several generations plus their checkers
+    # compete for the same free-tier quota, so they 429 each other, burn
+    # provider retries, and land lower-quality drafts. Sequential work gets the
+    # full rate limit each and finishes with better output.
+    #
+    # Raise it when a paid tier removes the contention - and measure, because
+    # the reason for the default is throughput of GOOD artefacts, not of calls.
+    fanout_concurrency: int = 1  # generators in flight at once, TC-0904
 
     storage_dir: str = "/data/storage"
 

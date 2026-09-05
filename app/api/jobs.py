@@ -54,6 +54,8 @@ class ArtefactOut(BaseModel):
     # Alternatives awaiting a decision. Empty for the ordinary single-draft
     # path, so the dashboard renders variants only when there are some.
     variants: list[VariantOut] = []
+    # None = not yet rated. Lets the buttons show which way this artefact went.
+    liked: bool | None = None
 
 
 class JobDetail(BaseModel):
@@ -189,6 +191,16 @@ async def _enqueue_regenerate(job_id: str, output_type: str, instructions: str) 
 
 
 def _detail(session, job: Job) -> JobDetail:
+    # One query rather than one per artefact.
+    from app.db.models import Feedback
+
+    feedback_by_artefact: dict[str, bool] = {
+        f.artefact_id: f.liked
+        for f in session.query(Feedback)
+        .filter(Feedback.artefact_id.in_([a.id for a in job.artefacts] or [""]))
+        .all()
+    }
+
     artefacts = []
     settled = 0
 
@@ -247,6 +259,7 @@ def _detail(session, job: Job) -> JobDetail:
                     )
                     for v in sorted(row.variants, key=lambda v: v.label)
                 ],
+                liked=feedback_by_artefact.get(row.id),
             )
         )
 

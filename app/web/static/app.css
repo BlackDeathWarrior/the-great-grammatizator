@@ -589,3 +589,36 @@ button.tiny { padding: 0.15rem 0.5rem; font-size: 0.6875rem; }
 .variant-body { font-size: var(--step--1); }
 .variant-body h3 { font-size: var(--step-0); }
 .chosen-mark { color: var(--pass); font-size: var(--step--1); font-weight: 600; margin: 0; }
+
+/* --- rating an artefact ---------------------------------------------------- */
+
+.rate {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+.rate form { display: contents; }
+.rate-label { font-size: var(--step--1); color: var(--ink-3); margin-right: var(--s1); }
+.rate .reason {
+  width: auto;
+  flex: 1 1 16rem;
+  font-size: var(--step--1);
+  padding: 0.3rem 0.55rem;
+}
+button.thumb {
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+  font-size: var(--step--1);
+  font-weight: 550;
+  padding: 0.3rem 0.7rem;
+}
+button.thumb:hover { border-color: var(--pass); color: var(--pass); }
+button.thumb.down:hover { border-color: var(--fail); color: var(--fail); }
+/* The recorded verdict reads as settled, not as a score. */
+button.thumb.on { background: var(--pass-soft); border-color: var(--pass); color: var(--pass); }
+button.thumb.down.on { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
