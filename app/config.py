@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     gemini_api_key: str = ""
     openrouter_api_key: str = ""
+    mistral_api_key: str = ""
+    nvidia_nim_api_key: str = ""
 
     embedding_api_key: str = ""
     embedding_model: str = "text-embedding-3-small"
@@ -33,7 +35,13 @@ class Settings(BaseSettings):
     video_max_seconds: int = 600  # 10 min hard gate, TC-0107/TC-0108
     qa_max_retries: int = 3  # 3 strikes then stop the job, TC-0607
     parse_max_retries: int = 2  # separate counter, never burns a QA retry, TC-0405
-    qa_concurrency: int = 2  # cap so the checkers don't fire at once, TC-0904
+    # Six checkers per artefact. At 2 they ran in three sequential waves, which
+    # was right when `fast` had one flaky provider behind it; there are now four
+    # healthy deployments per alias with fallback between them, so 3 removes a
+    # wave without firing everything at once. Deliberately not higher: the cap
+    # exists to keep a free tier from rate-limiting mid-demo (TC-0904), and the
+    # 429s seen during this build are evidence it is still doing real work.
+    qa_concurrency: int = 3
     tone_threshold: float = 0.80
     # Below this an artefact reads as unpublishable, whatever tone thinks of
     # the fit. Tone alone can never block (it is advisory by policy), so a
