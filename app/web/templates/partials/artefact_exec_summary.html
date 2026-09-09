@@ -1,5 +1,12 @@
-<h3>{{ a.content.title }}</h3>
-<p><strong>Bottom line.</strong> {{ a.content.bottom_line }}</p>
-<ul>{% for p in a.content.key_points %}<li>{{ p }}</li>{% endfor %}</ul>
-<p><strong>Recommended action.</strong> {{ a.content.recommended_action }}</p>
-<p class="muted"><strong>Residual risk.</strong> {{ a.content.residual_risk }}</p>
+{# A memo, in the shape an executive summary actually has: a masthead, a ruled
+   title, the bottom line boxed as the thing you read first, then the supporting
+   points. An exec summary whose conclusion is the second paragraph of five has
+   buried the only part most readers will read. #}
+<div class="memo">
+  <p class="memo-head" aria-hidden="true"><span class="label">Memorandum</span></p>
+  <h3 class="memo-title">{{ a.content.title }}</h3>
+  <p class="memo-line"><strong>Bottom line.</strong> {{ a.content.bottom_line }}</p>
+  <ol class="memo-points">{% for p in a.content.key_points %}<li>{{ p }}</li>{% endfor %}</ol>
+  <p class="memo-action"><strong>Recommended action.</strong> {{ a.content.recommended_action }}</p>
+  <p class="memo-risk muted"><strong>Residual risk.</strong> {{ a.content.residual_risk }}</p>
+</div>

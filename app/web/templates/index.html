@@ -9,22 +9,34 @@
     A document, a page, or a few sentences. It is chunked once, and every claim
     in the output cites the chunk it came from.
   </p>
-  <form action="/ui/sources" method="post" enctype="multipart/form-data"
-        hx-disabled-elt="find button[type='submit']">
-    <div class="grid">
+  <form action="/ui/sources" method="post" enctype="multipart/form-data">
+    {# A target you can throw a file at. The input is still the thing that
+       posts - the drop handler hands it the real File - so there is only one
+       upload path to keep correct. #}
+    <div class="dropzone" data-dropzone>
+      <p class="dropzone-lead">Drop a file here</p>
+      <p class="dropzone-hint">
+        PDF, Word, HTML, text, an image, audio or video up to ten minutes.
+      </p>
+      <input type="file" id="file" name="file"
+             accept=".pdf,.docx,.html,.htm,.txt,.md,.png,.jpg,.jpeg,.mp4,.mov,.m4a,.mp3">
+      <span class="drop-name" data-drop-name></span>
+    </div>
+
+    <p class="orline">or</p>
+
+    <div class="field-grid">
       <div>
-        <label for="file">Upload a file</label>
-        <input type="file" id="file" name="file"
-               accept=".pdf,.docx,.html,.htm,.txt,.md,.png,.jpg,.jpeg,.mp4,.mov,.m4a,.mp3">
-      </div>
-      <div>
-        <label for="url">&hellip; or paste a URL</label>
+        <label for="url">Paste a URL</label>
         <input type="url" id="url" name="url" placeholder="https://example.com/advisory">
       </div>
+      <div>
+        <label for="text">Type context directly</label>
+        <textarea id="text" name="text" rows="2"
+                  placeholder="Paste an advisory, a report, or a few lines of context."></textarea>
+      </div>
     </div>
-    <label for="text" style="margin-top:1rem">&hellip; or type context directly</label>
-    <textarea id="text" name="text" rows="3"
-              placeholder="Paste an advisory, a report, or a few lines of context."></textarea>
+
     <div class="actions">
       <button type="submit">{{ upload() }}Ingest source <span class="spinner"></span></button>
       <span class="working">Reading and chunking&hellip;</span>
@@ -32,23 +44,20 @@
   </form>
 
   {% if sources %}
+  {# Sources already in the machine: cartridges on a shelf. Four table columns
+     to answer "which one was that" is three columns too many. #}
   <h2 style="margin-top:2rem">Recent sources</h2>
   <p class="panel-lead">Selecting an existing source skips ingestion entirely.</p>
-  <table>
-    <thead>
-      <tr><th>Title</th><th>Type</th><th>Chunks</th><th><span class="muted">Action</span></th></tr>
-    </thead>
-    <tbody>
-      {% for s in sources %}
-      <tr>
-        <td title="{{ s.title }}">{{ s.title[:70] }}{% if s.title|length > 70 %}&hellip;{% endif %}</td>
-        <td><span class="muted">{{ s.source_type }}</span></td>
-        <td class="num">{{ s.chunk_count }}</td>
-        <td><a href="/?source_id={{ s.source_id }}" title="{{ s.source_id }}">Use this</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="cartridges">
+    {% for s in sources %}
+    <a class="cartridge" href="/?source_id={{ s.source_id }}" title="{{ s.title }}">
+      <span class="cartridge-title">{{ s.title[:48] }}{% if s.title|length > 48 %}&hellip;{% endif %}</span>
+      <span class="cartridge-meta">
+        {{ s.source_type }} &middot; <span class="num">{{ s.chunk_count }}</span> chunks
+      </span>
+    </a>
+    {% endfor %}
+  </div>
   {% endif %}
 </div>
 
@@ -102,7 +111,7 @@
        is always in the DOM, so the closed vocabularies are always present
        (TC-0202). #}
     <div id="lists" class="hidden">
-      <div class="grid">
+      <div class="field-grid">
         {% for field, options in vocab.items() %}
         <div>
           <label for="{{ field }}">{{ field|replace('_',' ')|title }}</label>
@@ -123,38 +132,51 @@
       Each selected format is generated and checked independently, so one
       failing does not stop the others.
     </p>
-    {# Tiles rather than a checkbox list. Seven formats is enough that reading
-       a column of identical rows is the slow way to pick two, and each tile
-       carries the colour that format keeps for the rest of the run - so the
-       thing chosen here is recognisable on the status board later.
+    {# A bank of switches, not a grid of cards. Seven in one row is a control
+       panel; the ragged four-then-three an auto-fit grid produces is a card
+       grid, and that difference is most of what made the old page read as
+       generated. Each switch carries the colour that format keeps for the
+       rest of the run, so what is chosen here is recognisable on the rack.
 
        Everything shown comes from the registry: label, description, shape and
        the file it exports. A new format appears here from config alone
        (Invariant 4, TC-0302). #}
-    <div class="formats">
+    <div class="bank switchbank">
       {% for f in formats %}
       <label class="format" data-fmt="{{ f.id }}">
         <input type="checkbox" name="formats" value="{{ f.id }}"
                {% if f.id in ('linkedin_post','exec_summary') %}checked{% endif %}>
-        <span class="format-body">
-          <span class="format-top">
-            <span class="fmt-dot"></span>
-            <span class="name">{{ f.label }}</span>
-          </span>
-          <span class="desc">{{ f.description }}</span>
-          <span class="format-meta">
-            {% if f.shape %}<span class="chip">{{ f.shape }}</span>{% endif %}
-            {% if f.runtime_hint %}<span class="chip">{{ f.runtime_hint }}</span>{% endif %}
-            <span class="chip subtle">.{{ f.renderer }}</span>
-          </span>
+        <span class="format-top">
+          <span class="fmt-dot"></span>
+          <span class="name">{{ f.label }}</span>
+        </span>
+        <span class="desc">{{ f.description }}</span>
+        <span class="format-meta">
+          {% if f.shape %}<span class="chip">{{ f.shape }}</span>{% endif %}
+          {% if f.runtime_hint %}<span class="chip">{{ f.runtime_hint }}</span>{% endif %}
+          <span class="chip subtle">.{{ f.renderer }}</span>
         </span>
       </label>
       {% endfor %}
     </div>
-    <div class="actions">
-      <button type="submit">Generate <span class="spinner"></span></button>
-      <span class="working">Queueing the job&hellip;</span>
-    </div>
+  </div>
+
+  {# The run rail. What the machine is loaded with, and the control that
+     starts it, pinned to the bottom edge - so the operator never has to
+     scroll to find out what pressing it will do. #}
+  <div class="runrail">
+    <span class="rail-lamps" aria-hidden="true">
+      {% for f in formats %}
+      <span class="rail-lamp" data-slot="{{ loop.index0 }}" data-fmt="{{ f.id }}"></span>
+      {% endfor %}
+    </span>
+    <span class="rail-count num" data-rail-count>nothing selected</span>
+    <span class="rail-keys" aria-hidden="true">
+      <kbd>1</kbd>&ndash;<kbd>{{ formats|length }}</kbd> pick
+      <kbd>&crarr;</kbd> run
+    </span>
+    <button type="submit" data-rail-run>Run the machine <span class="spinner"></span></button>
+    <span class="working">Queueing the job&hellip;</span>
   </div>
 </form>
 {% endif %}
@@ -176,41 +198,4 @@
 </div>
 {% endif %}
 
-<script>
-  // Swapping which block is in view. Both write the same six field names, and
-  // a disabled select is not submitted - which is what keeps the hidden block
-  // from sending a second value for every field.
-  function showInterview() { setMode(true); }
-  function showLists() { setMode(false); }
-
-  function setMode(describing) {
-    var interview = document.getElementById('interview');
-    var lists = document.getElementById('lists');
-    if (!interview || !lists) return;
-    interview.classList.toggle('hidden', !describing);
-    lists.classList.toggle('hidden', describing);
-    document.getElementById('mode-describe').setAttribute('aria-pressed', String(describing));
-    document.getElementById('mode-lists').setAttribute('aria-pressed', String(!describing));
-    setDisabled(interview, describing ? false : true);
-    setDisabled(lists, describing ? true : false);
-  }
-
-  function setDisabled(host, state) {
-    host.querySelectorAll('select').forEach(function (el) { el.disabled = state; });
-  }
-
-  // The interview owns the fields until the operator says otherwise.
-  document.addEventListener('DOMContentLoaded', function () {
-    var lists = document.getElementById('lists');
-    if (lists) setDisabled(lists, true);
-  });
-
-  // Each swapped-in brief arrives enabled; re-apply whichever mode is showing.
-  document.body.addEventListener('htmx:afterSwap', function (e) {
-    if (e.target.id !== 'interview') return;
-    var describing = document.getElementById('mode-describe')
-      .getAttribute('aria-pressed') === 'true';
-    setMode(describing);
-  });
-</script>
 {% endblock %}

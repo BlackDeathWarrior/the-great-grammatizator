@@ -1,10 +1,11 @@
 {# Panels, drawn as panels. The statistic is the largest thing in each one
-   because that is what an infographic panel is for, and the caption sits
-   under it at reading size. #}
+   because that is what an infographic panel is for, and the caption sits under
+   it at reading size. Each panel is numbered like a plate in a printed figure. #}
 <h3 class="info-headline">{{ a.content.headline }}</h3>
 <div class="panels">
   {% for p in a.content.panels %}
   <figure class="ipanel">
+    <span class="ipanel-n" aria-hidden="true">{{ loop.index }}</span>
     <div class="ipanel-stat num">{{ p.stat }}</div>
     <figcaption>
       <strong>{{ p.heading }}</strong>

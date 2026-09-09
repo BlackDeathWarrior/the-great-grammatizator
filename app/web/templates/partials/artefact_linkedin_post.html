@@ -1,6 +1,21 @@
-<p><strong>{{ a.content.hook }}</strong></p>
-<p class="prose">{{ a.content.body }}</p>
-<p><em>{{ a.content.call_to_action }}</em></p>
-{% if a.content.hashtags %}
-<p class="muted">{{ a.content.hashtags|join(' ') }}</p>
-{% endif %}
+{# A post as it will be seen in a feed: the author line above, the hook set as
+   the thing that stops a scroll, the body at reading width, and the "see more"
+   fold drawn where LinkedIn actually truncates. An operator can see whether the
+   hook survives the fold, which is the only thing that decides if the rest is
+   ever read. #}
+<div class="post">
+  <div class="post-head">
+    <span class="post-av" aria-hidden="true"></span>
+    <span class="post-who">
+      <strong>Your name</strong>
+      <span class="post-meta">Your headline &middot; now</span>
+    </span>
+  </div>
+  <p class="post-hook">{{ a.content.hook }}</p>
+  <p class="post-body prose">{{ a.content.body }}</p>
+  <p class="post-fold" aria-hidden="true"><span>&hellip;see more</span></p>
+  <p class="post-cta">{{ a.content.call_to_action }}</p>
+  {% if a.content.hashtags %}
+  <p class="post-tags">{{ a.content.hashtags|join(' ') }}</p>
+  {% endif %}
+</div>

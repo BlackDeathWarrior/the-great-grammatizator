@@ -1,14 +1,33 @@
-{# A thread reads as a thread: numbered, connected by a rail, each tweet in a
-   box the size of the thing it will be posted into. The character count is
-   the deterministic checker's constraint made visible, and turns amber as it
-   approaches the limit - the operator can see which tweet is at risk before
-   the checker says so. #}
+{# A thread, rendered as the thing it will be posted into: avatar, handle line,
+   the connecting rail between tweets, and the action row underneath. The
+   character count is the deterministic checker's constraint made visible, and
+   turns amber as it approaches the limit - the operator sees which tweet is at
+   risk before the checker says so.
+
+   The chrome is deliberately inert. Nothing here is a control: an operator
+   must never be able to "like" a draft, so these are spans, not buttons. #}
 <ol class="thread">
   {% for t in a.content.tweets %}
   <li class="tweet">
     <span class="tweet-n" aria-hidden="true">{{ loop.index }}</span>
-    <p class="prose">{{ t }}</p>
-    <span class="tweet-count num {{ 'is-near' if t|length > 250 }}">{{ t|length }}/280</span>
+    <div class="tweet-card">
+      <span class="tweet-av" aria-hidden="true"></span>
+      <div class="tweet-main">
+        <p class="tweet-who">
+          <strong>Your account</strong>
+          <span class="tweet-handle">@handle &middot; now</span>
+        </p>
+        <p class="prose">{{ t }}</p>
+        <div class="tweet-foot">
+          <span class="tweet-acts" aria-hidden="true">
+            <span class="tweet-act">reply</span>
+            <span class="tweet-act">repost</span>
+            <span class="tweet-act">like</span>
+          </span>
+          <span class="tweet-count num {{ 'is-near' if t|length > 250 }}">{{ t|length }}/280</span>
+        </div>
+      </div>
+    </div>
   </li>
   {% endfor %}
 </ol>

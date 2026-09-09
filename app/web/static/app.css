@@ -1,62 +1,124 @@
-/* Instrument panel.
+/* The Great Grammatizator.
  *
- * An operator watching seven artefacts race through generation and QA, on an
- * ordinary afternoon, needing to know at a glance which one is in trouble.
- * Motion is diegetic: something moves because work happened.
+ * Dahl's machine is a room-sized brass apparatus with pedals and a keyboard
+ * that eats a plot and grinds out prose. This interface is that machine: not
+ * a website with a theme painted on, but a console an operator stands at.
+ *
+ * Three surfaces carry the whole thing:
+ *
+ *   PLATE  the body of the machine - milled, engraved, slightly cold. The
+ *          header, the job head, the run rail. Apparatus, not document.
+ *   WELL   recessed into the plate, where content sits. Panels and lanes.
+ *          Inset highlight, never a drop shadow: a well is cut into the
+ *          surface, and a card floating above it is the thing we are not.
+ *   SLIP   a piece of paper resting on the machine - one slide, one tweet,
+ *          one shot. Warmer, lighter, carrying its format's colour.
+ *
+ * Three layout primitives, and no others:
+ *
+ *   .bank        a FIXED-count row of controls or lamps. The count means
+ *                something; the wrap point is a decision, not an accident of
+ *                min-width. Seven format switches, four pipeline stages.
+ *   .compare     equal side-by-side reading columns, where the count really
+ *                does vary (two or three variants).
+ *   .field-grid  form fields at a readable measure.
  *
  * Written for a page that re-renders on a poll, so nothing here may depend on
- * an element surviving a swap.
+ * an element surviving a swap. Continuous animations use a period that
+ * divides the two-second poll, so a restart lands where the animation already
+ * was rather than stuttering; one-shot animations are triggered by console.js
+ * from a state token, never by an element being new.
  */
 
 :root {
   color-scheme: light dark;
 
-  /* Neutrals, warmed toward brass so the greys read as machined metal rather
-     than as a spreadsheet. Tinted, never pure black or white - a panel the
-     operator stares at all afternoon should not be lit by a screen-white. */
-  --ink: oklch(24% 0.018 70);
-  --ink-2: oklch(43% 0.018 70);
+  /* Neutrals, warmed toward drafting stock. Tinted, never pure black or white -
+     a panel the operator stares at all afternoon should not be lit by a
+     screen-white. Chroma is low (0.006): the reference sets its inks at zero
+     chroma, and a warm ink on warm paper is the difference between a sheet and
+     a cold pane laid on one. */
+  --ink: oklch(26% 0.008 80);
+  --ink-2: oklch(40% 0.008 80);
   /* Measured, not guessed: at 58% this sat at 3.75:1 on the page ground,
      under WCAG AA for text below 18.66px - and every muted label in the
-     interface is smaller than that. 52% clears 4.5:1 and still reads as
-     secondary against --ink-2. */
-  --ink-3: oklch(52% 0.016 70);
-  --bg: oklch(97.5% 0.006 80);
-  --surface: oklch(99.4% 0.004 80);
-  --surface-2: oklch(95.5% 0.009 78);
-  --line: oklch(89% 0.012 75);
-  --line-2: oklch(81% 0.018 72);
+     interface is smaller than that. The reference sets its faint grey at 64%,
+     which would reintroduce exactly that failure, so this holds at 56% and
+     clears 4.5:1 on the lighter paper. Fidelity loses to legibility. */
+  --ink-3: oklch(47% 0.008 80);
+  --bg: oklch(98.2% 0.008 85);
+  --surface: oklch(99.4% 0.004 85);
+  --surface-2: oklch(96.2% 0.012 86);
+  --line: oklch(82% 0.014 86);
+  --line-2: oklch(68.5% 0.010 84);
 
-  /* Brass. Action and focus only, and deliberately far from every verdict
+  /* The pencil. Action and focus only, and deliberately far from every verdict
      hue - an operator must never mistake "this button does something" for
-     "this check passed". */
-  --accent: oklch(52% 0.11 65);
-  --accent-ink: oklch(99% 0.01 80);
-  --accent-soft: oklch(94% 0.035 75);
+     "this check passed". Hue 65 is the marked-up correction colour on a
+     drawing, which is what it now means here. */
+  --accent: oklch(52% 0.135 65);
+  --accent-2: oklch(62% 0.14 68);
+  --accent-ink: oklch(99% 0.008 85);
+  --accent-soft: oklch(94.5% 0.045 72);
 
-  /* The machine itself: the plate a console is milled from, and the seam
-     between two of them. Used for the pipeline board and the header, which
-     are the parts that should read as apparatus rather than as document. */
-  --plate: oklch(93% 0.014 78);
-  --plate-2: oklch(88.5% 0.018 74);
-  --engrave: oklch(46% 0.02 70);
+  /* Drafting blue. A second ink, not a second accent: it carries links, rules
+     and the fields that frame the work, and never signals "act here". Keeping
+     it distinct from --accent is what stops the interface having two colours
+     that both look clickable. */
+  --blueprint: oklch(35.5% 0.105 264);
+  --blueprint-2: oklch(50% 0.155 264);
+  --blueprint-soft: oklch(95% 0.030 264);
+  --blueprint-ink: oklch(97% 0.01 264);
+
+  /* The graph paper. Two axes at different weights, which is what stops a grid
+     reading as a table: the vertical rule is the darker of the pair. */
+  --grid-x: oklch(83.2% 0.026 89);
+  --grid-y: oklch(88.5% 0.025 90);
+  --grid-unit: 10.6666px;
+
+  /* The instrument on the table: the plate a console is milled from, the seam
+     between two of them, and the colour cut into it. Flattened from the brass
+     original - the light is now flat overhead light on a drawing board. */
+  --plate: oklch(93.5% 0.020 86);
+  --plate-2: oklch(90.5% 0.024 88);
+  --plate-3: oklch(87.8% 0.031 86);
+  --engrave: oklch(32% 0.012 80);
+  /* Muted text ON the plate, which is darker than the page ground.
+     --ink-3 was measured at 2.88:1 against --plate-3 and --ink-2 at 4.29:1,
+     both under AA at the 9-13px these labels are set in. The plate needs its
+     own pair, and having them as tokens is what stops the next label added to
+     a control panel from quietly reintroducing the same failure. */
+  --plate-ink: oklch(33.5% 0.008 80);
+  --plate-ink-2: oklch(45% 0.008 80);
+  /* The lit edge of a milled surface, and the shadow in a cut. Kept as tokens
+     because every surface role uses the pair and they must agree. */
+  --lip: oklch(100% 0 0 / 0.30);
+  --cut: oklch(35% 0.02 80 / 0.055);
+  /* A pressed control needs depth the flattened --cut can no longer give it.
+     Without this a checked switch would read on border-colour alone, which is
+     the WCAG 1.4.1 failure the suite exists to catch. */
+  --cut-hard: oklch(35% 0.02 80 / 0.16);
 
   /* Verdicts. The only other colour in the system, and nothing decorative may
-     borrow it: green here always means a check passed. */
-  --pass: oklch(52% 0.14 152);
-  --pass-soft: oklch(95% 0.04 152);
+     borrow it: green here always means a check passed. Hues are frozen; only
+     lightness moved, to sit correctly on the lighter paper ground. */
+  --pass: oklch(50% 0.145 152);
+  --pass-soft: oklch(96.5% 0.038 152);
   --flag: oklch(58% 0.13 75);
-  --flag-soft: oklch(95.5% 0.05 75);
-  --fail: oklch(53% 0.19 25);
-  --fail-soft: oklch(95.5% 0.04 25);
+  --flag-soft: oklch(96.5% 0.045 75);
+  --fail: oklch(51% 0.19 25);
+  --fail-soft: oklch(96.5% 0.038 25);
 
   /* --flag as TEXT. The token itself doubles as a badge fill, where 58% is
      right; as 13px text on the page ground it measured 3.77:1, under AA.
      A warning nobody can read is not a warning. */
-  --flag-ink: oklch(46% 0.12 62);
+  --flag-ink: oklch(45% 0.12 62);
 
-  --radius: 10px;
-  --radius-sm: 7px;
+  /* Drafting geometry: near-square corners and a hairline rule. */
+  --radius: 3px;
+  --radius-sm: 2px;
+  --hair: 0.8px;
+  --hair-2: 1.6px;
 
   --s1: 0.25rem;
   --s2: 0.5rem;
@@ -66,18 +128,73 @@
   --s6: 2rem;
   --s7: 3rem;
 
-  --step--1: 0.8125rem;
-  --step-0: 0.9375rem;
-  --step-1: 1.1875rem;
-  --step-2: 1.5rem;
-  --step-3: 1.9rem;
+  --step--1: 0.875rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.625rem;
+  --step-3: 2.25rem;
+  --step-4: 3.25rem;
+
+  /* Three registers. Mono carries every small structural label - on a drawing
+     the annotation is always lettered, and the face itself is the signal, so
+     these do not also need caps and tracking. */
+  --face-display: "Optima", "Avenir Next", "Segoe UI Variable Display", system-ui, -apple-system, sans-serif;
+  --face-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --face-mono: ui-monospace, "Cascadia Code", "SF Mono", SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  --track-ui: -0.02em;
+  --track-mono: -0.02em;
+  --track-display: -0.015em;
+  --lh-display: 0.92;
 
   --fast: 130ms;
   --mid: 200ms;
   --slow: 340ms;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --shadow: 0 1px 2px oklch(24% 0.02 265 / 0.06), 0 4px 12px oklch(24% 0.02 265 / 0.05);
+  /* Nothing floats. Kept as a token so a rule that reaches for it gets
+     nothing rather than an undefined value. */
+  --shadow: none;
+
+  /* The dark palette, declared once here and referenced by both selectors
+     below. Two verbatim copies of thirty values is two chances to edit one
+     and forget the other, and the bug that produces only shows in one theme.
+     Dark is not the paper inverted: it is a cyanotype. Blue-black ground,
+     grid lighter than the field, and the pencil still amber. */
+  --d-ink: oklch(92% 0.010 85);
+  --d-ink-2: oklch(82% 0.014 84);
+  --d-ink-3: oklch(74% 0.016 82);
+  --d-bg: oklch(17% 0.022 264);
+  --d-surface: oklch(21.5% 0.020 264);
+  --d-surface-2: oklch(25% 0.020 264);
+  --d-line: oklch(31% 0.022 264);
+  --d-line-2: oklch(41% 0.024 264);
+  --d-accent: oklch(78% 0.125 68);
+  --d-accent-2: oklch(68% 0.125 65);
+  --d-accent-ink: oklch(19% 0.02 70);
+  --d-accent-soft: oklch(31% 0.05 68);
+  --d-blueprint: oklch(72% 0.11 264);
+  --d-blueprint-2: oklch(80% 0.12 264);
+  --d-blueprint-soft: oklch(29% 0.06 264);
+  --d-blueprint-ink: oklch(15% 0.02 264);
+  --d-grid-x: oklch(29% 0.030 264);
+  --d-grid-y: oklch(25.5% 0.026 264);
+  --d-plate: oklch(24% 0.021 264);
+  --d-plate-2: oklch(27.5% 0.022 264);
+  --d-plate-3: oklch(31% 0.024 264);
+  --d-engrave: oklch(82% 0.022 84);
+  --d-plate-ink: oklch(90% 0.012 84);
+  --d-plate-ink-2: oklch(78% 0.014 84);
+  --d-lip: oklch(100% 0 0 / 0.04);
+  --d-cut: oklch(0% 0 0 / 0.22);
+  --d-cut-hard: oklch(0% 0 0 / 0.45);
+  --d-pass: oklch(75% 0.16 152);
+  --d-pass-soft: oklch(28% 0.05 152);
+  --d-flag: oklch(80% 0.14 75);
+  --d-flag-soft: oklch(30% 0.05 75);
+  --d-fail: oklch(72% 0.17 25);
+  --d-fail-soft: oklch(30% 0.06 25);
+  --d-flag-ink: oklch(84% 0.13 78);
+  --d-shadow: none;
 }
 
 /* Three theme states, and the order matters.
@@ -91,63 +208,81 @@
  * lives inside a media query disappears the moment that query is false. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ink: oklch(93% 0.012 80);
-    --ink-2: oklch(75% 0.016 78);
-    --ink-3: oklch(68% 0.02 75);
-    --bg: oklch(17% 0.014 70);
-    --surface: oklch(21% 0.016 72);
-    --surface-2: oklch(25% 0.018 72);
-    --line: oklch(31% 0.02 72);
-    --line-2: oklch(38% 0.024 70);
-
-    --accent: oklch(78% 0.12 78);
-    --accent-ink: oklch(19% 0.02 70);
-    --accent-soft: oklch(30% 0.045 72);
-
-    --plate: oklch(24% 0.018 72);
-    --plate-2: oklch(29% 0.022 70);
-    --engrave: oklch(70% 0.03 78);
-
-    --pass: oklch(75% 0.16 152);
-    --pass-soft: oklch(28% 0.05 152);
-    --flag: oklch(80% 0.14 75);
-    --flag-soft: oklch(30% 0.05 75);
-    --fail: oklch(72% 0.17 25);
-    --fail-soft: oklch(30% 0.06 25);
-    --flag-ink: oklch(84% 0.13 78);
-
-    --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 6px 18px oklch(0% 0 0 / 0.3);
+    --ink: var(--d-ink);
+    --ink-2: var(--d-ink-2);
+    --ink-3: var(--d-ink-3);
+    --bg: var(--d-bg);
+    --surface: var(--d-surface);
+    --surface-2: var(--d-surface-2);
+    --line: var(--d-line);
+    --line-2: var(--d-line-2);
+    --accent: var(--d-accent);
+    --accent-2: var(--d-accent-2);
+    --accent-ink: var(--d-accent-ink);
+    --accent-soft: var(--d-accent-soft);
+    --blueprint: var(--d-blueprint);
+    --blueprint-2: var(--d-blueprint-2);
+    --blueprint-soft: var(--d-blueprint-soft);
+    --blueprint-ink: var(--d-blueprint-ink);
+    --grid-x: var(--d-grid-x);
+    --grid-y: var(--d-grid-y);
+    --plate: var(--d-plate);
+    --plate-2: var(--d-plate-2);
+    --plate-3: var(--d-plate-3);
+    --engrave: var(--d-engrave);
+    --plate-ink: var(--d-plate-ink);
+    --plate-ink-2: var(--d-plate-ink-2);
+    --lip: var(--d-lip);
+    --cut: var(--d-cut);
+    --cut-hard: var(--d-cut-hard);
+    --pass: var(--d-pass);
+    --pass-soft: var(--d-pass-soft);
+    --flag: var(--d-flag);
+    --flag-soft: var(--d-flag-soft);
+    --fail: var(--d-fail);
+    --fail-soft: var(--d-fail-soft);
+    --flag-ink: var(--d-flag-ink);
+    --shadow: var(--d-shadow);
   }
 }
 
 /* An explicit choice, which must beat the OS in both directions. */
 :root[data-theme="dark"] {
-    --ink: oklch(93% 0.012 80);
-    --ink-2: oklch(75% 0.016 78);
-    --ink-3: oklch(68% 0.02 75);
-    --bg: oklch(17% 0.014 70);
-    --surface: oklch(21% 0.016 72);
-    --surface-2: oklch(25% 0.018 72);
-    --line: oklch(31% 0.02 72);
-    --line-2: oklch(38% 0.024 70);
-
-    --accent: oklch(78% 0.12 78);
-    --accent-ink: oklch(19% 0.02 70);
-    --accent-soft: oklch(30% 0.045 72);
-
-    --plate: oklch(24% 0.018 72);
-    --plate-2: oklch(29% 0.022 70);
-    --engrave: oklch(70% 0.03 78);
-
-    --pass: oklch(75% 0.16 152);
-    --pass-soft: oklch(28% 0.05 152);
-    --flag: oklch(80% 0.14 75);
-    --flag-soft: oklch(30% 0.05 75);
-    --fail: oklch(72% 0.17 25);
-    --fail-soft: oklch(30% 0.06 25);
-    --flag-ink: oklch(84% 0.13 78);
-
-    --shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 6px 18px oklch(0% 0 0 / 0.3);
+  --ink: var(--d-ink);
+  --ink-2: var(--d-ink-2);
+  --ink-3: var(--d-ink-3);
+  --bg: var(--d-bg);
+  --surface: var(--d-surface);
+  --surface-2: var(--d-surface-2);
+  --line: var(--d-line);
+  --line-2: var(--d-line-2);
+  --accent: var(--d-accent);
+  --accent-2: var(--d-accent-2);
+  --accent-ink: var(--d-accent-ink);
+  --accent-soft: var(--d-accent-soft);
+  --blueprint: var(--d-blueprint);
+  --blueprint-2: var(--d-blueprint-2);
+  --blueprint-soft: var(--d-blueprint-soft);
+  --blueprint-ink: var(--d-blueprint-ink);
+  --grid-x: var(--d-grid-x);
+  --grid-y: var(--d-grid-y);
+  --plate: var(--d-plate);
+  --plate-2: var(--d-plate-2);
+  --plate-3: var(--d-plate-3);
+  --engrave: var(--d-engrave);
+  --plate-ink: var(--d-plate-ink);
+  --plate-ink-2: var(--d-plate-ink-2);
+  --lip: var(--d-lip);
+  --cut: var(--d-cut);
+  --cut-hard: var(--d-cut-hard);
+  --pass: var(--d-pass);
+  --pass-soft: var(--d-pass-soft);
+  --flag: var(--d-flag);
+  --flag-soft: var(--d-flag-soft);
+  --fail: var(--d-fail);
+  --fail-soft: var(--d-fail-soft);
+  --flag-ink: var(--d-flag-ink);
+  --shadow: var(--d-shadow);
 }
 
 * { box-sizing: border-box; }
@@ -156,546 +291,584 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font: var(--step-0)/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: var(--step-0)/1.62 var(--face-ui);
+  letter-spacing: var(--track-ui);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scores, counts and retries line up in a column. */
-.num { font-variant-numeric: tabular-nums; }
+/* The graph paper. A pseudo-element rather than a node, so no template has to
+   carry a decoration - and because #job-status is rebuilt every two seconds, a
+   decorative div in that subtree would be rebuilt with it.
 
-/* --- shell ---------------------------------------------------------------- */
-
-header {
-  padding: var(--s4) var(--s6);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  display: flex;
-  align-items: baseline;
-  gap: var(--s4);
-  flex-wrap: wrap;
+   The reference masks its grid with JS-positioned holes because its content
+   sits on transparent layers. Here every content surface is already opaque, so
+   the cut-out happens for free: the grid is visible only in the gutters, which
+   is what makes panels read as paper laid on a board rather than as regions of
+   one flat page. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, var(--grid-x) var(--hair), transparent 0),
+    linear-gradient(var(--grid-y) var(--hair), transparent 0);
+  background-size: var(--grid-unit) var(--grid-unit);
 }
-header h1 { margin: 0; font-size: var(--step-1); letter-spacing: -0.015em; }
-header a { color: inherit; text-decoration: none; }
-.sub { margin: 0; color: var(--ink-3); font-size: var(--step--1); }
 
-main { max-width: 68rem; margin: 0 auto; padding: var(--s6) var(--s5) var(--s7); }
+/* The rack is dense. The grid steps back behind it rather than competing with
+   seven lanes of live data. */
+body:has(#job-status)::before { opacity: 0.55; }
 
-/* --- panels --------------------------------------------------------------- */
+/* The label register. On a drawing every annotation is lettered, and the face
+   itself is the signal - so these do NOT also take caps and letter-spacing.
+   Mono at 13px is already unmistakably a label. */
+.engraved,
+.panel > h2,
+.brief h3,
+.nav > a,
+.readout-key,
+.stage-name,
+.lamp-tag,
+.checker .tag,
+.chip,
+.badge,
+.label,
+th,
+kbd,
+.turn .who,
+.orline,
+.rail-keys,
+.cartridge-meta,
+.choose h4,
+.stat .k,
+.src,
+.shot-meta dt,
+.hero-eyebrow .label,
+.signin-mark .label,
+.step-n,
+.lane-counts {
+  font-family: var(--face-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: none;
+  font-weight: 600;
+}
+
+/* The display register: the few places type is large enough to have a voice. */
+.nameplate-name,
+.artefact-body > h3,
+.variant-body > h3,
+.memo-title,
+.post-hook {
+  font-family: var(--face-display);
+  letter-spacing: var(--track-display);
+}
+
+/* Scores, counts and retries line up in a column. */
+.num { font-variant-numeric: tabular-nums; font-family: var(--face-mono); }
+
+.muted { color: var(--ink-3); }
+.hidden { display: none !important; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* === the three surfaces ===================================================
+ *
+ * Every bordered thing in the interface is one of these. The previous
+ * stylesheet had eleven near-identical card rules, which is why nothing in it
+ * looked decided.
+ */
+
+/* PLATE - the machine's body. A milled surface: light from above, a cut edge
+   below, and a hairline seam. */
+.plate {
+  background: linear-gradient(var(--plate), var(--plate-2));
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 0 var(--lip), 0 1px 0 var(--cut);
+}
+
+/* Engraved lettering: small caps stamped into a control panel. The label is
+   cut IN, so it takes the highlight of a groove rather than a drop shadow. */
+.engraved {
+  font-size: var(--step--1);
+  font-weight: 500;
+  color: var(--engrave);
+}
+
+/* WELL - recessed, holds content. No drop shadow anywhere: a well is cut into
+   the plate, and something floating above it would be a card, which is the
+   look this interface exists to avoid. */
+.panel,
+.lane,
+.brief {
+  background: var(--surface);
+  border: var(--hair) solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 var(--lip);
+}
 
 .panel {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--s5);
-  margin-bottom: var(--s5);
-  box-shadow: var(--shadow);
+  padding: var(--s4) var(--s5);
+  margin-bottom: var(--s4);
 }
+
 .panel > h2 {
   margin: 0 0 var(--s4);
   font-size: var(--step--1);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-3);
-  font-weight: 650;
+  color: var(--engrave);
+  font-weight: 500;
 }
+
 .panel-lead {
   margin: calc(var(--s4) * -1) 0 var(--s4);
   color: var(--ink-3);
   font-size: var(--step--1);
-  max-width: 60ch;
+  max-width: 62ch;
 }
 
-/* --- controls ------------------------------------------------------------- */
-
-label { display: block; margin-bottom: var(--s1); font-size: var(--step--1); color: var(--ink-2); }
-
-input, select, textarea {
-  font: inherit;
-  width: 100%;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--line-2);
+/* SLIP - a piece of paper on the machine. One slide, one tweet, one shot. */
+.slip {
+  background: var(--surface-2);
+  border: var(--hair) solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 0.5rem 0.65rem;
-  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+  padding: var(--s3) var(--s4);
 }
-input:hover, select:hover, textarea:hover { border-color: var(--ink-3); }
 
-/* Focus is visible everywhere. There was none at all before. */
-:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+/* === layout primitives ==================================================== */
+
+/* A fixed-count row. The count is meaningful, so the breakpoints are chosen
+   rather than emergent. Seven switches in one row IS a control bank; a ragged
+   four-then-three is a card grid, which is what auto-fit produced. */
+.bank {
+  display: grid;
+  gap: var(--s2);
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 40rem) { .bank { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 68rem) { .bank { grid-template-columns: repeat(7, 1fr); } }
+
+/* Four stages, so a different rhythm. */
+.bank-4 { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 44rem) { .bank-4 { grid-template-columns: repeat(4, 1fr); } }
+
+/* Three steps. Unlike .bank-4 this is used standalone, so it declares the grid
+   itself rather than assuming .bank came first. */
+.bank-3 { display: grid; grid-template-columns: 1fr; gap: var(--s3); }
+@media (min-width: 44rem) { .bank-3 { grid-template-columns: repeat(3, 1fr); } }
+
+/* Side-by-side reading. The only place auto-fit is honest: two or three
+   variants, and the count genuinely varies. */
+.compare {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  align-items: start;
+}
+
+/* Form fields at a readable measure. */
+.field-grid {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+/* === shell ================================================================ */
+
+header {
+  padding: var(--s3) var(--s5);
+  background: linear-gradient(var(--plate), var(--plate-2));
+  border-bottom: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 0 var(--lip), 0 1px 0 var(--cut);
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+/* The nameplate, the way a machine carries one: stamped into the plate, once,
+   and never repeated down the page. */
+.nameplate {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+.nameplate-mark {
+  display: grid;
+  place-items: center;
+  width: 2.4rem; height: 2.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  background: linear-gradient(var(--plate-2), var(--plate-3));
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 0 var(--lip);
+  flex: none;
+}
+.nameplate-text { display: flex; flex-direction: column; line-height: 1.25; }
+.nameplate-name {
+  font-weight: 680;
+  font-size: var(--step-1);
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.sub {
+  margin: 0;
+  color: var(--plate-ink-2);
+  font-size: var(--step--1);
+}
+/* What the machine is loaded with, in the rail. */
+.readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: var(--s1) var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--blueprint);
+  border: var(--hair) solid var(--blueprint);
+  color: var(--blueprint-ink);
+  margin-left: auto;
+}
+.readout-key {
+  font-size: 0.8125rem;
+  color: color-mix(in oklch, var(--blueprint-ink) 72%, transparent);
+  font-weight: 500;
+  letter-spacing: var(--track-mono);
+  text-transform: none;
+}
+.readout-value { font-weight: 500; color: var(--blueprint-ink); }
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: var(--s5) var(--s5) var(--s6);
+}
+/* Before a source exists the studio is one short form, and a page-height
+   footer under it reads as a broken layout rather than as breathing room. */
+body:not(:has(#job-status)) main { padding-bottom: var(--s5); }
+/* The job view is an instrument, not a document, so it gets more bench than a
+   form does - but 90rem stretched seven short lane rows across a wide screen
+   and made a dense view look sparse. The rack is a list; a list wants a
+   measure, not a wall. */
+body:has(#job-status) main { max-width: 72rem; }
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.readout ~ .nav { margin-left: 0; }
+
+.nav > a {
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: var(--step--1);
+  font-weight: 620;
+  padding: var(--s1) var(--s2);
+  border-radius: var(--radius-sm);
+  border-bottom: var(--hair-2) solid transparent;
+}
+.nav > a:hover { color: var(--ink); }
+.nav > a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+}
+
+/* Three states, one control: a rocker on the panel. */
+.theme-switch {
+  display: inline-flex;
+  border: var(--hair) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--plate-3);
+  box-shadow: inset 0 1px 2px var(--cut);
+}
+.theme-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--plate-ink-2);
+  font-size: 0.75rem;
+  font-weight: 620;
+  padding: var(--s1) var(--s3);
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: none;
+}
+.theme-switch button + button { border-left: var(--hair) solid var(--line-2); }
+.theme-switch button:hover { color: var(--ink); }
+.theme-switch button[aria-pressed="true"] {
+  background: linear-gradient(var(--plate), var(--plate-2));
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--lip);
+}
+
+.whoami {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--step--1);
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 1.6rem; height: 1.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  flex: none;
+}
+.whoami.anon .avatar { background: var(--ink-3); }
+
+/* === controls =============================================================
+ *
+ * Everything the operator touches is a physical thing: a lit top edge at
+ * rest, and it goes DOWN when pressed. One vocabulary, used everywhere.
+ */
+
+label {
+  display: block;
+  margin-bottom: var(--s1);
+  font-size: var(--step--1);
+  color: var(--ink-2);
+  font-weight: 560;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="email"],
+input[type="password"],
+input[type="file"],
+select,
+textarea {
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  border: var(--hair) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  box-shadow: inset 0 1px 2px var(--cut);
+}
+textarea { resize: vertical; }
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 button {
   font: inherit;
-  font-weight: 600;
-  color: var(--accent-ink);
-  background: var(--accent);
-  border: 1px solid transparent;
+  font-weight: 620;
+  padding: var(--s2) var(--s4);
   border-radius: var(--radius-sm);
-  padding: 0.55rem 1.1rem;
+  border: var(--hair) solid var(--accent);
+  background: linear-gradient(var(--accent-2), var(--accent));
+  color: var(--accent-ink);
   cursor: pointer;
-  transition: transform var(--fast) var(--ease), filter var(--fast) var(--ease),
-              box-shadow var(--fast) var(--ease);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.22), 0 1px 0 var(--cut);
+  transition: transform var(--fast) var(--ease), filter var(--fast) var(--ease);
 }
-button:hover { filter: brightness(1.08); }
-/* Every action confirms it was received. */
-button:active { transform: translateY(1px) scale(0.995); }
-button[disabled] { opacity: 0.55; cursor: not-allowed; transform: none; filter: none; }
+button:hover { filter: brightness(1.06); }
+/* Pressed means pressed: the control moves down and loses its lit edge. */
+button:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px var(--cut-hard);
+}
+button[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 button.secondary {
-  background: transparent;
-  color: var(--accent);
+  background: linear-gradient(var(--plate), var(--plate-2));
+  color: var(--ink);
   border-color: var(--line-2);
+  box-shadow: inset 0 1px 0 var(--lip), 0 1px 0 var(--cut);
 }
-button.secondary:hover { border-color: var(--accent); background: var(--accent-soft); }
 
 button.ghost {
   background: transparent;
+  border-color: transparent;
   color: var(--ink-2);
-  border-color: var(--line-2);
+  box-shadow: none;
+}
+button.ghost:hover { color: var(--ink); background: var(--plate-3); }
+button.tiny { padding: var(--s1) var(--s2); font-size: var(--step--1); }
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-top: var(--s4);
+}
+
+a {
+  color: var(--blueprint-2);
+  text-decoration: underline dotted;
+  text-decoration-thickness: from-font;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklch, var(--blueprint-2) 45%, transparent);
+  transition: color var(--fast) var(--ease), text-decoration-color var(--fast) var(--ease);
+}
+a:hover {
+  color: var(--blueprint);
+  text-decoration-color: currentColor;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: var(--step--1); }
+th, td { text-align: left; padding: var(--s2) var(--s3); border-bottom: var(--hair) solid var(--line); }
+th {
+  color: var(--engrave);
+  font-size: 0.8125rem;
+  letter-spacing: 0.09em;
   font-weight: 500;
 }
-button.ghost:hover { color: var(--ink); border-color: var(--ink-3); }
+tbody tr:hover { background: var(--surface-2); }
 
-.actions { display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap; margin-top: var(--s4); }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: var(--surface-2);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line);
+}
 
-/* --- in-flight feedback --------------------------------------------------- */
+details > summary { cursor: pointer; color: var(--ink-2); font-size: var(--step--1); }
+details > summary:hover { color: var(--ink); }
 
-/* htmx sets .htmx-request on the indicator while a call is in flight. Before
-   this, clicking Generate gave no feedback at all until the redirect landed. */
+.ico {
+  width: 1em; height: 1em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex: none;
+}
+
+/* Work in flight. htmx adds .htmx-request to the disabled element, and these
+   two are the only things that respond to it. */
 .spinner {
   display: none;
-  width: 0.95em;
-  height: 0.95em;
+  width: 0.85em; height: 0.85em;
   border: 2px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
-  animation: spin 620ms linear infinite;
-  vertical-align: -0.12em;
+  animation: spin 1s linear infinite;
 }
-.htmx-request .spinner, .spinner.htmx-request { display: inline-block; }
+.working { display: none; color: var(--ink-3); font-size: var(--step--1); }
+/* Scoped to the control that made the request, never to an ancestor.
+   `.htmx-request .spinner` is a DESCENDANT selector, and #job-status carries
+   .htmx-request for the duration of its own two-second poll - so every spinner
+   inside the region, including the one in the Stop button, flashed into view
+   twice a second whether or not anyone had pressed anything.
+
+   :scope-style fix: a spinner shows when the element that owns it is the one
+   in flight (a button, or a form htmx marked), not when something above it is. */
+button.htmx-request .spinner,
+form.htmx-request .spinner,
+a.htmx-request .spinner,
+.htmx-request.spinner { display: inline-block; }
+button.htmx-request ~ .working,
+form.htmx-request ~ .working,
+.htmx-request ~ .working { display: inline; }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.htmx-request button[type="submit"] { opacity: 0.7; pointer-events: none; }
+/* Ghost cards. A spinner says "something is happening"; these say WHAT is
+   happening - a take being written, or three of them in turn. The wait for
+   three variants is roughly three generations long, and an unqualified
+   spinner over that duration reads as a hang.
 
-.working { color: var(--ink-3); font-size: var(--step--1); display: none; }
-.htmx-request .working { display: inline; }
-
-/* --- mode switch: describe it, or pick from lists ------------------------- */
-
-.modes {
+   Period is 2s, dividing the poll, so a swap mid-animation lands where the
+   animation already was. */
+.ghosts {
   display: inline-flex;
   gap: var(--s1);
-  padding: var(--s1);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  margin-bottom: var(--s4);
+  margin-left: var(--s2);
+  vertical-align: middle;
 }
-.modes button {
-  background: transparent;
-  color: var(--ink-2);
-  font-size: var(--step--1);
-  font-weight: 550;
-  padding: 0.35rem 0.9rem;
-  border-radius: 999px;
-}
-.modes button[aria-pressed="true"] {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow);
-}
-
-/* --- the interview -------------------------------------------------------- */
-
-.chat { display: flex; flex-direction: column; gap: var(--s3); margin-bottom: var(--s4); }
-.turn {
-  padding: var(--s3) var(--s4);
-  border-radius: var(--radius);
-  max-width: 58ch;
-  font-size: var(--step-0);
-  animation: rise var(--slow) var(--ease) both;
-}
-.turn.assistant { background: var(--surface-2); border: 1px solid var(--line); }
-.turn.operator {
-  background: var(--accent-soft);
-  border: 1px solid transparent;
-  align-self: flex-end;
-  color: var(--ink);
-}
-.turn .who {
+.ghosts i {
   display: block;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-3);
-  margin-bottom: var(--s1);
-}
-@keyframes rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
-
-.brief {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--s4);
-  background: var(--surface-2);
-}
-.brief h3 {
-  margin: 0 0 var(--s1);
-  font-size: var(--step--1);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-3);
-}
-.brief-note { margin: 0 0 var(--s4); color: var(--ink-3); font-size: var(--step--1); }
-
-/* --- format picker -------------------------------------------------------- */
-
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--s4); }
-.formats { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--s3); }
-
-.format {
-  display: flex;
-  gap: var(--s3);
-  align-items: flex-start;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
-  padding: var(--s3) var(--s4);
-  cursor: pointer;
-  transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease),
-              transform var(--fast) var(--ease);
-}
-.format:hover { border-color: var(--accent); transform: translateY(-1px); }
-.format:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
-.format:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-.format input { width: auto; margin-top: 0.25rem; accent-color: var(--accent); }
-.format .name { font-weight: 620; font-size: var(--step-0); display: block; }
-.format .desc { color: var(--ink-3); font-size: var(--step--1); line-height: 1.45; }
-
-/* --- verdicts ------------------------------------------------------------- */
-
-.badge {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  border-radius: 999px;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border: 1px solid transparent;
-}
-.badge.passed { background: var(--pass-soft); color: var(--pass); border-color: var(--pass); }
-.badge.passed_flagged { background: var(--flag-soft); color: var(--flag); border-color: var(--flag); }
-.badge.blocked, .badge.failed, .badge.failed_recoverable, .badge.failed_permanent,
-.badge.stopped_qa_budget {
-  background: var(--fail-soft); color: var(--fail); border-color: var(--fail);
-}
-.badge.pending, .badge.generating, .badge.qa, .badge.queued, .badge.running, .badge.done {
-  background: var(--surface-2); color: var(--ink-2); border-color: var(--line-2);
-}
-/* Work in progress reads as in progress. */
-.badge.generating, .badge.qa, .badge.running { animation: pulse 1.8s var(--ease) infinite; }
-@keyframes pulse { 50% { opacity: 0.55; } }
-
-/* --- artefacts ------------------------------------------------------------ */
-
-.artefact {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  margin-bottom: var(--s4);
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  animation: rise var(--slow) var(--ease) both;
-}
-.artefact-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--s3);
-  padding: var(--s3) var(--s4);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-2);
-}
-.artefact-head strong { font-size: var(--step-0); }
-.artefact-body { padding: var(--s4); }
-.counts { color: var(--ink-3); font-size: var(--step--1); }
-
-.checkers { display: flex; flex-wrap: wrap; gap: var(--s2); margin-bottom: var(--s3); }
-.checker {
-  font-size: var(--step--1);
-  padding: 0.2rem 0.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line-2);
-  background: var(--surface);
-  display: inline-flex;
-  gap: 0.4rem;
-  align-items: baseline;
-  animation: rise var(--mid) var(--ease) both;
-}
-/* Verdict is never carried by colour alone: the mark and the word carry it. */
-.checker.ok { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
-.checker.bad { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
-.checker .mark { font-weight: 700; }
-.checker .score { font-variant-numeric: tabular-nums; opacity: 0.85; }
-
-.fixnote {
-  background: var(--flag-soft);
-  border: 1px solid var(--flag);
-  border-radius: var(--radius-sm);
-  padding: var(--s3);
-  margin-bottom: var(--s2);
-  font-size: var(--step--1);
-}
-.fixnote strong { color: var(--flag-ink); }
-
-.stop {
-  background: var(--fail-soft);
-  border: 1px solid var(--fail);
-  border-radius: var(--radius);
-  padding: var(--s4);
-  margin-bottom: var(--s4);
-}
-.stop strong { color: var(--fail); }
-
-.notice {
-  background: var(--flag-soft);
-  border: 1px solid var(--flag);
-  border-radius: var(--radius-sm);
-  padding: var(--s3) var(--s4);
-  margin-bottom: var(--s4);
-  font-size: var(--step--1);
-}
-
-/* --- progress ------------------------------------------------------------- */
-
-.progress { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s4); flex-wrap: wrap; }
-.progress .count { font-size: var(--step-1); font-weight: 650; font-variant-numeric: tabular-nums; }
-.track { flex: 1 1 12rem; height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
-.track > i {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  border-radius: 999px;
-  transition: width var(--slow) var(--ease);
-}
-
-/* --- artefact bodies ------------------------------------------------------ */
-
-/* One class for the repeated sub-item. The same four inline properties were
-   copy-pasted across tweets, scenes, slides and panels. */
-.item {
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: var(--s3) var(--s4);
-  margin-bottom: var(--s2);
-  background: var(--surface);
-}
-.item-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); }
-.item h4 { margin: 0 0 var(--s1); font-size: var(--step-0); }
-.artefact-body h3 { margin: 0 0 var(--s2); font-size: var(--step-1); }
-.artefact-body p { margin: 0 0 var(--s3); }
-.prose { white-space: pre-wrap; }
-
-.claim { font-size: var(--step--1); color: var(--ink-2); margin: var(--s1) 0; }
-.claim code {
-  color: var(--accent);
-  background: var(--accent-soft);
-  padding: 0.05rem 0.3rem;
-  border-radius: 4px;
-  font-size: 0.85em;
-}
-
-details > summary {
-  cursor: pointer;
-  color: var(--ink-3);
-  font-size: var(--step--1);
-  padding: var(--s1) 0;
-}
-details > summary:hover { color: var(--ink); }
-
-/* --- tables --------------------------------------------------------------- */
-
-table { width: 100%; border-collapse: collapse; font-size: var(--step--1); }
-th, td { text-align: left; padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line); }
-th {
-  color: var(--ink-3);
-  font-weight: 650;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-tbody tr { transition: background var(--fast) var(--ease); }
-tbody tr:hover { background: var(--surface-2); }
-
-.muted { color: var(--ink-3); }
-a { color: var(--accent); }
-.filelink {
-  display: inline-block;
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius-sm);
-  padding: 0.25rem 0.65rem;
-  margin: var(--s1) var(--s1) 0 0;
-  text-decoration: none;
-  font-size: var(--step--1);
-  transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease);
-}
-.filelink:hover { border-color: var(--accent); background: var(--accent-soft); }
-
-pre {
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: var(--s3);
-  overflow-x: auto;
-  font-size: var(--step--1);
-}
-
-.empty {
-  text-align: center;
-  padding: var(--s6) var(--s4);
-  color: var(--ink-3);
-  border: 1px dashed var(--line-2);
-  border-radius: var(--radius);
-}
-
-.hidden { display: none !important; }
-
-/* --- honour the setting --------------------------------------------------- */
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* --- learned preferences -------------------------------------------------- */
-
-.notes { list-style: none; margin: 0 0 var(--s4); padding: 0; }
-.notes li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s3);
-  padding: var(--s2) var(--s3);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  margin-bottom: var(--s2);
-  background: var(--surface-2);
-  font-size: var(--step--1);
-}
-.notes form { margin: 0; }
-button.tiny { padding: 0.15rem 0.5rem; font-size: 0.6875rem; }
-
-/* --- choosing between versions -------------------------------------------- */
-
-.choose {
-  border-top: 1px solid var(--line);
-  margin-top: var(--s4);
-  padding-top: var(--s4);
-}
-.choose h4 { margin: 0 0 var(--s3); font-size: var(--step-0); }
-
-.variants {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
-  gap: var(--s3);
-  align-items: start;
-}
-.variant {
-  border: 1px solid var(--line-2);
-  border-radius: var(--radius);
-  padding: var(--s4);
-  background: var(--surface);
-  transition: border-color var(--fast) var(--ease), transform var(--fast) var(--ease);
-  animation: rise var(--slow) var(--ease) both;
-}
-.variant:hover { border-color: var(--accent); transform: translateY(-1px); }
-/* The chosen one reads as settled, not as a winner's rosette. */
-.variant.is-chosen {
-  border-color: var(--pass);
-  background: var(--pass-soft);
-  transform: none;
-}
-.variant.is-out { opacity: 0.6; }
-.variant-head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s2);
-  margin-bottom: var(--s3);
-  flex-wrap: wrap;
-}
-.variant-head strong {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 1.6rem;
-  height: 1.6rem;
+  height: 0.45rem;
+  border-radius: 1px;
+  background: var(--line-2);
+  opacity: 0.35;
+  animation: ghost-fill 2s ease-in-out infinite;
+  /* Each take starts a third of a cycle after the one before, so the group
+     reads as three separate pieces of work rather than one pulsing block. */
+  animation-delay: calc(var(--g, 0) * 660ms);
+}
+.ghosts.is-one i { width: 2.4rem; }
+
+@keyframes ghost-fill {
+  0%, 100% { opacity: 0.25; background: var(--line-2); }
+  45%      { opacity: 1;    background: var(--accent); }
+}
+
+/* A QA retry, while it is happening. The counter has already incremented -
+   what this adds is that the checkers are running against the new attempt
+   right now, which is the difference between "this failed twice" and "this is
+   being re-checked". */
+.counts.is-retrying {
+  color: var(--flag-ink);
+  font-weight: 600;
+}
+.retry-pips {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: var(--s1);
+  vertical-align: middle;
+}
+.retry-pips i {
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: var(--step--1);
+  background: var(--flag);
+  animation: retry-pip 1s ease-in-out infinite;
 }
-.variant.is-chosen .variant-head strong { background: var(--pass); }
-.variant-body { font-size: var(--step--1); }
-.variant-body h3 { font-size: var(--step-0); }
-.chosen-mark { color: var(--pass); font-size: var(--step--1); font-weight: 600; margin: 0; }
+.retry-pips i:nth-child(2) { animation-delay: -333ms; }
+.retry-pips i:nth-child(3) { animation-delay: -666ms; }
 
-/* --- rating an artefact ---------------------------------------------------- */
-
-.rate {
-  display: flex;
-  align-items: center;
-  gap: var(--s2);
-  flex-wrap: wrap;
-  margin-top: var(--s4);
-  padding-top: var(--s3);
-  border-top: 1px solid var(--line);
+@keyframes retry-pip {
+  0%, 100% { opacity: 0.25; transform: translateY(0); }
+  50%      { opacity: 1;    transform: translateY(-2px); }
 }
-.rate form { display: contents; }
-.rate-label { font-size: var(--step--1); color: var(--ink-3); margin-right: var(--s1); }
-.rate .reason {
-  width: auto;
-  flex: 1 1 16rem;
-  font-size: var(--step--1);
-  padding: 0.3rem 0.55rem;
-}
-button.thumb {
-  background: transparent;
-  color: var(--ink-2);
-  border: 1px solid var(--line-2);
-  font-size: var(--step--1);
-  font-weight: 550;
-  padding: 0.3rem 0.7rem;
-}
-button.thumb:hover { border-color: var(--pass); color: var(--pass); }
-button.thumb.down:hover { border-color: var(--fail); color: var(--fail); }
-/* The recorded verdict reads as settled, not as a score. */
-button.thumb.on { background: var(--pass-soft); border-color: var(--pass); color: var(--pass); }
-button.thumb.down.on { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
 
 /* === format identity ======================================================
  *
- * Seven formats race through one job, and on the status board the operator is
- * looking for ONE of them - the deck that stalled, the tweet that failed tone.
- * A per-format hue plus a glyph makes that a glance instead of a read.
- *
- * Hues are spaced around the wheel and kept at one chroma and lightness, so no
- * format shouts louder than another. They are identity, never status: the
- * verdict colours (--pass/--flag/--fail) are the only things allowed to mean
- * good or bad, and nothing here may borrow them.
+ * Seven formats, seven hues, and a rack of seven artefacts that has to be
+ * scannable. Hues are spaced around the wheel and kept at one chroma and
+ * lightness, so no format shouts louder than another. They are identity,
+ * never status: the verdict colours (--pass/--flag/--fail) are the only
+ * things allowed to mean good or bad, and nothing here may borrow them.
  */
 :root {
   --fmt-video_package:  oklch(64% 0.16 22);    /* red-orange */
@@ -718,676 +891,1820 @@ button.thumb.down.on { background: var(--fail-soft); border-color: var(--fail); 
 [data-fmt="exec_summary"]  { --fmt: var(--fmt-exec_summary); }
 [data-fmt="presentation"]  { --fmt: var(--fmt-presentation); }
 
-/* The glyph. A square of the format's own colour, sized to the text beside
-   it so a row of them lines up whatever the label length. */
+/* The glyph. A square of the format colour, sized to the text beside it so a
+   row of them lines up whatever the label length. */
 .fmt-dot {
   width: 0.7em;
   height: 0.7em;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: var(--fmt);
   display: inline-block;
   flex: none;
 }
 
-/* === shell: tabs ==========================================================
+/* === verdicts =============================================================
  *
- * Two places to be - the studio and its settings - so the nav is two links,
- * not a menu. It sits in the header rather than a sidebar because at this
- * count a sidebar is furniture with nothing in it.
+ * Never colour alone. Every badge states its verdict in words, every lamp
+ * carries a mark, and the whole strip has a spoken form (WCAG 1.4.1).
  */
-.nav { display: flex; gap: var(--s1); margin-left: auto; align-items: center; }
-.nav a {
-  color: var(--ink-2);
-  text-decoration: none;
-  padding: var(--s2) var(--s3);
-  border-radius: var(--radius-sm);
-  font-size: var(--step--1);
-  font-weight: 560;
-  border: 1px solid transparent;
-  transition: color var(--fast) var(--ease), background var(--fast) var(--ease);
-}
-.nav a:hover { color: var(--ink); background: var(--surface-2); }
-.nav a[aria-current="page"] {
-  color: var(--accent);
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
 
-/* Theme control. Three states, because "follow the OS" is a real answer and a
-   two-way switch cannot express it. */
-.theme-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
-.theme-switch button {
-  background: transparent;
-  color: var(--ink-3);
-  border: 0;
-  border-radius: 0;
-  padding: var(--s1) var(--s3);
-  font-size: var(--step--1);
-  box-shadow: none;
-}
-.theme-switch button:hover { background: var(--surface-2); color: var(--ink); filter: none; }
-.theme-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
-
-/* Profile chip in the header: who the platform thinks is asking. */
-.whoami {
+.badge {
   display: inline-flex;
   align-items: center;
+  gap: var(--s1);
+  padding: 0.1rem var(--s2);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 680;
+  border: var(--hair) solid transparent;
+  white-space: nowrap;
+}
+.badge.passed { background: var(--pass-soft); color: var(--pass); border-color: var(--pass); }
+.badge.passed_flagged { background: var(--flag-soft); color: var(--flag-ink); border-color: var(--flag); }
+.badge.blocked,
+.badge.failed,
+.badge.failed_recoverable,
+.badge.failed_permanent,
+.badge.stopped_qa_budget { background: var(--fail-soft); color: var(--fail); border-color: var(--fail); }
+/* Asked for, not gone wrong. Amber, not red. */
+.badge.stopped_by_operator { background: var(--flag-soft); color: var(--flag-ink); border-color: var(--flag); }
+.badge.pending,
+.badge.generating,
+.badge.qa,
+.badge.queued,
+.badge.running,
+.badge.done { background: var(--plate-3); color: var(--plate-ink); border-color: var(--line-2); }
+
+/* A running job breathes. Two seconds exactly: the poll rebuilds this element
+   on that beat, so a restart lands where the animation already was instead of
+   stuttering back to the first frame.
+
+   Deliberately shallow. At 0.55 this read as a pulsating control - it sits in
+   the same row as the Stop button, and motion beside a button people are
+   deciding whether to press is motion working against them. The stage lamps
+   and the fan-out already say "running"; this only has to avoid looking
+   frozen, so it moves just enough to notice and not enough to watch. */
+.badge.running,
+.badge.queued { animation: breathe 2s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: 0.86; } }
+
+.checkers {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--s2);
+  margin: var(--s3) 0;
+}
+.checker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--step--1);
+  padding: 0.1rem var(--s2);
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.checker .mark { font-weight: 700; }
+.checker.ok { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
+.checker.bad { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
+.checker.live { border-style: dashed; }
+.checker .score { font-variant-numeric: tabular-nums; opacity: 0.85; }
+.checker .tag {
+  font-size: 0.75rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--plate-3);
+  color: var(--plate-ink-2);
+  border: var(--hair) solid var(--line-2);
+}
+
+/* What QA actually said, and how to fix it. Primary content rather than a
+   diagnostic: the failure is the interesting part. */
+.fixnote {
   font-size: var(--step--1);
   color: var(--ink-2);
-  padding: var(--s1) var(--s3);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-}
-.whoami .avatar {
-  width: 1.35rem;
-  height: 1.35rem;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: 0.6875rem;
-  font-weight: 700;
-}
-.whoami.anon .avatar { background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line-2); }
-
-/* === settings =============================================================
- * Sections stack in one column. No card inside a card: a section IS the card,
- * and the rows within it are rows.
- */
-.settings-nav { display: flex; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s5); }
-.settings-nav a {
-  font-size: var(--step--1);
+  background: var(--flag-soft);
+  border: var(--hair) solid var(--flag);
+  border-radius: var(--radius-sm);
   padding: var(--s2) var(--s3);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  text-decoration: none;
+  margin: var(--s2) 0;
+}
+.fixnote strong { color: var(--flag-ink); }
+
+.notice,
+.stop,
+.empty,
+.warn {
+  font-size: var(--step--1);
+  border-radius: var(--radius-sm);
+  padding: var(--s3) var(--s4);
+  margin: var(--s3) 0;
+  border: var(--hair) solid var(--line-2);
+  background: var(--surface-2);
   color: var(--ink-2);
 }
-.settings-nav a:hover { border-color: var(--accent); color: var(--accent); }
+.stop { background: var(--fail-soft); border-color: var(--fail); color: var(--ink); }
+.stop strong { color: var(--fail); }
+.warn { background: var(--flag-soft); border-color: var(--flag); }
+.empty { text-align: center; color: var(--ink-3); border-style: dashed; }
 
-.row {
+/* A failure, said in words. Amber rather than red: a rate limit is not a
+   defect in the work, and colouring it like a failed check would put it in the
+   same visual class as a safety block, which is a different kind of problem
+   entirely. */
+.mishap {
+  border: var(--hair) solid var(--flag);
+  border-left: 3px solid var(--flag);
+  border-radius: var(--radius-sm);
+  background: var(--flag-soft);
+  padding: var(--s3) var(--s4);
+  margin: 0 0 var(--s3);
+}
+.mishap.is-job { margin: var(--s3) 0 0; }
+
+.mishap-head {
+  margin: 0 0 var(--s1);
+  font-weight: 600;
+  color: var(--flag-ink);
+}
+.mishap-advice {
+  margin: 0;
+  font-size: var(--step--1);
+  color: var(--ink-2);
+  max-width: 70ch;
+}
+.mishap-count { color: var(--ink-3); }
+
+.mishap-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+}
+.mishap-act {
+  display: inline-block;
+  padding: var(--s1) var(--s3);
+  border: var(--hair) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--face-mono);
+  font-size: var(--step--1);
+  letter-spacing: var(--track-mono);
+  text-decoration: none;
+  transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+.mishap-act:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+.mishap-act.is-primary { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.mishap-act.is-primary:hover { background: var(--accent-2); }
+
+/* The original exception, one disclosure away. A summary that hides the only
+   diagnostic detail is worse than the jargon it replaced. */
+.mishap-raw { margin-top: var(--s2); }
+.mishap-raw > summary {
+  cursor: pointer;
+  font-size: var(--step--1);
+  color: var(--ink-3);
+}
+.mishap-detail {
+  margin: var(--s2) 0 0;
+  font-family: var(--face-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ink-3);
+  word-break: break-word;
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+/* === the studio: a control desk ===========================================
+ *
+ * Emphasis is intake, then formats, then the brief. The brief already has a
+ * good default because the interview proposes one; the source and the formats
+ * are the two decisions only the operator can make.
+ */
+
+/* Intake. A target you can throw a file at, rather than a file input hidden
+   in a row of fields. */
+.dropzone {
+  border: var(--hair-2) dashed var(--line-2);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  padding: var(--s4);
+  text-align: center;
+  transition: border-color var(--mid) var(--ease), background var(--mid) var(--ease);
+}
+.dropzone.is-armed {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.dropzone.has-file { border-style: solid; border-color: var(--accent); }
+.dropzone-lead {
+  font-weight: 620;
+  color: var(--ink);
+  margin: 0 0 var(--s1);
+}
+.dropzone-hint { font-size: var(--step--1); color: var(--ink-3); margin: 0 0 var(--s3); }
+.dropzone input[type="file"] { max-width: 26rem; margin: 0 auto; }
+.drop-name {
+  display: block;
+  margin-top: var(--s2);
+  font-size: var(--step--1);
+  color: var(--accent);
+  font-weight: 620;
+  min-height: 1.2em;
+}
+
+/* Alternatives to the drop target. A rule with a word in it, because two
+   fields stacked with no relationship stated read as two required steps. */
+.orline {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin: var(--s4) 0;
+  color: var(--ink-3);
+  font-size: var(--step--1);
+}
+.orline::before,
+.orline::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--line);
+}
+
+/* Sources already in the machine: cartridges on a shelf, not table rows. */
+.cartridges {
+  display: flex;
+  gap: var(--s2);
+  overflow-x: auto;
+  padding-bottom: var(--s2);
+  margin-top: var(--s3);
+}
+.cartridge {
+  flex: 0 0 auto;
+  max-width: 15rem;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line-2);
+  background: linear-gradient(var(--plate), var(--plate-2));
+  box-shadow: inset 0 1px 0 var(--lip);
+  text-decoration: none;
+  color: var(--ink);
+  font-size: var(--step--1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.cartridge:hover { border-color: var(--accent); color: var(--ink); }
+.cartridge-title {
+  font-weight: 620;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cartridge-meta { color: var(--ink-3); font-size: 0.8125rem; }
+
+/* Who the drafts are written as. One line, and not what the operator came
+   here to do. */
+.wholine {
+  font-size: var(--step--1);
+  color: var(--ink-3);
+  margin: calc(var(--s5) * -1 + var(--s2)) 0 var(--s5);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+.wholine a { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+/* Two front doors onto the same six fields. */
+.modes {
+  display: inline-flex;
+  border: var(--hair) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--plate-3);
+  box-shadow: inset 0 1px 2px var(--cut);
+  margin-bottom: var(--s4);
+}
+.modes button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--plate-ink-2);
+  font-size: var(--step--1);
+  box-shadow: none;
+  padding: var(--s2) var(--s4);
+}
+.modes button + button { border-left: var(--hair) solid var(--line-2); }
+.modes button[aria-pressed="true"] {
+  background: linear-gradient(var(--plate), var(--plate-2));
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--lip);
+}
+
+/* === the interview: a paper tape ==========================================
+ *
+ * Not chat bubbles. A conversation is the input method here, not the product,
+ * and right-aligned pills in an accent colour would make this look like the
+ * one thing PRODUCT.md names as an anti-reference. So: a teleprinter feed,
+ * one column, speaker stamped in the margin.
+ */
+.chat {
+  border-left: var(--hair) solid var(--line);
+  padding-left: var(--s4);
+  margin-bottom: var(--s4);
+  max-width: 68ch;
+}
+.turn {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  font-size: var(--step--1);
+  border-bottom: var(--hair) dashed var(--line);
+}
+.turn:last-child { border-bottom: 0; }
+.turn .who {
+  font-size: 0.8125rem;
+  font-weight: 680;
+  color: var(--ink-3);
+  padding-top: 0.15rem;
+}
+.turn.operator .who { color: var(--accent); }
+.turn.assistant { color: var(--ink-2); }
+
+.brief-note {
+  font-size: var(--step--1);
+  color: var(--ink-2);
+  background: var(--accent-soft);
+  border: var(--hair) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: var(--s2) var(--s3);
+}
+
+/* The brief itself: six slots on the plate, always readable, always editable.
+   The interview proposes; these stay the operator to change. */
+.brief {
+  padding: var(--s4);
+  margin-top: var(--s4);
+}
+.brief h3 {
+  margin: 0 0 var(--s3);
+  font-size: var(--step--1);
+  color: var(--engrave);
+  font-weight: 500;
+}
+
+/* === the switch bank ======================================================
+ *
+ * Seven formats in one row. Seven identical switches IS a control bank; the
+ * ragged four-then-three that auto-fit produced is a card grid, which is the
+ * difference between an instrument and a website.
+ */
+.switchbank { margin-bottom: var(--s2); }
+
+.format {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s3);
+  padding-top: calc(var(--s3) + 3px);
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line-2);
+  background: linear-gradient(var(--plate), var(--plate-2));
+  box-shadow: inset 0 1px 0 var(--lip), 0 1px 0 var(--cut);
+  cursor: pointer;
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+  overflow: hidden;
+}
+/* The format hue is a lit strip along the TOP edge of the switch. A bank of
+   switches is lit from above; a stripe down the left side would be the card
+   accent this interface is built to avoid. */
+.format::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--fmt);
+  opacity: 0.45;
+  transition: opacity var(--fast) var(--ease);
+}
+.format:hover { filter: brightness(1.02); }
+.format input { position: absolute; opacity: 0; pointer-events: none; }
+
+.format-top {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 620;
+  color: var(--ink);
+  font-size: var(--step--1);
+}
+.format .name { line-height: 1.25; }
+.format .desc {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.format-meta { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: auto; padding-top: var(--s1); }
+.chip {
+  font-size: 0.75rem;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line-2);
+  color: var(--ink-3);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.chip.subtle { opacity: 0.75; }
+
+/* Selected means depressed. The switch sits down into the plate, its lit edge
+   is gone, and its hue comes fully on. */
+.format:has(input:checked) {
+  background: var(--surface);
+  border-color: var(--fmt);
+  box-shadow: inset 0 2px 4px var(--cut-hard);
+  transform: translateY(1px);
+}
+.format:has(input:checked)::before { opacity: 1; }
+.format:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* === the run rail =========================================================
+ *
+ * What the machine is loaded with, and the control that starts it, pinned to
+ * the bottom edge so the operator never has to scroll to find out what will
+ * happen when they press it.
+ */
+.runrail {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: var(--s4);
-  padding: var(--s3) 0;
-  border-bottom: 1px solid var(--line);
   flex-wrap: wrap;
+  margin-top: var(--s5);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  background: linear-gradient(var(--plate), var(--plate-2));
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 0 var(--lip), 0 -2px 12px var(--cut);
 }
-.row:last-child { border-bottom: 0; }
-.row .row-main { flex: 1 1 16rem; min-width: 0; }
-.row .row-title { font-weight: 600; display: flex; align-items: center; gap: var(--s2); }
-.row .row-sub { color: var(--ink-3); font-size: var(--step--1); margin-top: 2px; }
-.row form { margin: 0; }
-
-/* Where a key came from. "saved" and "env" are both fine; "none" is the only
-   one that needs to catch the eye. */
-.src {
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  border: 1px solid var(--line-2);
-  color: var(--ink-3);
-  font-weight: 650;
+.rail-lamps { display: flex; gap: var(--s1); }
+.rail-lamp {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--plate-3);
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 1px var(--cut);
+  transition: background var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
 }
-.src.saved { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-.src.env   { border-color: var(--line-2); color: var(--ink-3); }
-.src.none  { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
-
-/* A key is shown as its last four characters and nothing else. */
-.masked {
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+.rail-lamp.is-lit {
+  background: var(--fmt);
+  border-color: var(--fmt);
+  box-shadow: 0 0 6px var(--fmt);
+}
+.rail-count {
   font-size: var(--step--1);
   color: var(--ink-2);
-  letter-spacing: 0.02em;
+  font-weight: 620;
+  min-width: 8rem;
 }
-
-/* Test-connection verdict, injected by htmx next to the button. */
-.probe { font-size: var(--step--1); display: inline-flex; align-items: center; gap: var(--s2); }
-.probe.ok { color: var(--pass); }
-.probe.bad { color: var(--fail); }
-
-.warn {
-  border: 1px solid var(--flag);
-  background: var(--flag-soft);
-  color: var(--ink);
-  border-radius: var(--radius-sm);
-  padding: var(--s3) var(--s4);
-  font-size: var(--step--1);
-  margin-bottom: var(--s4);
-}
-.warn strong { color: var(--flag); }
-
-/* Stat strip on the memory sections: four numbers, tabular, no chrome. */
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--s4); margin-bottom: var(--s4); }
-.stat .n { font-size: var(--step-2); font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.1; }
-.stat .k { font-size: var(--step--1); color: var(--ink-3); }
-
-.thumb { font-size: var(--step-0); }
-.thumb.up { color: var(--pass); }
-.thumb.down { color: var(--fail); }
-
-/* === pipeline board =======================================================
- *
- * Four lights in a row: ingest, analyse, generate, check. The operator's
- * question while a job runs is not "how far along" but "which step is this
- * sitting on", so the stages are named and equally weighted rather than
- * collapsed into one bar - the bar below still answers "how much".
- *
- * Colour never carries the state alone: each stage also has a distinct mark
- * and its own words (WCAG 1.4.1), which is what makes a stalled run legible
- * in a screenshot or in monochrome.
- */
-.pipeline {
-  list-style: none;
-  margin: 0 0 var(--s5);
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+.rail-keys {
+  margin-left: auto;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
   gap: var(--s2);
 }
-
-.stage {
-  position: relative;
-  padding: var(--s3) var(--s3) var(--s3) calc(var(--s4) + var(--s3));
-  border: 1px solid var(--line);
+kbd {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.05rem 0.3rem;
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  min-width: 0;
-  transition: border-color var(--mid) var(--ease), background var(--mid) var(--ease);
+  border: var(--hair) solid var(--line-2);
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--cut);
+  color: var(--ink-2);
+}
+@media (max-width: 40rem) { .rail-keys { display: none; } }
+
+
+/* === the fan-out ==========================================================
+ *
+ * The shape of a run, drawn from what the run actually reports. Source into
+ * analysis into N generators in parallel, each with a bench of QA ticks.
+ *
+ * Drawn with grid and pseudo-elements rather than SVG: the icon set stays the
+ * only place this project inlines vector markup, and the nodes inherit the
+ * same --fmt-* identity hues as the rack below, so a format is the same colour
+ * in both places without either knowing about the other.
+ *
+ * Every continuous period here divides the two-second poll. The element is
+ * destroyed and rebuilt on every swap, so an animation whose period did not
+ * divide 2s would restart mid-stride and visibly stutter; at 1s or 2s the
+ * restart lands where the animation already was.
+ */
+
+.fanout {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  padding: var(--s2) var(--s3) var(--s3);
+  margin-bottom: var(--s3);
+  border-bottom: var(--hair) solid var(--line);
 }
 
-.stage-name {
-  display: block;
-  font-size: var(--step--1);
-  font-weight: 620;
-  letter-spacing: 0.01em;
-}
-.stage-detail {
-  display: block;
-  font-size: var(--step--1);
+.fan-node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
   color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-  /* Fixed line so a stage changing detail does not resize the whole row. */
-  min-height: 1.4em;
+  font-family: var(--face-mono);
+  font-size: 0.8125rem;
+  letter-spacing: var(--track-mono);
+  text-align: center;
+}
+
+.fan-label {
+  max-width: 8ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* The light itself. */
-.stage .dot {
-  position: absolute;
-  left: var(--s3);
-  top: calc(var(--s3) + 0.35em);
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 999px;
-  background: var(--line-2);
-  transition: background var(--mid) var(--ease), box-shadow var(--mid) var(--ease);
+/* A node is a drawn square, not a dot: a plan is made of rectangles. */
+.fan-dot {
+  width: 13px;
+  height: 13px;
+  border: var(--hair) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition: background var(--mid) var(--ease), border-color var(--mid) var(--ease);
 }
 
-.stage.is-pending { opacity: 0.6; }
+.fan-node.is-done .fan-dot { background: var(--blueprint); border-color: var(--blueprint); }
+.fan-node.is-done { color: var(--ink-2); }
 
+/* Live: the pencil is moving. Amber, because that is what action is here. */
+.fan-node.is-live .fan-dot {
+  background: var(--accent);
+  border-color: var(--accent);
+  animation: fan-pulse 1s ease-in-out infinite;
+}
+.fan-node.is-live { color: var(--ink); }
+
+.fan-node.is-passed .fan-dot { background: var(--pass); border-color: var(--pass); }
+.fan-node.is-passed_flagged .fan-dot { background: var(--flag); border-color: var(--flag); }
+.fan-node.is-blocked .fan-dot,
+.fan-node.is-failed .fan-dot { background: var(--fail); border-color: var(--fail); }
+
+@keyframes fan-pulse {
+  50% { opacity: 0.45; transform: scale(0.88); }
+}
+
+/* Edges. A hairline by default; a travelling dash ONLY while work is actually
+   in flight downstream of it. An idle edge is a still edge - that is the whole
+   point of drawing this rather than a bar that always advances. */
+.fan-edge {
+  flex: 0 0 auto;
+  width: var(--s6);
+  height: var(--hair-2);
+  align-self: center;
+  margin-top: -0.9rem;
+  background: var(--line-2);
+}
+
+.fan-edge.is-flowing {
+  background-image: repeating-linear-gradient(90deg,
+    var(--accent) 0 4px, transparent 4px 10px);
+  background-size: 10px 100%;
+  background-repeat: repeat-x;
+  animation: fan-flow 1s linear infinite;
+}
+
+@keyframes fan-flow {
+  to { background-position: 10px 0; }
+}
+
+.fan-split { width: var(--s5); }
+
+/* The parallel bank. This is the fan-out itself: every generator runs at once,
+   so they are drawn side by side rather than in a queue. */
+.fan-bank {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  position: relative;
+  padding-left: var(--s3);
+}
+
+/* The bracket that gathers the parallel branches, drawn the way a drawing
+   would bracket them. */
+.fan-bank::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 1.9rem;
+  width: var(--hair-2);
+  background: var(--line-2);
+}
+
+.fan-fmt { cursor: pointer; }
+
+/* Identity is the RESTING state only. A verdict outranks it: the format hue
+   says which artefact this is, and the verdict hue says whether it is in
+   trouble - and "in trouble" is the question the board exists to answer, so it
+   must win. These sit above the status rules below, which is why the verdict
+   selectors are repeated there rather than relying on source order. */
+.fan-fmt .fan-dot { background: var(--surface); border-color: var(--fmt, var(--line-2)); }
+.fan-fmt.is-live .fan-dot { background: var(--fmt, var(--accent)); border-color: var(--fmt, var(--accent)); }
+
+.fan-fmt.is-passed .fan-dot { background: var(--pass); border-color: var(--pass); }
+.fan-fmt.is-passed_flagged .fan-dot { background: var(--flag); border-color: var(--flag); }
+.fan-fmt.is-blocked .fan-dot,
+.fan-fmt.is-failed .fan-dot { background: var(--fail); border-color: var(--fail); }
+/* A settled verdict is not live, whatever the queue thinks. */
+.fan-fmt.is-passed .fan-dot,
+.fan-fmt.is-passed_flagged .fan-dot,
+.fan-fmt.is-blocked .fan-dot,
+.fan-fmt.is-failed .fan-dot { animation: none; }
+.fan-fmt:hover .fan-label { color: var(--ink); }
+.fan-fmt:focus-visible { outline: var(--hair-2) solid var(--accent); outline-offset: 3px; }
+
+/* The QA bench: one tick per checker, six when they are all in. Filling ticks
+   is the artefact's progress through QA, and it is legible with no motion at
+   all - which is what makes reduced-motion a real fallback rather than a
+   degraded one. */
+.fan-bench {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+  margin-top: 2px;
+}
+
+.fan-tick {
+  width: 5px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--line);
+}
+
+.fan-tick.is-pass { background: var(--pass); }
+.fan-tick.is-fail { background: var(--fail); }
+.fan-tick.is-live {
+  background: var(--accent);
+  animation: fan-pulse 1s ease-in-out infinite;
+  /* Staggered so six checkers running at once read as six things, not one
+     block. The offset is negative so they are already mid-cycle on the first
+     frame after a swap. */
+  animation-delay: calc(var(--tick-i, 0) * -160ms);
+}
+
+/* === the job head =========================================================
+ *
+ * The instrument panel: four stage lights, a status, a count, a rail. Plate,
+ * because this is the machine reporting on itself rather than a document.
+ */
+.head {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--radius);
+  margin-bottom: var(--s3);
+  background: linear-gradient(var(--plate), var(--plate-2));
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 0 var(--lip), 0 1px 0 var(--cut);
+  position: sticky;
+  top: 4.6rem;
+  z-index: 10;
+}
+
+/* Four lights, in a fixed row. A stage is done because something it produced
+   exists, so a stalled job shows WHICH step stalled. */
+.pipeline {
+  list-style: none;
+  margin: 0 0 var(--s4);
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 44rem) { .pipeline { grid-template-columns: repeat(4, 1fr); } }
+
+/* Measured, not guessed. On the recessed --plate-3 well these labels came in
+   at 2.88:1 (name) and 4.29:1 (detail), both under WCAG AA at 11 and 13px.
+   The well is lightened to --plate and the labels take --engrave and --ink,
+   which puts them at 7.0:1 and 12.6:1 without changing what the stage looks
+   like: still a lamp sitting in a cut, just one a person can read. */
+.stage {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: var(--s2);
+  align-items: center;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--plate);
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 2px var(--cut);
+}
+.stage-name {
+  font-size: 0.8125rem;
+  font-weight: 680;
+  color: var(--engrave);
+}
+.stage-detail {
+  grid-column: 2;
+  font-size: var(--step--1);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+/* The lamp itself. Recessed and unlit until the stage has something to say. */
+.stage .dot {
+  grid-row: span 2;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--plate);
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 1px var(--cut);
+  flex: none;
+}
+.stage.is-done .dot {
+  background: var(--pass);
+  border-color: var(--pass);
+  box-shadow: 0 0 5px var(--pass);
+}
+.stage.is-failed .dot {
+  background: var(--fail);
+  border-color: var(--fail);
+  box-shadow: 0 0 5px var(--fail);
+}
 .stage.is-active {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
+.stage.is-active .stage-name { color: var(--engrave); }
 .stage.is-active .dot {
   background: var(--accent);
-  /* Motion is diegetic: this pulses because work is happening right now. */
-  animation: stage-pulse 1.6s var(--ease) infinite;
-}
-@keyframes stage-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 transparent; }
-  50%      { box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 28%, transparent); }
-}
-
-.stage.is-done { border-color: var(--pass); }
-.stage.is-done .dot { background: var(--pass); }
-
-.stage.is-failed { border-color: var(--fail); background: var(--fail-soft); }
-.stage.is-failed .dot { background: var(--fail); }
-
-/* A checker still in flight. Deliberately NOT green or red: an unfinished
-   check has no verdict, and borrowing a verdict colour for "waiting" is how a
-   board starts lying. */
-.checker.live {
   border-color: var(--accent);
-  color: var(--accent);
+  /* Two seconds, matching the poll, and matching every other continuous
+     animation in the interface. It was one second with a 9px glow, which read
+     as a flashing light rather than a lit lamp: twice the tempo of everything
+     around it, and the fastest-moving thing on a page whose whole job is to be
+     watched calmly. A lamp on an instrument glows steadily; it does not blink. */
+  animation: lamp 2s ease-in-out infinite;
+}
+@keyframes lamp {
+  50% { opacity: 0.72; }
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.progress .count { font-size: var(--step-1); font-weight: 680; }
+.track {
+  flex: 1 1 12rem;
+  height: 8px;
+  border-radius: var(--radius-sm);
+  background: var(--plate-3);
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 2px var(--cut);
+  overflow: hidden;
+  min-width: 8rem;
+  /* A measuring rule, not a loading bar: one tick per artefact, so the fill
+     can be read against the count rather than only against itself. --fan-n is
+     set from the artefact count. */
+  background-image: repeating-linear-gradient(90deg,
+    var(--line-2) 0 var(--hair),
+    transparent var(--hair) calc(100% / var(--track-n, 7)));
+}
+.track i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-2), var(--accent));
+  /* Eases because the count genuinely advanced, not for decoration. */
+  transition: width var(--slow) var(--ease);
+}
+
+/* Deterministic checkers settle instantly and provably make no model call.
+   Worth seeing: an operator who knows format came back for free reads a slow
+   grounding check differently. */
+.checker .tag {
+  font-size: 0.75rem;
+  padding: 0 var(--s1);
+  border-radius: 1px;
+  border: var(--hair) solid currentColor;
+  opacity: 0.75;
+}
+
+/* A checker that could not run withholds the artefact rather than passing it.
+   That is a different state from "still working" and must not look like it. */
+.checker.live {
+  border-style: dashed;
+  animation: fan-pulse 2s ease-in-out infinite;
+}
+
+/* Stop. Deliberately understated - the operator's main job here is to WATCH,
+   and a loud red control beside a running job invites the misclick it exists
+   to prevent. It earns its colour on hover, once the pointer is committed. */
+.rememberjob { display: inline-flex; align-items: center; margin-left: var(--s2); }
+.rememberjob button {
+  border-color: var(--line-2);
+  color: var(--ink-2);
+  background: var(--surface);
+}
+.rememberjob button:hover {
+  border-color: var(--accent);
+  color: var(--ink);
   background: var(--accent-soft);
 }
-.checker.live .mark { animation: pulse 1.4s var(--ease) infinite; }
 
-/* How a verdict was reached, when that is itself worth knowing. */
-.checker .tag {
-  font-size: 0.625rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 0.05rem 0.3rem;
-  border-radius: 3px;
-  border: 1px solid currentColor;
-  opacity: 0.75;
-  margin-left: 0.15rem;
+/* Nothing here animates. A control whose whole purpose is a considered
+   decision must hold still while the operator decides. */
+.stopjob { display: inline-flex; align-items: center; gap: var(--s2); margin-left: var(--s2); }
+.stopjob, .stopjob * { animation: none; }
+.stopjob .spinner { animation: spin 1s linear infinite; }
+/* Belt and braces: the poll must never reveal this one. */
+#job-status.htmx-request .stopjob .spinner { display: none; }
+.stopjob button.danger {
+  border-color: var(--line-2);
+  color: var(--ink-2);
+  background: var(--surface);
+}
+.stopjob button.danger:hover {
+  border-color: var(--fail);
+  color: var(--fail);
+  background: var(--fail-soft);
+}
+.stopjob button.danger:focus-visible { outline-color: var(--fail); }
+
+.density { display: flex; gap: var(--s1); margin-left: auto; }
+.density button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--ink);
 }
 
-/* Announced to a screen reader, absent from the page. */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .stage.is-active .dot,
-  .checker.live .mark { animation: none; }
-}
-
-/* === format tiles =========================================================
+/* === the rack =============================================================
  *
- * Seven formats is enough that a column of identical checkbox rows is the
- * slow way to pick two. Each tile carries the colour that format keeps for
- * the whole run, so what is chosen here is recognisable on the status board
- * afterwards - the identity is the point, not the decoration.
+ * Seven lanes. Collapsed, a lane is one row, so the whole run fits a screen
+ * and the one in trouble is visible without reading a word. That is the
+ * question the operator actually has.
  */
-.format {
-  display: flex;
-  gap: var(--s3);
-  align-items: flex-start;
+.rack { display: flex; flex-direction: column; gap: var(--s2); }
+
+.lane {
+  overflow: hidden;
+  /* The format hue runs the full height of the lane as a rail on the leading
+     edge, so the eye can track which lane it is inside during a long deck.
+     This is a machined channel that belongs to the lane rather than a
+     decorative stripe pinned to a card. */
   border-left: 3px solid var(--fmt);
 }
-.format-body { display: block; min-width: 0; }
-.format-top { display: flex; align-items: center; gap: var(--s2); }
-.format .name { display: inline; }
 
-/* What you actually get, read off the registry rather than written per
-   format - a new format describes itself (Invariant 4). */
-.format-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s1);
-  margin-top: var(--s2);
-}
-.chip {
-  font-size: 0.6875rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  border: 1px solid var(--fmt);
-  color: var(--fmt-ink);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-.chip.subtle {
-  border-color: var(--line-2);
-  color: var(--ink-3);
-  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-
-/* Selection is a state, so it reads in the format's own colour rather than
-   in the one accent every control shares. */
-.format:has(input:checked) {
-  border-color: var(--fmt);
-  background: color-mix(in oklch, var(--fmt) 8%, transparent);
-}
-.format:has(input:checked) .fmt-dot {
-  box-shadow: 0 0 0 3px color-mix(in oklch, var(--fmt) 25%, transparent);
-}
-.format input { accent-color: var(--fmt); }
-
-/* === artefact identity ==================================================== */
-
-/* A rack of seven artefacts, and the operator is looking for one of them. The
-   stripe is the fastest way to find it without reading a single label. */
-.artefact { border-left: 3px solid var(--fmt); }
-.artefact-head .fmt-dot { margin-right: var(--s1); }
-
-/* === comparing versions ===================================================
- *
- * Two or three takes on the same artefact, which is a reading task: the
- * operator is looking for the difference between them. Side by side makes
- * that a glance; stacked makes it a memory test.
- *
- * The panel is widened only while a comparison is on screen, because the rest
- * of the page reads better at a text measure.
- */
-.panel:has(.variants-compare) { max-width: none; }
-
-.variants-compare {
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
-  align-items: stretch;
-}
-.variants-compare .variant {
-  display: flex;
-  flex-direction: column;
-  /* Equal-height columns so the eye can track across one line of the drafts
-     rather than re-finding its place in each. */
-  gap: var(--s2);
-}
-.variants-compare .variant-body { flex: 1 1 auto; }
-.variants-compare .variant form { margin-top: auto; }
-
-/* On a narrow screen the columns become rows and the comparison is a scroll
-   anyway - so let them breathe instead of squeezing three into a phone. */
-@media (max-width: 48rem) {
-  .variants-compare { grid-template-columns: 1fr; }
-}
-
-/* The job view gets more room than the studio form: a status board is a
-   dashboard, and a form is a document. */
-body:has(#job-status) main { max-width: 82rem; }
-
-/* === the machine ==========================================================
- *
- * "The Great Grammatizator" - Dahl's apparatus that writes to order. The
- * conceit earns its keep only where it clarifies: the header is a nameplate,
- * the pipeline is an indicator panel, and everything an operator uses daily
- * stays plain. A control that needs decoding is a control that wastes time.
- */
-
-header {
-  background: linear-gradient(var(--plate), var(--plate-2));
-  border-bottom: 1px solid var(--line-2);
-  align-items: center;
-}
-
-/* Stamped once. The name is not repeated anywhere else in the interface. */
-.nameplate {
+.lane-bar {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  text-decoration: none;
-  color: inherit;
-  min-width: 0;
-}
-.nameplate-mark {
-  display: grid;
-  place-items: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: var(--radius-sm);
-  background: var(--accent);
-  color: var(--accent-ink);
-  flex: none;
-  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.35), 0 1px 2px oklch(24% 0.02 70 / 0.25);
-}
-.nameplate-text { min-width: 0; }
-.nameplate-name {
-  display: block;
-  font-size: var(--step-1);
-  font-weight: 680;
-  letter-spacing: 0.005em;
-  /* Engraved rather than printed: a highlight below the letterform, the way a
-     name cut into a plate catches the light. Suppressed in dark, where a
-     bright edge under dark text reads as a rendering fault. */
-  text-shadow: 0 1px 0 oklch(100% 0 0 / 0.5);
-  color: var(--engrave);
-}
-:root[data-theme="dark"] .nameplate-name { text-shadow: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .nameplate-name { text-shadow: none; }
-}
-
-/* === indicator panel ======================================================
- * The pipeline board, milled from one plate rather than four loose cards.
- */
-.panel:has(> .pipeline) {
-  background: linear-gradient(var(--plate), var(--plate-2));
-  border-color: var(--line-2);
-}
-
-.stage {
-  background: var(--surface);
-  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.4);
-}
-
-/* A lamp, not a dot: lit ones glow, dark ones sit recessed. */
-.stage .dot {
-  box-shadow:
-    inset 0 0 0 1px oklch(0% 0 0 / 0.18),
-    inset 0 1px 1px oklch(0% 0 0 / 0.25);
-}
-.stage.is-done .dot,
-.stage.is-active .dot,
-.stage.is-failed .dot {
-  box-shadow:
-    inset 0 0 0 1px oklch(0% 0 0 / 0.1),
-    0 0 6px 1px currentColor;
-  color: inherit;
-}
-.stage.is-done .dot { box-shadow: 0 0 7px 1px color-mix(in oklch, var(--pass) 55%, transparent); }
-.stage.is-failed .dot { box-shadow: 0 0 7px 1px color-mix(in oklch, var(--fail) 55%, transparent); }
-
-/* Engraved labels on the plate. */
-.stage-name {
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-size: 0.6875rem;
-  color: var(--ink-3);
-}
-.stage-detail { color: var(--ink); font-weight: 560; }
-
-/* === icons ================================================================
- * Inline SVG, no dependency. Only on actions with a familiar symbol - a verb
- * nobody draws the same way twice is clearer as a word.
- */
-.ico {
-  width: 1em;
-  height: 1em;
-  flex: none;
-  vertical-align: -0.125em;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.9;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-button .ico, .filelink .ico { margin-right: 0.3em; }
-button, .filelink { display: inline-flex; align-items: center; }
-.actions form { display: inline-flex; }
-
-/* One line of context under the source box. Not a panel: who the machine
-   writes as is worth knowing and is not the reason the page was opened. */
-.wholine {
-  margin: calc(var(--s5) * -0.5) 0 var(--s5);
-  padding: 0 var(--s1);
-  color: var(--ink-3);
+  padding: var(--s2) var(--s3);
+  cursor: pointer;
+  list-style: none;
+  min-height: 2.4rem;
   font-size: var(--step--1);
+}
+.lane-bar::-webkit-details-marker { display: none; }
+.lane-bar:hover { background: var(--surface-2); }
+.lane-name {
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.lane-counts {
+  display: flex;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  color: var(--flag-ink);
+  font-size: 0.8125rem;
+}
+.counts { white-space: nowrap; }
+.lane-bar .badge { margin-left: auto; }
+.lane-chevron {
+  color: var(--ink-3);
+  display: inline-flex;
+  transition: transform var(--mid) var(--ease);
+}
+.lane[open] > .lane-bar .lane-chevron { transform: rotate(180deg); }
+
+/* Six lamps, in fixed slots. The POSITION of a failure is the same in every
+   lane, so a column of them reads down. Six wrapping pills per artefact, at
+   seven artefacts, was the visual noise floor of the old page. */
+.lamps {
+  display: flex;
+  gap: 2px;
+  flex: none;
+}
+.lamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  padding: 0.1rem 0;
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line-2);
+  background: var(--plate-3);
+  color: var(--plate-ink-2);
+  box-shadow: inset 0 1px 1px var(--cut);
+  line-height: 1.1;
+}
+.lamp .mark { font-size: 0.8125rem; font-weight: 700; }
+.lamp-tag {
+  font-size: 0.5625rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+.lamp.ok { background: var(--pass-soft); border-color: var(--pass); color: var(--pass); }
+.lamp.bad { background: var(--fail-soft); border-color: var(--fail); color: var(--fail); }
+.lamp.live {
+  border-color: var(--accent);
+  color: var(--engrave);
+  /* Two seconds, like every other continuous animation here. Seven lanes of
+     these blinking on a one-second beat was the busiest thing on the page. */
+  animation: lamp 2s ease-in-out infinite;
+}
+
+.lane-body {
+  padding: var(--s4);
+  border-top: var(--hair) solid var(--line);
+  background: var(--surface);
+}
+.waiting { font-size: var(--step--1); font-style: italic; }
+
+/* Something in this lane actually changed. Fired by console.js from a state
+   token, never by the element being new - every element is new every two
+   seconds, and almost none of them have just done anything. */
+.lane.just-moved {
+  /* --moved-delay is set per lane by console.js from its position in the rack,
+     so a poll that settles several artefacts at once cascades instead of
+     flashing as a single block. */
+  animation: moved 700ms var(--ease) var(--moved-delay, 0ms) 1 both;
+}
+@keyframes moved {
+  0% { background: var(--accent-soft); }
+  100% { background: transparent; }
+}
+
+.claims { margin-top: var(--s3); }
+.claim {
+  font-size: var(--step--1);
+  color: var(--ink-2);
+  margin: var(--s2) 0;
+  padding-left: var(--s3);
+  border-left: var(--hair) solid var(--line);
+}
+.files { margin-top: var(--s3); display: flex; flex-wrap: wrap; gap: var(--s3); }
+.filelink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--step--1);
+  text-decoration: none;
+  padding: var(--s1) var(--s2);
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line-2);
+  background: var(--surface-2);
+}
+.filelink:hover { border-color: var(--accent); }
+.stacked { margin-top: var(--s3); }
+.retry { margin-top: var(--s3); }
+.note { font-size: var(--step--1); }
+
+/* Was it any good? The checkers cannot answer that, and a dislike on work
+   that passed every one of them is the most useful signal the platform gets. */
+.rate {
   display: flex;
   align-items: center;
   gap: var(--s2);
   flex-wrap: wrap;
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: var(--hair) dashed var(--line);
 }
-.wholine strong { color: var(--ink-2); }
-.wholine a { display: inline-flex; align-items: center; gap: 0.25em; text-decoration: none; }
-.wholine a:hover { text-decoration: underline; }
+.rate form { display: contents; }
+.rate-label { font-size: var(--step--1); color: var(--ink-3); margin-right: var(--s2); }
+.thumb {
+  background: linear-gradient(var(--plate), var(--plate-2));
+  color: var(--ink-2);
+  border-color: var(--line-2);
+  font-size: var(--step--1);
+  padding: var(--s1) var(--s3);
+  box-shadow: inset 0 1px 0 var(--lip), 0 1px 0 var(--cut);
+}
+.thumb.on { border-color: var(--accent); color: var(--engrave); background: var(--accent-soft); }
+.thumb.down.on { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
+.reason { flex: 1 1 16rem; min-width: 10rem; font-size: var(--step--1); }
 
-/* The thumbs are the one place an icon carries the meaning rather than
-   decorating a word, so they get a little more of it. */
-.thumb .ico { width: 1.05em; height: 1.05em; }
+/* === variants: two or three takes, side by side =========================== */
 
-/* === artefacts that look like what they are ===============================
- *
- * Seven formats rendered as seven paragraph stacks made the deck and the
- * tweet thread indistinguishable at a glance, which is exactly the check an
- * operator is trying to make: is this the shape I asked for?
- *
- * Each layout borrows the geometry of the real thing - a thread, a slide, a
- * shot list, a panel grid - so the answer is visible before a word is read.
- * The format's own hue does the tinting via var(--fmt).
- */
-
-/* --- thread ------------------------------------------------------------- */
-.thread { list-style: none; margin: 0; padding: 0; }
-.tweet {
-  position: relative;
-  padding: var(--s3) var(--s4) var(--s3) calc(var(--s6) + var(--s1));
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+.choose {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: var(--hair) dashed var(--line);
+}
+.choose h4 {
+  margin: 0 0 var(--s2);
+  font-size: var(--step--1);
+  color: var(--engrave);
+}
+.variants {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  align-items: start;
+  margin-top: var(--s3);
+}
+.variant {
   background: var(--surface-2);
+  border: var(--hair) solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--s3);
+  /* A variant column is narrow, so the artefact inside it has to lay itself
+     out against the column rather than the viewport. */
+  container-type: inline-size;
+}
+.variant-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
   margin-bottom: var(--s2);
+  padding-bottom: var(--s2);
+  border-bottom: var(--hair) solid var(--line);
 }
-/* The rail that makes a list of boxes read as one thread. */
-.tweet:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  left: calc(var(--s4) + 0.55rem);
-  top: calc(var(--s3) + 1.5rem);
-  bottom: calc(var(--s3) * -1 - var(--s2));
-  width: 2px;
-  background: var(--line-2);
-}
-.tweet-n {
-  position: absolute;
-  left: var(--s4);
-  top: var(--s3);
-  width: 1.4rem;
-  height: 1.4rem;
-  border-radius: 999px;
+.variant-head strong {
   display: grid;
   place-items: center;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  background: var(--fmt);
-  color: var(--surface);
-  font-variant-numeric: tabular-nums;
+  width: 1.5rem; height: 1.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--plate-3);
+  border: var(--hair) solid var(--line-2);
+  font-size: var(--step--1);
 }
-/* White numeral on the hue, so the FILL has to carry the contrast. */
-.tweet-n { background: var(--fmt-ink); }
-.tweet .prose { margin: 0 0 var(--s1); }
-/* --ink-2, not --ink-3: this sits on the tinted tweet ground rather than on
-   the page ground, where the muted tone measured 3.81:1 - under AA at 11px. */
-.tweet-count { font-size: 0.6875rem; color: var(--ink-2); }
-/* Approaching the limit the checker enforces - visible before it fails. */
-.tweet-count.is-near { color: var(--flag-ink); font-weight: 650; }
+.variant-head .badge { margin-left: auto; }
+.variant.is-chosen { border-color: var(--accent); background: var(--accent-soft); }
+.variant.is-out { opacity: 0.55; }
+.variant-body { font-size: var(--step--1); }
+.chosen-mark {
+  margin: var(--s3) 0 0;
+  font-size: var(--step--1);
+  font-weight: 620;
+  color: var(--engrave);
+}
 
-.tags { display: flex; flex-wrap: wrap; gap: var(--s1); margin: var(--s3) 0 0; }
-.tag-pill {
+/* The artefact lays out against the lane, not the window: the same partial
+   has to read in a full-width lane and in a 17rem variant column. */
+.artefact-body { container-type: inline-size; }
+
+.backlink { margin-top: var(--s5); font-size: var(--step--1); }
+
+/* === artefacts: each in the shape of the thing it is ======================
+ *
+ * The check an operator makes at a glance is "is this the shape I asked
+ * for?", so a deck looks like slides, a thread looks like a thread, and a
+ * video package looks like a shot list. Seven paragraph-stacks would answer
+ * that question with nothing.
+ *
+ * Every one of these lays out against its CONTAINER, because the same partial
+ * renders in a full-width lane and in a narrow variant column.
+ */
+
+.artefact-body > h3,
+.variant-body > h3 {
+  margin: 0 0 var(--s3);
+  font-size: var(--step-1);
+  letter-spacing: -0.01em;
+}
+.prose { max-width: 68ch; }
+
+/* A slip of paper on the machine: the shared shape behind a slide, a tweet,
+   a shot and an infographic panel. */
+.slide-plate,
+.tweet,
+.shot,
+.ipanel {
+  background: var(--surface-2);
+  border: var(--hair) solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+/* -- the post ------------------------------------------------------------- */
+.post { max-width: 62ch; }
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+.post-av {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: var(--hair) solid var(--line-2);
+  flex: 0 0 auto;
+}
+.post-who { display: flex; flex-direction: column; line-height: 1.25; }
+.post-who strong { color: var(--ink); }
+.post-meta {
+  font-size: var(--step--1);
+  color: var(--ink-3);
+  font-family: var(--face-mono);
+  letter-spacing: var(--track-mono);
+}
+
+/* Where the feed truncates. Drawn because whether the hook survives the fold
+   decides whether the rest is ever read. */
+.post-fold {
+  margin: 0 0 var(--s3);
+  border-top: var(--hair) dashed var(--line-2);
+  padding-top: var(--s1);
+}
+.post-fold span {
+  font-family: var(--face-mono);
+  font-size: 0.75rem;
+  letter-spacing: var(--track-mono);
+  color: var(--ink-3);
+}
+.post-hook {
+  font-size: var(--step-1);
+  font-weight: 500;
+  line-height: 1.35;
+  margin: 0 0 var(--s3);
+}
+.post-body { margin: 0 0 var(--s3); white-space: pre-wrap; }
+.post-cta {
+  margin: 0 0 var(--s3);
+  font-style: italic;
+  color: var(--ink-2);
+}
+.post-tags {
+  margin: 0;
   font-size: var(--step--1);
   color: var(--fmt-ink);
-  border: 1px solid var(--fmt);
-  border-radius: 999px;
-  padding: 0.05rem 0.5rem;
+  font-weight: 620;
 }
 
-/* --- slides -------------------------------------------------------------- */
-.slides { display: grid; gap: var(--s4); }
-.slide-plate {
-  position: relative;
-  border: 1px solid var(--line-2);
-  border-top: 3px solid var(--fmt);
+/* -- the memo ------------------------------------------------------------- */
+.memo { max-width: 68ch; }
+.memo-head { margin: 0 0 var(--s2); }
+.memo-head .label { color: var(--fmt-ink); }
+.memo-title {
+  margin: 0 0 var(--s2);
+  padding-bottom: var(--s2);
+  border-bottom: var(--hair-2) solid var(--fmt);
+  font-size: var(--step-1);
+}
+/* The bottom line is the whole point of an executive summary, so it is set
+   as the thing you read first rather than as the first of five paragraphs. */
+.memo-line {
+  margin: 0 0 var(--s3);
+  padding: var(--s3);
   border-radius: var(--radius-sm);
-  background: var(--surface);
-  padding: var(--s4) var(--s4) var(--s4) var(--s5);
-  /* A deck's proportions, without forcing content to overflow when a slide
-     runs long: the ratio is a floor, not a clamp. */
-  min-height: 9rem;
-  box-shadow: var(--shadow);
+  background: var(--surface-2);
+  border: var(--hair) solid var(--line);
+  font-size: var(--step-0);
+}
+.memo-line strong { color: var(--fmt-ink); }
+.memo-points { margin: 0 0 var(--s3); padding-left: 1.35rem; }
+.memo-points li { margin-bottom: var(--s1); }
+.memo-action { margin: 0 0 var(--s2); }
+.memo-risk { margin: 0; font-size: var(--step--1); }
+.label {
+  font-size: 0.75rem;
+  font-weight: 680;
+  color: var(--ink-3);
+  display: block;
+}
+
+/* -- the thread ----------------------------------------------------------- */
+.thread { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.tweet {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s3);
+  padding: var(--s3);
+  align-items: start;
+  position: relative;
+}
+
+/* The rail that makes a thread a thread rather than three loose posts. Stops
+   at the last tweet, because a line leaving the final post implies a reply
+   that is not in the deliverable. */
+.tweet:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--s3) + 0.5rem);
+  top: 2.6rem;
+  bottom: -0.4rem;
+  width: var(--hair-2);
+  background: var(--line);
+}
+
+.tweet-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--s3);
+  align-items: start;
+}
+
+/* Inert chrome. A draft is not a post: there is nothing here to click, so the
+   avatar is a shape and the actions are words, not buttons. */
+.tweet-av {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: var(--hair) solid var(--line-2);
+}
+
+.tweet-who {
+  margin: 0 0 var(--s1);
+  font-size: var(--step--1);
+  line-height: 1.3;
+}
+.tweet-who strong { color: var(--ink); }
+.tweet-handle {
+  color: var(--ink-3);
+  font-family: var(--face-mono);
+  letter-spacing: var(--track-mono);
+}
+
+.tweet-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-top: var(--s2);
+}
+.tweet-acts { display: flex; gap: var(--s4); }
+.tweet-act {
+  font-family: var(--face-mono);
+  font-size: 0.75rem;
+  letter-spacing: var(--track-mono);
+  color: var(--ink-3);
+  opacity: 0.75;
+}
+.tweet-n {
+  font-size: var(--step--1);
+  font-weight: 700;
+  color: var(--fmt-ink);
+  font-variant-numeric: tabular-nums;
+}
+.tweet .prose { margin: 0; }
+.tweet-count {
+  grid-column: 2;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+/* Close to the limit is worth knowing before you publish, not after. */
+.tweet-count.is-near { color: var(--flag-ink); font-weight: 500; }
+.tags { margin: var(--s3) 0 0; display: flex; flex-wrap: wrap; gap: var(--s1); }
+.tag-pill {
+  font-size: 0.8125rem;
+  padding: 0 var(--s2);
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line-2);
+  background: var(--surface-2);
+  color: var(--fmt-ink);
+}
+
+/* -- the deck ------------------------------------------------------------- */
+/* An advisory carries its severity down the left edge, the way a printed one
+   carries a coloured band - readable from across the rack before a word of it
+   is read. */
+.advisory {
+  display: grid;
+  /* The badge sets the rail's width rather than a fixed column: a long
+     severity string ("Critical (CVSS 3.1 base score 9.8)") wraps into its own
+     column instead of stranding half the panel as white space. */
+  grid-template-columns: minmax(0, max-content) 1fr;
+  gap: var(--s4);
+  align-items: start;
+}
+.adv-bar {
+  border-left: 3px solid var(--line-2);
+  padding-left: var(--s3);
+  align-self: stretch;
+  max-width: 14ch;
+}
+.adv-bar .badge { white-space: normal; line-height: 1.35; }
+.advisory.is-failed .adv-bar { border-left-color: var(--fail); }
+.advisory.is-passed_flagged .adv-bar { border-left-color: var(--flag); }
+.advisory.is-pending .adv-bar { border-left-color: var(--line-2); }
+.adv-body > h3 { margin-top: 0; }
+.adv-affected, .adv-refs { font-size: var(--step--1); }
+.adv-lead { margin-bottom: var(--s2); }
+.adv-lead .label { color: var(--fmt-ink); }
+.adv-recs { margin: 0 0 var(--s3); padding-left: 1.35rem; }
+.adv-recs li { margin-bottom: var(--s1); }
+
+.slides { display: grid; gap: var(--s3); }
+@container (min-width: 34rem) { .slides { grid-template-columns: repeat(2, 1fr); } }
+.slide { display: flex; flex-direction: column; gap: var(--s2); }
+.slide-plate {
+  padding: var(--s3);
+  /* A slide is a landscape plate, and the hue sits on its top edge the way a
+     deck template carries a band. */
+  border-top: 3px solid var(--fmt);
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
 }
 .slide-n {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--fmt-ink);
+  font-variant-numeric: tabular-nums;
+}
+.slide-plate h4 { margin: 0; font-size: var(--step-0); line-height: 1.3; }
+.slide-plate ul { margin: 0; padding-left: 1.1rem; font-size: var(--step--1); color: var(--ink-2); }
+.slide-notes {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  margin: 0;
+  padding-left: var(--s3);
+  border-left: var(--hair) solid var(--line);
+}
+
+/* -- the infographic ------------------------------------------------------ */
+.info-headline { margin: 0 0 var(--s3); font-size: var(--step-1); }
+.panels { display: grid; gap: var(--s3); grid-template-columns: 1fr; }
+@container (min-width: 26rem) { .panels { grid-template-columns: repeat(2, 1fr); } }
+@container (min-width: 44rem) { .panels { grid-template-columns: repeat(3, 1fr); } }
+.ipanel {
+  margin: 0;
+  padding: var(--s4);
+  text-align: center;
+  background: color-mix(in oklch, var(--fmt) 7%, var(--surface-2));
+}
+/* The statistic IS the panel here - this is the one place a large number is
+   the content rather than dashboard furniture. */
+.ipanel-stat {
+  font-family: var(--face-display);
+  letter-spacing: var(--track-display);
+  font-size: var(--step-3);
+  font-weight: 500;
+  /* Below 1: the reference sets its display type tighter than its own body,
+     which is what makes a large number read as a figure rather than a heading. */
+  line-height: var(--lh-display);
+  color: var(--fmt-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ipanel figcaption { margin-top: var(--s2); font-size: var(--step--1); }
+.ipanel figcaption strong { display: block; }
+.ipanel figcaption span { color: var(--ink-3); }
+.layout-note { margin: var(--s4) 0 0; font-size: var(--step--1); color: var(--ink-3); }
+
+/* -- the video package ---------------------------------------------------- */
+.runtime { margin: 0 0 var(--s3); font-size: var(--step--1); color: var(--ink-3); }
+.shots { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.shot {
+  padding: var(--s3);
+  border-left: 3px solid var(--fmt);
+}
+.shot-head { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+.shot-n {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--fmt-ink);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+/* Duration as a bar: the shape of the edit, visible before reading a word. */
+.shot-bar {
+  flex: 1;
+  height: 5px;
+  border-radius: var(--radius-sm);
+  background: var(--plate-3);
+  overflow: hidden;
+  border: var(--hair) solid var(--line-2);
+}
+.shot-bar i { display: block; height: 100%; background: var(--fmt); }
+.narration { margin: 0 0 var(--s2); font-size: var(--step--1); }
+.shot-meta { margin: 0; font-size: 0.8125rem; color: var(--ink-3); display: grid; gap: 0.15rem; }
+.shot-meta dt { font-weight: 500;  }
+.shot-meta dd { margin: 0 0 var(--s1); }
+
+/* -- the advisory --------------------------------------------------------- */
+.artefact-body h3 + .badge { margin-left: var(--s2); }
+
+/* Slide furniture: the page number every deck carries in its corner. */
+.slide-plate { position: relative; }
+.slide-foot {
+  position: absolute;
+  right: var(--s3);
+  bottom: var(--s2);
+  font-family: var(--face-mono);
+  font-size: 0.75rem;
+  letter-spacing: var(--track-mono);
+  color: var(--ink-3);
+}
+
+/* A plate number, as a printed figure carries one. */
+.ipanel { position: relative; }
+.ipanel-n {
   position: absolute;
   top: var(--s2);
   right: var(--s3);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--face-mono);
+  font-size: 0.75rem;
+  letter-spacing: var(--track-mono);
+  color: var(--fmt-ink);
+  opacity: 0.75;
 }
-.slide-plate h4 { margin: 0 0 var(--s2); font-size: var(--step-1); }
-.slide-plate ul { margin: 0; padding-left: 1.1rem; }
-.slide-plate li { margin-bottom: var(--s1); }
-.slide-notes {
-  margin: var(--s2) 0 0;
+
+/* The frame: a shot is a picture that does not exist yet, so it is drawn as an
+   empty 16:9 gate with its slate number. This is a package of instructions,
+   never generated video (Invariant 10), and the empty frame says so. */
+.shot-frame {
+  aspect-ratio: 16 / 9;
+  max-height: 5.5rem;
+  margin: var(--s2) 0;
+  border: var(--hair) solid var(--line-2);
+  border-radius: var(--radius-sm);
+  background:
+    repeating-linear-gradient(90deg,
+      var(--line) 0 var(--hair), transparent var(--hair) 12px),
+    var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shot-slate {
+  font-family: var(--face-mono);
+  font-size: var(--step-1);
+  font-weight: 600;
+  letter-spacing: var(--track-mono);
+  color: var(--fmt-ink);
+  opacity: 0.55;
+}
+
+/* === the front door =======================================================
+ *
+ * /welcome and /login. Built entirely from the console's own primitives - the
+ * plate, the slip, the fan-out, the mishap block - because a landing page in a
+ * different visual language would be advertising a different product.
+ */
+
+.hero {
+  max-width: 46rem;
+  margin: var(--s6) 0 var(--s7);
+}
+
+.hero-eyebrow { margin: 0 0 var(--s3); }
+.hero-eyebrow .label { color: var(--ink-3); }
+
+/* The one place this interface raises its voice. --lh-display sits below 1,
+   which is what makes a large headline read as a mark rather than as a
+   paragraph that grew. */
+.hero-line {
+  font-family: var(--face-display);
+  font-size: var(--step-3);
+  line-height: var(--lh-display);
+  letter-spacing: var(--track-display);
+  font-weight: 500;
+  margin: 0 0 var(--s4);
+  color: var(--ink);
+}
+@media (min-width: 44rem) { .hero-line { font-size: var(--step-4); } }
+
+.hero-lead {
+  font-size: var(--step-1);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 40ch;
+  margin: 0 0 var(--s5);
+}
+
+.hero-acts { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; margin: 0; }
+
+/* The call to action is the pencil - amber, the way every other "this does
+   something" control in the interface is amber. */
+.cta {
+  display: inline-block;
+  padding: var(--s2) var(--s5);
+  border: var(--hair) solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(var(--accent-2), var(--accent));
+  color: var(--accent-ink);
+  font-weight: 620;
+  text-decoration: none;
+  box-shadow: inset 0 1px 0 oklch(100% 0 0 / 0.22), 0 1px 0 var(--cut);
+  transition: filter var(--fast) var(--ease);
+}
+.cta:hover { filter: brightness(1.06); color: var(--accent-ink); }
+.cta:active { transform: translateY(1px); box-shadow: inset 0 1px 3px var(--cut-hard); }
+
+.cta-quiet { font-size: var(--step--1); }
+
+/* The pipeline, running on a loop. Same components as the live board, so a
+   visitor sees exactly what they will later watch happen. */
+.stage-demo { margin: 0 0 var(--s7); }
+.stage-demo .fanout {
+  border: var(--hair) solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 1px 0 var(--lip);
+  padding: var(--s4);
+  overflow-x: auto;
+}
+.stage-caption {
+  margin: var(--s3) 0 0;
   font-size: var(--step--1);
   color: var(--ink-3);
-  padding-left: var(--s3);
-  border-left: 2px solid var(--line);
+  max-width: 62ch;
 }
 
-/* Small caps label, used wherever a field needs naming without a heading. */
-.label {
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: var(--ink-3);
-  margin-right: 0.35em;
+/* The demo drives node states from keyframes rather than from a job. Period is
+   6s - a multiple of the 2s poll the rest of the system animates on, slow
+   enough to read. Every state remains a colour and a shape, so with motion off
+   the diagram is still a complete, legible picture of the pipeline. */
+.fanout.is-demo .fan-fmt .fan-dot {
+  background: var(--fmt);
+  border-color: var(--fmt);
+  animation: demo-node 6s ease-in-out infinite;
+  animation-delay: calc(var(--fan-i, 0) * 300ms);
+}
+.fanout.is-demo .fan-tick {
+  background: var(--fmt);
+  opacity: 0.25;
+  animation: demo-tick 6s ease-in-out infinite;
+  animation-delay: calc(var(--fan-i, 0) * 300ms + var(--tick-i, 0) * 180ms);
+}
+.fanout.is-demo .fan-label { color: var(--ink-2); }
+
+/* With motion off the demo freezes on its first keyframe, which left the QA
+   benches at 0.25 and reading as empty. The diagram has to be a complete
+   picture without a single frame of animation, so the resting state is the
+   FINISHED state and the animation is what makes it arrive. */
+@media (prefers-reduced-motion: reduce) {
+  .fanout.is-demo .fan-tick { opacity: 0.85; }
+  .fanout.is-demo .fan-fmt .fan-dot { opacity: 1; }
 }
 
-/* --- shot list ----------------------------------------------------------- */
-.runtime { margin: 0 0 var(--s4); color: var(--ink-3); font-size: var(--step--1); }
-.shots { list-style: none; margin: 0; padding: 0; }
-.shot {
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--fmt);
+@keyframes demo-node {
+  0%, 12%   { opacity: 0.3; }
+  30%, 100% { opacity: 1; }
+}
+@keyframes demo-tick {
+  0%, 30%   { opacity: 0.2; }
+  55%, 100% { opacity: 1; }
+}
+
+/* Numbered steps. The number is a mark on the slip, not a heading. */
+.step { position: relative; padding-top: var(--s5); height: 100%; }
+.step-n {
+  position: absolute;
+  top: var(--s3);
+  left: var(--s4);
+  color: var(--accent);
+  font-size: var(--step--1);
+}
+.step h3 { margin: 0 0 var(--s2); font-size: var(--step-0); }
+.step p { margin: 0; font-size: var(--step--1); color: var(--ink-2); line-height: 1.55; }
+
+/* Format cards. The dot carries the identity hue as a fill; the name is ink,
+   because the identity hues measure under AA as text. */
+.landing-formats {
+  gap: var(--s3);
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 44rem) { .landing-formats { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 68rem) { .landing-formats { grid-template-columns: repeat(4, 1fr); } }
+.fmt-card { border-top: 3px solid var(--fmt); }
+.fmt-card h3 {
+  margin: 0 0 var(--s2);
+  font-size: var(--step-0);
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--fmt-ink);
+}
+.fmt-card p { margin: 0 0 var(--s3); font-size: var(--step--1); color: var(--ink-2); line-height: 1.5; }
+.fmt-meta { display: flex; flex-wrap: wrap; gap: var(--s1); margin: 0; }
+
+/* The reasons to believe the output. Blueprint, not a verdict colour: green
+   here would mean "a check passed", which is a claim this section is not
+   entitled to make. */
+.trust {
+  background: var(--blueprint-soft);
+  border: var(--hair) solid var(--line);
+  border-left: 3px solid var(--blueprint-2);
+  border-radius: var(--radius);
+  padding: var(--s5);
+  margin: 0 0 var(--s6);
+}
+.trust > h2 {
+  margin: 0 0 var(--s4);
+  font-size: var(--step-1);
+  font-family: var(--face-display);
+  letter-spacing: var(--track-display);
+  color: var(--ink);
+}
+.trust .bank-4 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s4);
+}
+@media (min-width: 44rem) { .trust .bank-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 68rem) { .trust .bank-4 { grid-template-columns: repeat(4, 1fr); } }
+
+.trust-item h3 { margin: 0 0 var(--s2); font-size: var(--step--1); color: var(--blueprint); }
+.trust-item p { margin: 0; font-size: var(--step--1); color: var(--ink-2); line-height: 1.5; }
+
+.closer { margin: 0 0 var(--s6); }
+.closer h2 {
+  font-family: var(--face-display);
+  letter-spacing: var(--track-display);
+  font-size: var(--step-2);
+  margin: 0 0 var(--s2);
+}
+.closer p { color: var(--ink-2); margin: 0 0 var(--s4); }
+
+/* --- the sign-in mock ---------------------------------------------------- */
+
+.signin {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+  padding: var(--s6) var(--s4);
+}
+.signin-card {
+  width: 100%;
+  max-width: 24rem;
+  border-radius: var(--radius);
+  padding: var(--s5);
+}
+.signin-mark { margin: 0 0 var(--s2); }
+.signin-mark .label { color: var(--plate-ink-2); }
+.signin-title {
+  font-family: var(--face-display);
+  letter-spacing: var(--track-display);
+  font-size: var(--step-2);
+  margin: 0 0 var(--s1);
+  color: var(--plate-ink);
+}
+.signin-lead { margin: 0 0 var(--s5); font-size: var(--step--1); color: var(--plate-ink-2); }
+
+.signin-field { margin-bottom: var(--s3); }
+.signin-field label {
+  display: block;
+  margin-bottom: var(--s1);
+  font-size: var(--step--1);
+  color: var(--plate-ink);
+}
+.signin-actions { margin-top: var(--s4); }
+.signin-note { font-size: var(--step--1); color: var(--plate-ink-2); }
+.signin-mishap { margin: var(--s5) 0 0; }
+.signin-back { margin: 0; font-size: var(--step--1); }
+
+/* === settings ============================================================= */
+
+.settings-nav {
+  display: flex;
+  gap: var(--s2);
+  flex-wrap: wrap;
+  margin-bottom: var(--s5);
+  padding: var(--s2);
+  border-radius: var(--radius);
+  background: linear-gradient(var(--plate), var(--plate-2));
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 0 var(--lip);
+}
+.settings-nav a {
+  font-size: var(--step--1);
+  text-decoration: none;
+  padding: var(--s1) var(--s3);
   border-radius: var(--radius-sm);
-  padding: var(--s3) var(--s4);
-  margin-bottom: var(--s3);
+  color: var(--ink-2);
+  font-weight: 620;
+}
+.settings-nav a:hover { background: var(--surface); color: var(--ink); }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s3) 0;
+  border-bottom: var(--hair) solid var(--line);
+}
+.row:last-child { border-bottom: 0; }
+.row-main { flex: 1 1 18rem; min-width: 0; }
+.row-title { font-weight: 620; display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.row-sub { font-size: var(--step--1); color: var(--ink-3); }
+
+/* Four counters on a plate strip. The same readout the job head uses, so a
+   number means the same thing in both places. */
+.stats {
+  display: grid;
+  gap: var(--s2);
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: var(--s5);
+}
+@media (min-width: 40rem) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stat {
+  padding: var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--plate-3);
+  border: var(--hair) solid var(--line-2);
+  box-shadow: inset 0 1px 2px var(--cut);
+  text-align: center;
+}
+.stat .n {
+  font-size: var(--step-2);
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.stat .k {
+  font-size: 0.75rem;
+  color: var(--plate-ink-2);
+  font-weight: 500;
+}
+
+.src {
+  font-size: 0.75rem;
+  font-weight: 680;
+  padding: 0 var(--s2);
+  border-radius: var(--radius-sm);
+  border: var(--hair) solid var(--line-2);
+  color: var(--ink-3);
   background: var(--surface-2);
 }
-.shot-head { display: flex; align-items: center; gap: var(--s3); margin-bottom: var(--s2); }
-.shot-n {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--fmt-ink);
-  font-variant-numeric: tabular-nums;
-  flex: none;
-}
-/* Duration as a proportion of the whole, so one scene eating half the runtime
-   is visible without adding the numbers up. */
-.shot-bar {
-  flex: 1 1 auto;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--line);
-  overflow: hidden;
-}
-.shot-bar > i { display: block; height: 100%; background: var(--fmt); }
-.narration { margin: 0 0 var(--s2); font-style: italic; }
-.shot-meta { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--s1) var(--s3); }
-.shot-meta dt {
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: var(--ink-3);
-  padding-top: 0.15em;
-}
-.shot-meta dd { margin: 0; font-size: var(--step--1); color: var(--ink-2); }
+.src.saved { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
+.src.env { border-color: var(--accent); color: var(--engrave); background: var(--accent-soft); }
 
-/* --- infographic panels --------------------------------------------------- */
-.info-headline { margin: 0 0 var(--s4); }
-.panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: var(--s3); }
-.ipanel {
-  margin: 0;
-  border: 1px solid var(--line-2);
+.masked { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink-3); }
+
+.probe {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--step--1);
+  padding: var(--s1) var(--s3);
   border-radius: var(--radius-sm);
-  padding: var(--s4) var(--s3);
-  text-align: center;
-  background: color-mix(in oklch, var(--fmt) 6%, var(--surface));
+  border: var(--hair) solid var(--line-2);
+  background: var(--surface-2);
 }
-/* The statistic is the largest thing in the panel, because that is what an
-   infographic panel is for. */
-.ipanel-stat {
-  font-size: var(--step-3);
-  font-weight: 720;
-  line-height: 1.05;
-  color: var(--fmt-ink);
-}
-.ipanel figcaption { display: block; margin-top: var(--s2); }
-.ipanel figcaption strong { display: block; font-size: var(--step-0); }
-.ipanel figcaption span { display: block; color: var(--ink-3); font-size: var(--step--1); margin-top: 2px; }
-.layout-note { margin: var(--s4) 0 0; font-size: var(--step--1); color: var(--ink-3); }
+.probe.ok { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
+.probe.bad { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
 
-/* Text weight of each format hue.
+/* Settings tables reuse the thumb name for a static mark rather than a
+   button, so it needs its own shape. */
+td .thumb {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--ink-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+td .thumb.up { color: var(--pass); }
+td .thumb.down { color: var(--fail); }
+
+/* === format ink ===========================================================
+ *
+ * Text weight of each format hue.
  *
  * The identity colours sit at 64% lightness, which is right for a border or a
  * fill and measured 2.87-3.18:1 as text - under WCAG AA. Rather than darken
@@ -1435,4 +2752,55 @@ button, .filelink { display: inline-flex; align-items: center; }
   --fmt-ink-infographic:    oklch(80% 0.13 145);
   --fmt-ink-exec_summary:   oklch(82% 0.12 80);
   --fmt-ink-presentation:   oklch(78% 0.13 340);
+}
+
+/* === reduced motion =======================================================
+ *
+ * Someone who has told their machine to calm down has answered this already.
+ * console.js checks the same query before it animates or makes a sound, so
+ * the two never disagree.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Graph paper is a screen affordance. On paper it is just toner, and the
+   artefacts here are documents somebody prints. */
+@media print {
+  body::before { display: none; }
+  body { background: #fff; color: #000; }
+  header, .runrail, .density, .theme-switch, .nav, .rate, .retry { display: none; }
+  .lane { break-inside: avoid; }
+}
+
+/* Someone who has asked for more contrast has not asked for a texture behind
+   their text. */
+@media (prefers-contrast: more) {
+  body::before { display: none; }
+}
+
+/* === narrow screens ======================================================= */
+
+@media (max-width: 48rem) {
+  body::before {
+    background-size: calc(var(--grid-unit) * 1.5) calc(var(--grid-unit) * 1.5);
+  }
+
+  main { padding: var(--s5) var(--s4) var(--s6); }
+  header { padding: var(--s3) var(--s4); gap: var(--s3); }
+  .head { position: static; }
+  .variants { grid-template-columns: 1fr; }
+  /* At this width the lamp strip and the counts fight for the same row and
+     the lane bar wraps into something unreadable. The lamps are the scan
+     signal, so they stay on the bar and the counts move beneath them. */
+  .lane-bar { flex-wrap: wrap; row-gap: var(--s1); }
+  .lane-counts { order: 5; flex-basis: 100%; }
+  .readout { display: none; }
 }

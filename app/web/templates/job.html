@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Job {{ job_id }} &middot; The Great Grammatizator{% endblock %}
+
+{# The rail carries the run id while a job is on screen, the way a console
+   shows which job is loaded rather than making you go and look it up. #}
+{% block readout %}
+<span class="readout" title="This run">
+  <span class="readout-key">RUN</span>
+  <span class="readout-value num">{{ job_id }}</span>
+</span>
+{% endblock %}
+
 {% block content %}
 
 {# The polling element REPLACES ITSELF (outerHTML), so the partial it fetches
@@ -8,18 +18,21 @@
    partial did could reach the trigger, so the page polled every 2s forever,
    contradicting its own comment.
 
-   aria-live: the region rewrites itself while the operator is elsewhere on the
-   page, and a status going from "generating" to "blocked" was silent. #}
+   The seeded element carries no aria-live of its own: the partial that
+   replaces it puts a single spoken line inside instead, because announcing a
+   seven-lane rack every two seconds is worse than announcing nothing. #}
 <div id="job-status"
-     role="status"
-     aria-live="polite"
+     data-job="{{ job_id }}"
+     role="region"
+     aria-label="Job progress"
+     aria-busy="true"
      hx-get="/ui/jobs/{{ job_id }}/status"
      hx-trigger="load, every 2s"
      hx-swap="outerHTML">
-  <div class="panel">
+  <div class="head">
     <p class="muted">Loading&hellip; <span class="spinner htmx-request"></span></p>
   </div>
 </div>
 
-<p><a href="/">&larr; New job</a></p>
+<p class="backlink"><a href="/">&larr; New job</a></p>
 {% endblock %}
