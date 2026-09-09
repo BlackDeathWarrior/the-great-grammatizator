@@ -246,6 +246,19 @@ Limits: video input max 10 minutes; QA retries max 3 then stop the job.
 
 ## 9. Demo script
 
+> **Before the demo, in this order.** (1) Check the startup log says
+> `preflight: N model(s) OK` — a dead deployment is worse than a missing one,
+> because every call to it pays the full retry-and-backoff cost before falling
+> back. (2) Re-probe the model ids; free-tier slugs drift, and OpenRouter's
+> `:free` suffix went paid-only mid-2026. (3) **Run one job at a time.** Three
+> concurrent seven-format jobs starve the `qa_concurrency: 2` semaphore and
+> exhaust the free tiers: the same job that passes 6/7 alone fails 5/7 when run
+> alongside two others. (4) Leave a few minutes between runs — a rate-limit
+> window is around 60s, and the retry budget only just clears it.
+>
+> The cache is the friend here: an identical rerun is ~3s and makes near-zero
+> provider calls (TC-1205), so rehearse on the source you will demo.
+
 Fifteen minutes, in this order.
 
 **1. Ingest** (1 min). Paste the advisory text. Point out: hashed, chunked,

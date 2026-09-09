@@ -1,0 +1,344 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1500" width="1240" height="1500"
+     font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+     role="img" aria-labelledby="title desc">
+  <title id="title">The Great Grammatizator — architecture as built</title>
+  <desc id="desc">Eleven layers from operator to export. One source is ingested
+    deterministically with no model call, analysed once, generated per format,
+    judged by six independent checkers, and exported. Every claim cites an
+    immutable chunk id.</desc>
+
+  <defs>
+    <!-- The brass-and-plate palette the interface is built from, so the diagram
+         and the running product read as one system. -->
+    <style>
+      .plate  { fill: #e9e2d6; stroke: #cabfa8; stroke-width: 1; }
+      .well   { fill: #fdfcfa; stroke: #e2dacb; stroke-width: 1; }
+      .band   { fill: #f4efe5; stroke: #d9cfba; stroke-width: 1; }
+      .ttl    { font-size: 13px; font-weight: 680; fill: #2b241a; }
+      .lbl    { font-size: 11px; font-weight: 650; fill: #6b5c45;
+                letter-spacing: 1.1px; }
+      .txt    { font-size: 11.5px; fill: #4a4034; }
+      .mono   { font-size: 10.5px; fill: #6b5c45;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .note   { font-size: 10.5px; fill: #7d6e57; font-style: italic; }
+      .pass   { fill: #2f7d4f; }
+      .fail   { fill: #b23b2a; }
+      .flagc  { fill: #8a6320; }
+      .flow   { stroke: #8a6a2f; stroke-width: 1.8; fill: none; marker-end: url(#a); }
+      .flow-b { stroke: #b9a888; stroke-width: 1.4; fill: none;
+                stroke-dasharray: 4 3; marker-end: url(#ab); }
+      .rule   { stroke: #d9cfba; stroke-width: 1; }
+    </style>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8a6a2f"/>
+    </marker>
+    <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#b9a888"/>
+    </marker>
+  </defs>
+
+  <rect width="1240" height="1500" fill="#f6f2ea"/>
+
+  <!-- ===== nameplate ===== -->
+  <g transform="translate(40,34)">
+    <rect x="0" y="0" width="42" height="42" rx="7" class="plate"/>
+    <g stroke="#8a6a2f" stroke-width="1.6" fill="none"
+       stroke-linecap="round" stroke-linejoin="round" transform="translate(9,9)">
+      <rect x="1.5" y="4" width="21" height="14" rx="2.3"/>
+      <path d="M6 4V2.6A1.7 1.7 0 0 1 7.7 1h8.6A1.7 1.7 0 0 1 18 2.6V4"/>
+      <path d="M6 9.5h4.6M6 13.6h8.1M16.8 9.5h2.9"/>
+    </g>
+    <text x="56" y="18" font-size="19" font-weight="700" fill="#2b241a">The Great Grammatizator</text>
+    <text x="56" y="36" class="txt">One source in. Communication artefacts out, each cited to the chunk it came from.</text>
+    <text x="56" y="52" class="note">Eleven layers, each knowing only the one below it. This is what is built and running.</text>
+  </g>
+
+  <line x1="40" y1="104" x2="1200" y2="104" class="rule"/>
+
+  <!-- ===== 1. dashboard ===== -->
+  <g transform="translate(40,124)">
+    <rect x="0" y="0" width="1160" height="96" rx="9" class="plate"/>
+    <text x="16" y="22" class="lbl">1 · DASHBOARD</text>
+    <text x="1144" y="22" class="mono" text-anchor="end">app/web/</text>
+
+    <rect x="16" y="32" width="212" height="48" rx="6" class="well"/>
+    <text x="28" y="52" class="ttl">Studio</text>
+    <text x="28" y="68" class="txt">source · brief · seven switches</text>
+
+    <rect x="240" y="32" width="212" height="48" rx="6" class="well"/>
+    <text x="252" y="52" class="ttl">Interview</text>
+    <text x="252" y="68" class="txt">proposes; the fields stay editable</text>
+
+    <rect x="464" y="32" width="212" height="48" rx="6" class="well"/>
+    <text x="476" y="52" class="ttl">Live rack</text>
+    <text x="476" y="68" class="txt">seven lanes, polled every 2s</text>
+
+    <rect x="688" y="32" width="212" height="48" rx="6" class="well"/>
+    <text x="700" y="52" class="ttl">Variants</text>
+    <text x="700" y="68" class="txt">2–3 takes, each QA'd alone</text>
+
+    <rect x="912" y="32" width="232" height="48" rx="6" class="well"/>
+    <text x="924" y="52" class="ttl">Settings</text>
+    <text x="924" y="68" class="txt">profiles · keys · learned notes</text>
+  </g>
+
+  <path class="flow" d="M300 220 L300 252"/>
+  <text x="310" y="244" class="mono">POST /sources</text>
+  <path class="flow" d="M900 220 L900 252"/>
+  <text x="910" y="244" class="mono">POST /jobs</text>
+
+  <!-- ===== 2. ingestion ===== -->
+  <g transform="translate(40,252)">
+    <rect x="0" y="0" width="560" height="150" rx="9" class="band"/>
+    <text x="16" y="22" class="lbl">2 · INGESTION</text>
+    <text x="544" y="22" class="mono" text-anchor="end">app/ingest/</text>
+    <text x="16" y="40" class="note">Invariant 1: no model call may run in this path.</text>
+
+    <g transform="translate(16,52)">
+      <rect x="0" y="0" width="82" height="34" rx="5" class="well"/>
+      <text x="41" y="21" class="txt" text-anchor="middle">hash</text>
+      <rect x="90" y="0" width="82" height="34" rx="5" class="well"/>
+      <text x="131" y="21" class="txt" text-anchor="middle">extract</text>
+      <rect x="180" y="0" width="94" height="34" rx="5" class="well"/>
+      <text x="227" y="21" class="txt" text-anchor="middle">normalise</text>
+      <rect x="282" y="0" width="82" height="34" rx="5" class="well"/>
+      <text x="323" y="21" class="txt" text-anchor="middle">chunk</text>
+      <rect x="372" y="0" width="82" height="34" rx="5" class="well"/>
+      <text x="413" y="21" class="txt" text-anchor="middle">embed</text>
+      <path class="flow" d="M82 17 L88 17"/>
+      <path class="flow" d="M172 17 L178 17"/>
+      <path class="flow" d="M274 17 L280 17"/>
+      <path class="flow" d="M364 17 L370 17"/>
+    </g>
+
+    <text x="16" y="114" class="txt">Chunk ids are created once here and never change.</text>
+    <text x="16" y="132" class="txt">Agents read chunks; nothing downstream may write one.</text>
+  </g>
+
+  <!-- ===== 11. queue &amp; deployment ===== -->
+  <g transform="translate(640,252)">
+    <rect x="0" y="0" width="560" height="150" rx="9" class="band"/>
+    <text x="16" y="22" class="lbl">11 · QUEUE &amp; DEPLOYMENT</text>
+    <text x="544" y="22" class="mono" text-anchor="end">docker-compose.yml</text>
+
+    <g transform="translate(16,40)">
+      <rect x="0" y="0" width="104" height="38" rx="5" class="well"/>
+      <text x="52" y="17" class="ttl" text-anchor="middle">redis</text>
+      <text x="52" y="31" class="mono" text-anchor="middle">:6379</text>
+      <rect x="112" y="0" width="104" height="38" rx="5" class="well"/>
+      <text x="164" y="17" class="ttl" text-anchor="middle">arq worker</text>
+      <text x="164" y="31" class="mono" text-anchor="middle">app/worker.py</text>
+      <rect x="224" y="0" width="104" height="38" rx="5" class="well"/>
+      <text x="276" y="17" class="ttl" text-anchor="middle">postgres</text>
+      <text x="276" y="31" class="mono" text-anchor="middle">:5432</text>
+      <rect x="336" y="0" width="104" height="38" rx="5" class="well"/>
+      <text x="388" y="17" class="ttl" text-anchor="middle">qdrant</text>
+      <text x="388" y="31" class="mono" text-anchor="middle">:6333</text>
+      <rect x="448" y="0" width="80" height="38" rx="5" class="well"/>
+      <text x="488" y="17" class="ttl" text-anchor="middle">app</text>
+      <text x="488" y="31" class="mono" text-anchor="middle">:8000</text>
+    </g>
+
+    <text x="16" y="106" class="txt">One Qdrant collection, filtered by a <tspan class="mono">source_id</tspan> payload field.</text>
+    <text x="16" y="124" class="txt">A job returns 202 immediately; the worker does the work.</text>
+    <text x="16" y="142" class="note">Inside the app container, services are reached by name, never localhost.</text>
+  </g>
+
+  <path class="flow" d="M320 402 L320 434 L560 434 L560 466"/>
+  <path class="flow" d="M920 402 L920 434 L680 434 L680 466"/>
+
+  <!-- ===== 4. orchestration ===== -->
+  <g transform="translate(40,466)">
+    <rect x="0" y="0" width="1160" height="470" rx="9" class="plate"/>
+    <text x="16" y="22" class="lbl">4 · ORCHESTRATION — one JobState, every node writes into it</text>
+    <text x="1144" y="22" class="mono" text-anchor="end">app/graph/build.py</text>
+
+    <g transform="translate(16,38)">
+      <rect x="0" y="0" width="330" height="86" rx="7" class="well"/>
+      <text x="14" y="22" class="lbl">6 · ANALYSIS</text>
+      <text x="14" y="42" class="txt">ONE structured call, run once per job</text>
+      <text x="14" y="58" class="txt">and cached on the job row.</text>
+      <text x="14" y="76" class="note">v1 specified three subagents; §12.2 says why not.</text>
+    </g>
+
+    <g transform="translate(366,38)">
+      <rect x="0" y="0" width="380" height="86" rx="7" class="well"/>
+      <text x="14" y="22" class="lbl">3 · MODEL GATEWAY</text>
+      <text x="14" y="42" class="txt">guardrails → router + fallback → prompt cache</text>
+      <text x="14" y="60" class="txt">Two aliases only: <tspan class="mono">fast</tspan> and <tspan class="mono">long</tspan>.</text>
+      <text x="14" y="78" class="note">The only file allowed to know a provider exists.</text>
+    </g>
+
+    <g transform="translate(766,38)">
+      <rect x="0" y="0" width="378" height="86" rx="7" class="well"/>
+      <text x="14" y="22" class="lbl">5 · TOOL REGISTRY</text>
+      <text x="14" y="42" class="txt">Per-caller allowlists. Purpose-built, never a raw client.</text>
+      <text x="14" y="60" class="mono">search_chunks(job_id, query, k)</text>
+      <text x="14" y="78" class="note">No write or delete tool is registered anywhere.</text>
+    </g>
+
+    <path class="flow" d="M346 81 L364 81"/>
+    <path class="flow-b" d="M746 81 L764 81"/>
+
+    <line x1="16" y1="140" x2="1144" y2="140" class="rule"/>
+
+    <text x="16" y="162" class="lbl">7 · GENERATION — one subagent per selected format, concurrent</text>
+    <text x="1144" y="162" class="mono" text-anchor="end">app/agents/generator.py</text>
+
+    <g transform="translate(16,174)">
+      <rect x="0" y="0" width="152" height="40" rx="5" class="well"/>
+      <rect x="0" y="0" width="4" height="40" rx="2" fill="#c25a2a"/>
+      <text x="16" y="24" class="txt">Video Package</text>
+
+      <rect x="162" y="0" width="152" height="40" rx="5" class="well"/>
+      <rect x="162" y="0" width="4" height="40" rx="2" fill="#3f7fd6"/>
+      <text x="178" y="24" class="txt">LinkedIn Post</text>
+
+      <rect x="324" y="0" width="152" height="40" rx="5" class="well"/>
+      <rect x="324" y="0" width="4" height="40" rx="2" fill="#1f93a8"/>
+      <text x="340" y="24" class="txt">Twitter / X</text>
+
+      <rect x="486" y="0" width="152" height="40" rx="5" class="well"/>
+      <rect x="486" y="0" width="4" height="40" rx="2" fill="#9159c4"/>
+      <text x="502" y="24" class="txt">Advisory</text>
+
+      <rect x="648" y="0" width="152" height="40" rx="5" class="well"/>
+      <rect x="648" y="0" width="4" height="40" rx="2" fill="#3f8f4f"/>
+      <text x="664" y="24" class="txt">Infographic</text>
+
+      <rect x="810" y="0" width="152" height="40" rx="5" class="well"/>
+      <rect x="810" y="0" width="4" height="40" rx="2" fill="#b0862a"/>
+      <text x="826" y="24" class="txt">Exec Summary</text>
+
+      <rect x="972" y="0" width="156" height="40" rx="5" class="well"/>
+      <rect x="972" y="0" width="4" height="40" rx="2" fill="#c0479a"/>
+      <text x="988" y="24" class="txt">Presentation</text>
+    </g>
+
+    <text x="16" y="234" class="note">Driven entirely by the registry: a new format is a config entry, a template and a schema. No code change (Invariant 4).</text>
+
+    <path class="flow" d="M580 244 L580 268"/>
+
+    <text x="16" y="290" class="lbl">8 · QUALITY ASSURANCE — six independent checkers, per artefact</text>
+    <text x="1144" y="290" class="mono" text-anchor="end">app/agents/qa/</text>
+
+    <g transform="translate(16,302)">
+      <rect x="0" y="0" width="180" height="58" rx="5" class="well"/>
+      <text x="14" y="20" class="ttl">grounding</text>
+      <text x="14" y="36" class="txt">every claim cites a chunk</text>
+      <text x="14" y="50" class="note">fails closed · no web search</text>
+
+      <rect x="190" y="0" width="180" height="58" rx="5" class="well"/>
+      <text x="204" y="20" class="ttl">format</text>
+      <text x="204" y="36" class="txt">shape and length</text>
+      <text x="204" y="50" class="note">deterministic · zero model calls</text>
+
+      <rect x="380" y="0" width="180" height="58" rx="5" class="well"/>
+      <text x="394" y="20" class="ttl">tone</text>
+      <text x="394" y="36" class="txt">against the brief</text>
+      <text x="394" y="50" class="note">below floor: retry once, then flag</text>
+
+      <rect x="570" y="0" width="180" height="58" rx="5" class="well"/>
+      <text x="584" y="20" class="ttl">safety</text>
+      <text x="584" y="36" class="txt">PII pass, then policy call</text>
+      <text x="584" y="50" class="note">fails closed · blocks outright</text>
+
+      <rect x="760" y="0" width="180" height="58" rx="5" class="well"/>
+      <text x="774" y="20" class="ttl">editorial</text>
+      <text x="774" y="36" class="txt">verbatim overlap, measured</text>
+      <text x="774" y="50" class="note">fails closed</text>
+
+      <rect x="950" y="0" width="178" height="58" rx="5" class="well"/>
+      <text x="964" y="20" class="ttl">source reuse</text>
+      <text x="964" y="36" class="txt">n-gram against the source</text>
+      <text x="964" y="50" class="note">deterministic · copyright only</text>
+    </g>
+
+    <text x="16" y="382" class="note">Capped at qa_concurrency. A checker that could not run withholds the artefact as unverified rather than passing it.</text>
+
+    <path class="flow" d="M580 392 L580 416"/>
+
+    <g transform="translate(280,416)">
+      <rect x="0" y="0" width="600" height="40" rx="6" class="band"/>
+      <text x="14" y="25" class="lbl">VERDICT — a policy, not a vote</text>
+      <text x="250" y="25" class="txt"><tspan class="fail">safety fails → blocked</tspan> · <tspan class="flagc">tone → flagged</tspan> · <tspan class="pass">else passed</tspan></text>
+    </g>
+    <text x="894" y="441" class="mono">app/agents/verdict.py</text>
+  </g>
+
+  <!-- retry loop: back to generation, per artefact -->
+  <path class="flow-b" d="M40 902 L22 902 L22 706 L40 706"/>
+  <text x="34" y="804" class="note" text-anchor="middle"
+        transform="rotate(-90 34 804)">grounding fail → retry with a specific fix note · max 3, per artefact</text>
+
+  <path class="flow" d="M620 936 L620 968"/>
+
+  <!-- ===== 9. export ===== -->
+  <g transform="translate(40,968)">
+    <rect x="0" y="0" width="560" height="132" rx="9" class="band"/>
+    <text x="16" y="22" class="lbl">9 · EXPORT</text>
+    <text x="544" y="22" class="mono" text-anchor="end">app/export/</text>
+    <text x="16" y="42" class="txt">Structured JSON → files.</text>
+
+    <g transform="translate(16,54)">
+      <rect x="0" y="0" width="86" height="30" rx="5" class="well"/>
+      <text x="43" y="19" class="mono" text-anchor="middle">.docx</text>
+      <rect x="94" y="0" width="86" height="30" rx="5" class="well"/>
+      <text x="137" y="19" class="mono" text-anchor="middle">.pptx</text>
+      <rect x="188" y="0" width="86" height="30" rx="5" class="well"/>
+      <text x="231" y="19" class="mono" text-anchor="middle">.md</text>
+      <rect x="282" y="0" width="86" height="30" rx="5" class="well"/>
+      <text x="325" y="19" class="mono" text-anchor="middle">.json</text>
+      <rect x="376" y="0" width="152" height="30" rx="5" class="well"/>
+      <text x="452" y="19" class="mono" text-anchor="middle">TTS + SRT + ffmpeg</text>
+    </g>
+
+    <text x="16" y="112" class="note">Video is a package — script, storyboard, narration, subtitles. The render is deterministic. Never call it video generation.</text>
+  </g>
+
+  <!-- ===== 10. observability ===== -->
+  <g transform="translate(640,968)">
+    <rect x="0" y="0" width="560" height="132" rx="9" class="band"/>
+    <text x="16" y="22" class="lbl">10 · OBSERVABILITY</text>
+    <text x="544" y="22" class="mono" text-anchor="end">Langfuse</text>
+    <text x="16" y="42" class="txt">Traces, versioned prompts, eval runs.</text>
+    <text x="16" y="60" class="txt">Prompts live in versioned files, never as string literals in Python.</text>
+
+    <text x="16" y="88" class="lbl">PREFERENCES THAT LAST</text>
+    <text x="16" y="106" class="txt">The gap between a chosen and a rejected variant becomes one reusable style note.</text>
+    <text x="16" y="122" class="note">Attached to an operator profile — a name in a cookie, not an identity (§13.1).</text>
+  </g>
+
+  <path class="flow" d="M320 1100 L320 1132"/>
+
+  <!-- ===== delivery ===== -->
+  <g transform="translate(40,1132)">
+    <rect x="0" y="0" width="1160" height="58" rx="9" class="plate"/>
+    <text x="16" y="24" class="lbl">BACK TO THE OPERATOR</text>
+    <text x="16" y="44" class="txt">Downloadable files, per-artefact QA verdicts with scores and fix notes, and every claim traceable to the chunk it came from.</text>
+  </g>
+
+  <!-- ===== invariants ===== -->
+  <line x1="40" y1="1222" x2="1200" y2="1222" class="rule"/>
+  <g transform="translate(40,1246)">
+    <text x="0" y="0" class="lbl">THE INVARIANTS THIS SHAPE EXISTS TO PROTECT</text>
+
+    <text x="0" y="26" class="txt">1 · No LLM anywhere in the ingestion path. Source text is never model-cleaned.</text>
+    <text x="0" y="46" class="txt">2 · Chunk ids are immutable, made once at ingest. Every factual claim cites one.</text>
+    <text x="0" y="66" class="txt">3 · Analysis runs once per job, cached, shared by every generator.</text>
+    <text x="0" y="86" class="txt">4 · Formats live in a registry. A new one is config, not code.</text>
+    <text x="0" y="106" class="txt">5 · Agents request an alias, never a provider. LiteLLM routes.</text>
+
+    <text x="600" y="26" class="txt">6 · The grounding checker has no web search — enforced in the registry, not a prompt.</text>
+    <text x="600" y="46" class="txt">7 · Retry counters are per artefact, never shared between them.</text>
+    <text x="600" y="66" class="txt">8 · Provider errors and QA failures count separately. Only QA hits the 3-strike stop.</text>
+    <text x="600" y="86" class="txt">9 · Prompts are versioned files, never literals in Python.</text>
+    <text x="600" y="106" class="txt">10 · Video is a package. The MP4 render is deterministic TTS and ffmpeg.</text>
+  </g>
+
+  <text x="40" y="1398" class="note">Cache key: source_hash + output_type + parameters + prompt_version + attempt_salt. The salt is why a retry is never served the artefact that just failed QA; the absence of job_id is why a second job on the same source and settings hits the cache.</text>
+  <text x="40" y="1418" class="note">Known gaps, stated not hidden: no authentication (§13.1); `language` is a parameter nothing acts on (§13.3); web enrichment is allowlisted but the provider is a stub.</text>
+  <text x="40" y="1452" class="mono">docs/v2/ARCHITECTURE.md — what is built and running. 441 tests pass, 3 skip.</text>
+</svg>
