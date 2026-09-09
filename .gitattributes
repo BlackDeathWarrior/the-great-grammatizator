@@ -1,0 +1,24 @@
+# Normalise line endings. The repo stores LF; a Windows checkout may use CRLF
+# locally, but nothing CRLF ever reaches a commit. Without this, a Windows
+# clone rewrites every file it touches and the next diff is thousands of lines
+# of nothing.
+* text=auto eol=lf
+
+# These break outright with CRLF inside a container.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binary: never normalise.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.mp4 binary
+*.mp3 binary
+*.wav binary
+*.woff binary
+*.woff2 binary
