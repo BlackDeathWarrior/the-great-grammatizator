@@ -116,6 +116,13 @@ async def run_job_task(ctx: dict, job_id: str) -> dict:
             guardrails.redact(f"The job failed: {exc}"),
         )
         return {"error": str(exc)}
+    finally:
+        # A stop request belongs to one run. Cleared on the way OUT - never on
+        # the way in, or a stop pressed while the job was still queued would be
+        # wiped by the very run it was meant to stop.
+        from app.graph import cancel as _cancel
+
+        _cancel.clear(job_id)
 
     _persist(job_id, result)
 
