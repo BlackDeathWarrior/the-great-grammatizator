@@ -9,3 +9,16 @@ venv/
 qdrant_storage/
 pg_data/
 redis_data/
+
+# Local Claude Code settings (machine-specific)
+.claude/settings.local.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Generated artefacts and exports
+/data/
+storage/
