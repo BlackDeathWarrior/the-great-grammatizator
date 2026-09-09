@@ -23,11 +23,18 @@ from app.formats import registry
 from app.graph.state import Parameters
 from app.ingest import service
 from app.ingest.errors import IngestError
+from app.web.errors import explain as explain_error
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["ui"])
 
 TEMPLATES = Jinja2Templates(directory=str(pathlib.Path(__file__).parent / "templates"))
+
+# Registered as a filter rather than passed in context: status.html is rendered
+# by five different endpoints, and a context key would have to be remembered at
+# every one of them - which is exactly the kind of thing that gets forgotten in
+# the endpoint added next.
+TEMPLATES.env.filters["explain_error"] = explain_error
 
 PROFILE_COOKIE = "operator"
 THEME_COOKIE = "theme"
@@ -65,21 +72,30 @@ def _shell(request: Request, active_tab: str) -> dict:
 
 
 def _asset_version() -> str:
-    """Fingerprint for the stylesheet URL, from its own mtime.
+    """Fingerprint for the static asset URLs, from the newest mtime among them.
 
     A browser that has cached app.css keeps serving it across a rebuild, so an
     edited rule appears to do nothing at all - and the obvious next move, a
     hard refresh, is exactly what an operator watching a demo will not do.
     Cheap to compute, and stat() is not worth caching against a page that
     already makes several database queries.
+
+    Every fingerprinted file must be listed here. Stat only the stylesheet and
+    a console.js change ships invisibly, which is the same bug in a harder
+    place to see - the CSS at least looks wrong, whereas stale behaviour just
+    looks like the feature was never built.
     """
-    try:
-        return str(int(_CSS_PATH.stat().st_mtime))
-    except OSError:
-        return "0"
+    newest = 0
+    for path in _ASSET_PATHS:
+        try:
+            newest = max(newest, int(path.stat().st_mtime))
+        except OSError:
+            continue
+    return str(newest)
 
 
-_CSS_PATH = pathlib.Path(__file__).parent / "static" / "app.css"
+_STATIC = pathlib.Path(__file__).parent / "static"
+_ASSET_PATHS = (_STATIC / "app.css", _STATIC / "console.js")
 
 
 # Closed vocabularies, never free text (UC-02, TC-0202). A dropdown gives the
@@ -103,6 +119,37 @@ VOCAB: dict[str, list[str]] = {
     ],
     "style": ["plain, no jargon", "accessible, analytical", "technical", "conversational"],
 }
+
+
+@router.get("/welcome", response_class=HTMLResponse)
+async def welcome(request: Request):
+    """The front door. What the machine is, before anyone feeds it anything.
+
+    Deliberately NOT at "/". An operator who uses this daily should land on the
+    Studio, not on a page explaining the Studio to them.
+
+    The formats come from the registry rather than the template, because a
+    landing page that lists them by hand is a second place to forget when an
+    eighth one is added (Invariant 4).
+    """
+    return TEMPLATES.TemplateResponse(
+        request,
+        "welcome.html",
+        {"formats": registry.all_formats(), **_shell(request, "welcome")},
+    )
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login(request: Request):
+    """A sign-in screen that signs nobody in.
+
+    There is no authentication anywhere in this platform (ARCHITECTURE.md
+    sec.13.1) and the Settings page says so in as many words. This page exists
+    to show what one would look like, and says on its face that it is a mock -
+    the form has no action and posts nowhere. A convincing login that quietly
+    did nothing would be the one dishonest screen in the interface.
+    """
+    return TEMPLATES.TemplateResponse(request, "login.html", {**_shell(request, "login")})
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -302,6 +349,72 @@ def _parse_transcript(raw: str) -> list:
 async def job_view(request: Request, job_id: str):
     return TEMPLATES.TemplateResponse(
         request, "job.html", {"job_id": job_id, **_shell(request, "studio")}
+    )
+
+
+@router.post("/ui/jobs/{job_id}/stop", response_class=HTMLResponse)
+async def ui_stop_job(request: Request, job_id: str):
+    """Ask a running job to stop, and return the live view.
+
+    Cooperative, not a kill: the worker checks between artefacts, so anything
+    already finished is kept and exported. An operator who stops at five of
+    seven keeps those five - which is why this is a "stop" and not a "cancel",
+    and why the status it produces is not a failure.
+    """
+    from app.graph import cancel
+
+    cancel.request(job_id)
+    detail = await jobs_api.get_job(job_id)
+    return TEMPLATES.TemplateResponse(request, "partials/status.html", {"job": detail.model_dump()})
+
+
+@router.post("/ui/jobs/{job_id}/remember", response_class=HTMLResponse)
+async def ui_remember_job(request: Request, job_id: str):
+    """Save what worked in this job to the operator's profile.
+
+    The platform already learns from a variant choice - the difference between
+    the take an operator picked and the ones they did not. This is the coarser
+    signal that had no home: "this whole run came out right, do more of that".
+
+    What is written is the BRIEF, not the artefacts. A note saying "prefers
+    detailed, technical writing for security leaders" shapes later drafts;
+    pasting an advisory into the profile would just be storage. The evidence
+    travels with it so the operator can see in Settings why the note exists and
+    delete it if they disagree.
+    """
+    from app.agents import preferences
+    from app.db.models import OperatorProfile
+
+    profile_id = _profile_id(request)
+    detail = await jobs_api.get_job(job_id)
+
+    if profile_id:
+        params = detail.parameters or {}
+        passed = [a.output_type for a in detail.artefacts if str(a.status).startswith("passed")]
+        bits = [params.get(k) for k in ("audience", "style", "detail", "tone")]
+        described = ", ".join(str(b) for b in bits if b)
+        note = (
+            f"Approved a run written for {described}."
+            if described
+            else "Approved a run with these settings."
+        )
+        with session_scope() as session:
+            profile = session.get(OperatorProfile, profile_id)
+            if profile is not None:
+                profile.style_notes = preferences.merge_note(
+                    list(profile.style_notes or []),
+                    note,
+                    {
+                        "job_id": job_id,
+                        "parameters": params,
+                        "formats_passed": passed,
+                    },
+                )
+
+    return TEMPLATES.TemplateResponse(
+        request,
+        "partials/status.html",
+        {"job": detail.model_dump(), "remembered": True},
     )
 
 

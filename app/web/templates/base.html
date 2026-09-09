@@ -14,8 +14,13 @@
      Without it a cached app.css survives a rebuild, and a CSS change looks
      like it silently did nothing - which is a long way to chase. #}
   <link rel="stylesheet" href="/static/app.css?v={{ asset_version }}">
+  {# Deferred, and deliberately NOT a module: interview.html calls showLists()
+     from an inline onclick on markup htmx swaps in later, and a module scope
+     would put that function out of reach. #}
+  <script defer src="/static/console.js?v={{ asset_version }}"></script>
 </head>
 <body>
+  {% block header %}
   <header>
     {# A nameplate, the way a machine carries one: what it is, and what it does,
        stamped once and never repeated elsewhere in the interface. #}
@@ -33,6 +38,10 @@
         <span class="sub">One source in. Communication artefacts out, each cited to the source.</span>
       </span>
     </a>
+
+    {# What the machine is doing, in the rail where a console carries it.
+       Empty on the studio; a job fills it. #}
+    {% block readout %}{% endblock %}
 
     <nav class="nav" aria-label="Sections">
       <a href="/" {% if active_tab == "studio" %}aria-current="page"{% endif %}>Studio</a>
@@ -63,6 +72,7 @@
       {% endif %}
     </nav>
   </header>
+  {% endblock %}
   <main id="main">{% block content %}{% endblock %}</main>
 </body>
 </html>

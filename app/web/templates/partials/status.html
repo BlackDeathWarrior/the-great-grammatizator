@@ -1,11 +1,19 @@
-{% from "partials/icons.html" import download, thumb_up, thumb_down %}
+{% from "partials/icons.html" import download, thumb_up, thumb_down, chevron, sound %}
 {# The live rack. Replaces itself on every poll (hx-swap="outerHTML" on the
    element in job.html), so THIS element carries the trigger - which is what
-   actually stops the polling once the job settles. #}
+   actually stops the polling once the job settles.
+
+   Seven artefacts is the case that matters, and the operator's question at
+   seven is always "which one is in trouble". So a lane is one fixed-height row
+   until it is opened: seven of them fit a screen, and a red lamp or a retry
+   count is visible without reading a word. Detail is one click away and stays
+   open across the poll (console.js), because the lane you opened is the lane
+   you are worried about. #}
 {% set settled = job.status not in ('queued', 'running') %}
 <div id="job-status"
-     role="status"
-     aria-live="polite"
+     data-job="{{ job.job_id }}"
+     role="region"
+     aria-label="Job progress"
      aria-busy="{{ 'false' if settled else 'true' }}"
      {% if not settled %}
      hx-get="/ui/jobs/{{ job.job_id }}/status"
@@ -13,11 +21,77 @@
      hx-swap="outerHTML"
      {% endif %}>
 
+  {# The announcement is this one line, not the rack. aria-live on the whole
+     region would read seven lanes aloud every two seconds, which is how a
+     screen reader user learns to leave the page. #}
+  <p class="sr-only" role="status" aria-live="polite">
+    {{ job.status.replace('_',' ') }}, {{ job.progress }}.
+  </p>
+
   {# The run as four lights. Every state is derived from something that
      exists - chunks, a cached analysis, an artefact with content, a verdict -
      so a stalled job shows WHICH step stalled rather than a bar that keeps
      moving regardless. #}
-  <div class="panel">
+  <div class="head">
+    {# The fan-out, drawn. This is the shape of the run: one source, analysed
+       once, into N generators in parallel, each with its own QA bench.
+
+       Drawn in CSS rather than SVG - nodes are spans in a grid, edges are
+       pseudo-elements. That keeps the icon set as the only place this project
+       inlines vector markup, and it means every node themes off the same
+       tokens as the rack below it, so the two always agree.
+
+       Nothing here predicts. An edge carries a travelling dash only while the
+       thing downstream of it is genuinely live; a stalled run shows a still
+       edge at exactly the step that stalled. A board that always advances
+       cannot tell you which step is stuck, which is the only question worth
+       asking of it. #}
+    {% set fanning = job.status in ('queued', 'running') %}
+    {% set any_live = job.live_checkers.values()|map('length')|sum > 0 %}
+    <div class="fanout {{ 'is-running' if fanning else 'is-settled' }}" aria-hidden="true">
+      <span class="fan-node fan-source is-done" data-fan="source">
+        <i class="fan-dot"></i><span class="fan-label">Source</span>
+      </span>
+      <span class="fan-edge {{ 'is-flowing' if fanning else '' }}"></span>
+      <span class="fan-node fan-analysis is-done" data-fan="analysis">
+        <i class="fan-dot"></i><span class="fan-label">Analysis</span>
+      </span>
+      <span class="fan-edge fan-split {{ 'is-flowing' if any_live else '' }}"></span>
+      <span class="fan-bank" style="--fan-n: {{ job.artefacts|length or 1 }}">
+        {% for a in job.artefacts %}
+        {% set live = job.live_checkers.get(a.output_type, []) %}
+        {# Live means work is actually in flight for THIS artefact - it has
+           checkers reporting, or it has content and is still being verified.
+           "pending" alone is a queue position, not activity, and lighting it
+           would make seven idle nodes pulse as though seven agents were
+           working. A board that always advances cannot tell you which step is
+           stuck, which is the only question worth asking of one. #}
+        {% set running = live|length > 0 or (a.status == 'running') %}
+        <button type="button"
+                class="fan-node fan-fmt is-{{ a.status }} {{ 'is-live' if running else '' }}"
+                data-fmt="{{ a.output_type }}"
+                data-fan-lane="{{ a.output_type }}"
+                style="--fan-i: {{ loop.index0 }}"
+                tabindex="-1"
+                title="{{ a.label }}: {{ a.status.replace('_',' ') }}">
+          <i class="fan-dot"></i>
+          <span class="fan-label">{{ a.label }}</span>
+          {# The QA bench: one tick per checker, filling as verdicts land. #}
+          <span class="fan-bench">
+            {% for c in a.qa %}
+            <i class="fan-tick {{ 'is-pass' if c.passed else 'is-fail' }}"></i>
+            {% endfor %}
+            {% for c in live %}
+            {% if c.state == 'done' %}<i class="fan-tick is-pass"></i>
+            {% elif c.state == 'failed' %}<i class="fan-tick is-fail"></i>
+            {% else %}<i class="fan-tick is-live" style="--tick-i: {{ loop.index0 }}"></i>{% endif %}
+            {% endfor %}
+          </span>
+        </button>
+        {% endfor %}
+      </span>
+    </div>
+
     <ol class="pipeline" aria-label="Pipeline">
       {% for st in job.stages %}
       <li class="stage is-{{ st.state }}">
@@ -34,10 +108,55 @@
     <div class="progress">
       <span class="badge {{ job.status }}">{{ job.status.replace('_',' ') }}</span>
       {# Honest partial reporting - never "complete" while work remains (TC-0803) #}
-      <strong class="count">{{ job.progress }}</strong>
-      <span class="track" aria-hidden="true">
+      <strong class="count num">{{ job.progress }}</strong>
+      <span class="track" aria-hidden="true" style="--track-n: {{ job.total_count or 7 }}">
         <i style="width: {{ (100 * job.done_count / job.total_count)|round|int if job.total_count else 0 }}%"></i>
       </span>
+
+      {% if job.artefacts %}
+      <div class="density" role="group" aria-label="Detail level">
+        <button type="button" class="ghost tiny" data-density-set="scan"
+                aria-pressed="false" title="Collapse every lane (c)">Scan</button>
+        <button type="button" class="ghost tiny" data-density-set="detail"
+                aria-pressed="false" title="Open every lane (e)">Detail</button>
+        <button type="button" class="ghost tiny" data-sound-toggle
+                aria-pressed="false" title="Sound off">{{ sound() }}Sound</button>
+      </div>
+      {% endif %}
+
+      {# Only while there is something to stop. A stop button on a settled job
+         is a control that cannot do anything, which is worse than no control.
+         Cooperative: the worker finishes the artefact it is on and skips the
+         rest, so what has passed is kept. #}
+      {# Save what worked. Only on a settled job with something that passed:
+         "remember this" is meaningless mid-run, and meaningless when nothing
+         cleared the checkers. What gets written is the brief, not the text -
+         a note that shapes later drafts rather than an archive of this one. #}
+      {% if settled and job.artefacts | selectattr('status', 'in', ['passed','passed_flagged']) | list %}
+      <form class="rememberjob"
+            hx-post="/ui/jobs/{{ job.job_id }}/remember"
+            hx-target="#job-status"
+            hx-swap="outerHTML"
+            hx-disabled-elt="find button">
+        <button type="submit" class="ghost tiny" title="Save this brief to your profile so later drafts follow it">
+          {% if remembered %}Saved{% else %}Remember this{% endif %}<span class="spinner"></span>
+        </button>
+      </form>
+      {% endif %}
+
+      {% if not settled %}
+      <form class="stopjob"
+            hx-post="/ui/jobs/{{ job.job_id }}/stop"
+            hx-target="#job-status"
+            hx-swap="outerHTML"
+            hx-confirm="Stop this job? Artefacts already finished are kept; the rest will not be started."
+            hx-disabled-elt="find button">
+        <button type="submit" class="ghost tiny danger" title="Stop the run (finished artefacts are kept)">
+          Stop<span class="spinner"></span>
+        </button>
+        <span class="working">Stopping&hellip;</span>
+      </form>
+      {% endif %}
     </div>
 
     {% if job.warnings %}
@@ -50,6 +169,8 @@
     {# "Job stopped." is the 3-strikes message and TC-0805 asserts it, but the
        same field now also carries ordinary news like "3 versions ready". A
        success announced under a failure heading reads as a failure. #}
+    {# stopped_by_operator is deliberately absent: the operator asked for it, so
+   it is news, not an alarm, and it renders as a notice rather than a stop. #}
     {% set halted = job.status in ('stopped_qa_budget', 'failed_recoverable', 'failed_permanent') %}
     <div class="{{ 'stop' if halted else 'notice' }}">
       {% if halted %}<strong>Job stopped.</strong>{% endif %}
@@ -57,46 +178,168 @@
     </div>
     {% endif %}
 
+    {# A job-level summary of what went wrong, once, at the top - rather than
+       leaving the operator to open seven lanes and read seven copies of the
+       same rate-limit message. Only shown when the whole run stopped. #}
+    {% set halted_now = job.status in ('stopped_qa_budget', 'failed_recoverable', 'failed_permanent') %}
+    {% if halted_now %}
+    {% set errs = job.artefacts | map(attribute='error') | select | list %}
+    {% if errs %}
+    {% set top = errs[0]|explain_error %}
+    <div class="mishap is-job">
+      <p class="mishap-head">{{ top.headline }}</p>
+      <p class="mishap-advice">
+        {{ top.advice }}
+        {% if errs|length > 1 %}
+        <span class="mishap-count">{{ errs|length }} of {{ job.artefacts|length }} artefacts hit this.</span>
+        {% endif %}
+      </p>
+      <p class="mishap-acts">
+        {% if top.console %}
+        <a class="mishap-act is-primary" href="{{ top.console }}" target="_blank" rel="noopener noreferrer">
+          Check {{ top.provider|capitalize if top.provider else 'provider' }} limits &amp; plan
+        </a>
+        {% endif %}
+        <a class="mishap-act" href="/settings#keys">Change the API key</a>
+      </p>
+    </div>
+    {% endif %}
+    {% endif %}
+
     {% if not job.artefacts %}
     <div class="empty">Nothing to show yet. The first artefact will appear here.</div>
     {% endif %}
   </div>
 
+  <div class="rack">
   {% for a in job.artefacts %}
-  <div class="artefact" id="artefact-{{ a.output_type }}" data-fmt="{{ a.output_type }}">
-    <div class="artefact-head">
-      <div>
-        <span class="fmt-dot"></span>
-        <strong>{{ a.label }}</strong>
+  {# Open by default only where there is something wrong to read. Everything
+     else starts collapsed, and console.js restores whatever the operator
+     actually chose. #}
+  <details class="lane"
+           id="lane-{{ a.output_type }}"
+           data-fmt="{{ a.output_type }}"
+           data-state-token="{{ a.state_token }}"
+           {% if a.status in ('blocked', 'failed') %}open{% endif %}>
+    <summary class="lane-bar">
+      <span class="fmt-dot" aria-hidden="true"></span>
+      <strong class="lane-name">{{ a.label }}</strong>
+
+      {# Six lamps in fixed slots. The position of a failure is the same in
+         every lane, so a column of them can be scanned down rather than read
+         across. Verdict is never carried by colour alone: each lamp has a
+         mark and a title, and the whole strip is spoken below. #}
+      {% set live = job.live_checkers.get(a.output_type, []) %}
+      <span class="lamps" aria-hidden="true">
+        {% if a.qa %}
+          {% for c in a.qa %}
+          <span class="lamp {{ 'ok' if c.passed else 'bad' }}"
+                title="{{ c.checker }}: {{ 'pass' if c.passed else 'fail' }}{% if c.reason %} - {{ c.reason }}{% endif %}">
+            <span class="mark">{{ '✓' if c.passed else '✗' }}</span>
+            <span class="lamp-tag">{{ c.checker[:3] }}</span>
+          </span>
+          {% endfor %}
+        {% elif live %}
+          {% for c in live %}
+          <span class="lamp {{ 'ok' if c.state == 'done' else ('bad' if c.state == 'failed' else 'live') }}"
+                title="{{ c.checker }}{% if c.detail %}: {{ c.detail }}{% endif %}">
+            <span class="mark">
+              {%- if c.state == 'done' %}✓{% elif c.state == 'failed' %}✗{% else %}·{% endif -%}
+            </span>
+            <span class="lamp-tag">{{ c.checker[:3] }}</span>
+          </span>
+          {% endfor %}
+        {% endif %}
+      </span>
+
+      <span class="lane-counts">
         {% if a.retry_count %}
-        <span class="counts">
-          &middot; <span class="num">{{ a.retry_count }}</span>
+        {# Mid-retry: a strike has been spent AND checkers are running again.
+           The counter pulses only while that is true, so it reads as "this is
+           happening now" rather than as a total that changed while you were
+           looking elsewhere. #}
+        <span class="counts {{ 'is-retrying' if live and a.status not in ('passed','passed_flagged','blocked','failed') }}">
+          <span class="num">{{ a.retry_count }}</span>
           QA retr{{ 'y' if a.retry_count == 1 else 'ies' }}
+          {% if live and a.status not in ('passed','passed_flagged','blocked','failed') %}
+          <span class="retry-pips" aria-hidden="true"><i></i><i></i><i></i></span>
+          {% endif %}
         </span>
         {% endif %}
         {% if a.provider_error_count %}
         <span class="counts">
-          &middot; <span class="num">{{ a.provider_error_count }}</span>
+          <span class="num">{{ a.provider_error_count }}</span>
           provider error(s), not counted against quality
         </span>
         {% endif %}
         {% if a.parse_retry_count %}
         <span class="counts">
-          &middot; <span class="num">{{ a.parse_retry_count }}</span>
+          <span class="num">{{ a.parse_retry_count }}</span>
           parse retr{{ 'y' if a.parse_retry_count == 1 else 'ies' }}
         </span>
         {% endif %}
-      </div>
-      <span class="badge {{ a.status }}">{{ a.status.replace('_',' ') }}</span>
-    </div>
+      </span>
 
-    <div class="artefact-body">
+      <span class="badge {{ a.status }}">{{ a.status.replace('_',' ') }}</span>
+      <span class="lane-chevron" aria-hidden="true">{{ chevron() }}</span>
+
+      {# What the lamp strip says, for anyone who cannot see it. #}
+      <span class="sr-only">
+        {{ a.label }}: {{ a.status.replace('_',' ') }}.
+        {%- for c in a.qa %} {{ c.checker }} {{ 'pass' if c.passed else 'fail' }}.{% endfor %}
+      </span>
+    </summary>
+
+    <div class="lane-body">
       {% if a.error %}
-      <p class="muted">{{ a.error }}</p>
+      {# The raw exception is three nested provider payloads and tells an
+         operator nothing they can act on. What they need is which of the two
+         things went wrong - wait, or change a key - and a way to get to
+         either. The original text stays one disclosure away, because a
+         friendly summary that hides the only diagnostic is worse than the
+         jargon it replaced. #}
+      {% set ex = a.error|explain_error %}
+      <div class="mishap">
+        <p class="mishap-head">{{ ex.headline }}</p>
+        <p class="mishap-advice">{{ ex.advice }}</p>
+        <p class="mishap-acts">
+          {% if ex.console %}
+          <a class="mishap-act" href="{{ ex.console }}" target="_blank" rel="noopener noreferrer">
+            Check {{ ex.provider|capitalize if ex.provider else 'provider' }} limits &amp; plan
+          </a>
+          {% endif %}
+          <a class="mishap-act" href="/settings#keys">Change the API key</a>
+        </p>
+        <details class="mishap-raw">
+          <summary>What the provider actually said</summary>
+          <p class="mishap-detail">{{ ex.detail }}</p>
+        </details>
+      </div>
       {% endif %}
 
-      {% set live = job.live_checkers.get(a.output_type, []) %}
-      {% if not a.qa and live %}
+      {# The failure is the interesting part, so it opens the body rather than
+         sitting under the draft it explains. #}
+      {% if a.qa %}
+      {% for c in a.qa %}
+        {% for note in c.fix_notes %}
+        <div class="fixnote"><strong>{{ c.checker }}:</strong> {{ note }}</div>
+        {% endfor %}
+      {% endfor %}
+      {% endif %}
+
+      {% if a.qa %}
+      <div class="checkers">
+        {% for c in a.qa %}
+        <span class="checker {{ 'ok' if c.passed else 'bad' }}"
+              {% if c.reason %}title="{{ c.reason }}"{% endif %}>
+          <span class="mark" aria-hidden="true">{{ '✓' if c.passed else '✗' }}</span>
+          {{ c.checker }}
+          {%- if c.score is not none %} <span class="score num">{{ '%.2f'|format(c.score) }}</span>{% endif %}
+          &middot; {{ 'pass' if c.passed else 'fail' }}
+        </span>
+        {% endfor %}
+      </div>
+      {% elif live %}
       {# Mid-flight. The artefact has no stored verdicts yet, so these come from
          the progress rows - which is the whole point: an operator can see that
          grounding is still running rather than that nothing is happening. #}
@@ -116,33 +359,16 @@
       </div>
       {% endif %}
 
-      {% if a.qa %}
-      <div class="checkers">
-        {% for c in a.qa %}
-        {# Verdict is never carried by colour alone: the mark and the word
-           carry it too, so this reads correctly in monochrome (WCAG 1.4.1). #}
-        <span class="checker {{ 'ok' if c.passed else 'bad' }}"
-              {% if c.reason %}title="{{ c.reason }}"{% endif %}>
-          <span class="mark" aria-hidden="true">{{ '✓' if c.passed else '✗' }}</span>
-          {{ c.checker }}
-          {%- if c.score is not none %} <span class="score">{{ '%.2f'|format(c.score) }}</span>{% endif %}
-          &middot; {{ 'pass' if c.passed else 'fail' }}
-        </span>
-        {% endfor %}
-      </div>
-      {% for c in a.qa %}
-        {% for note in c.fix_notes %}
-        <div class="fixnote"><strong>{{ c.checker }}:</strong> {{ note }}</div>
-        {% endfor %}
-      {% endfor %}
-      {% endif %}
-
       {% if a.content %}
+      <div class="artefact-body">
         {% include 'partials/artefact_' ~ a.output_type ~ '.html' ignore missing %}
+      </div>
+      {% elif not a.error %}
+      <p class="muted waiting">Not written yet.</p>
       {% endif %}
 
       {% if a.claims %}
-      <details>
+      <details class="claims">
         <summary>
           <span class="num">{{ a.claims|length }}</span>
           cited claim{{ '' if a.claims|length == 1 else 's' }}
@@ -154,7 +380,7 @@
       {% endif %}
 
       {% if a.export_paths %}
-      <p style="margin-top:.75rem">
+      <p class="files">
         {% for p in a.export_paths %}
         {# Basename on either separator: a Windows path with backslashes put
            the whole path in the URL. #}
@@ -187,7 +413,11 @@
               hx-target="#job-status" hx-swap="outerHTML"
               hx-disabled-elt="find button">
           <input type="hidden" name="liked" value="false">
+          {# hx-preserve moves the actual node across the swap, so a sentence
+             half-typed when the poll lands is still there afterwards. It needs
+             a stable id, and output_type is unique within a job. #}
           <input type="text" name="reason" class="reason"
+                 id="reason-{{ a.output_type }}" hx-preserve="true"
                  placeholder="What was wrong? (optional, but it is what teaches the system)">
           <button type="submit" class="thumb down {{ 'on' if a.liked is not none and not a.liked }}"
                   aria-pressed="{{ 'true' if (a.liked is not none and not a.liked) else 'false' }}"
@@ -211,7 +441,7 @@
           {% endif %}
         </h4>
         {% if offered|length < a.variants|length %}
-        <p class="muted" style="font-size:var(--step--1)">
+        <p class="muted note">
           {{ a.variants|length - offered|length }} of {{ a.variants|length }}
           did not pass the checks and are not offered.
         </p>
@@ -232,7 +462,7 @@
               <span class="checker {{ 'ok' if c.passed else 'bad' }}">
                 <span class="mark" aria-hidden="true">{{ '✓' if c.passed else '✗' }}</span>
                 {{ c.checker }}
-                {%- if c.score is not none %} <span class="score">{{ '%.2f'|format(c.score) }}</span>{% endif %}
+                {%- if c.score is not none %} <span class="score num">{{ '%.2f'|format(c.score) }}</span>{% endif %}
                 &middot; {{ 'pass' if c.passed else 'fail' }}
               </span>
               {% endfor %}
@@ -247,7 +477,8 @@
               {% set a = a_saved %}
             </div>
             {% elif v.error %}
-            <p class="muted">{{ v.error }}</p>
+            {% set vex = v.error|explain_error %}
+            <p class="muted">{{ vex.headline }}</p>
             {% endif %}
 
             {% if v.status in ('passed','passed_flagged') and not v.chosen %}
@@ -276,39 +507,53 @@
       <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/variants"
             hx-target="#job-status" hx-swap="outerHTML"
             hx-disabled-elt="find button[type='submit']"
-            style="margin-top:.75rem">
+            class="stacked">
         <input type="hidden" name="count" value="3">
         <div class="actions">
           <button type="submit" class="secondary">
             Show me 3 versions to compare <span class="spinner"></span>
           </button>
-          <span class="working">Writing three takes&hellip;</span>
+          {# Three ghosts, filling in turn: the wait is ~3x one generation and
+             an unqualified spinner makes that feel like a hang. Each card
+             carries its own delay so the group reads as three separate takes
+             being written, which is what is actually happening. #}
+          <span class="working">
+            Writing three takes&hellip;
+            <span class="ghosts" aria-hidden="true">
+              <i style="--g: 0"></i><i style="--g: 1"></i><i style="--g: 2"></i>
+            </span>
+          </span>
         </div>
       </form>
       {% endif %}
 
-      <details style="margin-top:.75rem">
+      <details class="retry">
         <summary>Try again for a better result</summary>
         <form hx-post="/ui/jobs/{{ job.job_id }}/artefacts/{{ a.output_type }}/regenerate"
               hx-target="#job-status"
               hx-swap="outerHTML"
               hx-disabled-elt="find button[type='submit']"
-              style="margin-top:.5rem">
+              class="stacked">
           <label for="instructions-{{ a.output_type }}">
             What should be different? Optional.
           </label>
           <input type="text" id="instructions-{{ a.output_type }}" name="instructions"
+                 hx-preserve="true"
                  placeholder="Shorter, and lead with the exploitation date.">
           <div class="actions">
             <button class="secondary" type="submit">
               Regenerate <span class="spinner"></span>
             </button>
-            <span class="working">Regenerating&hellip;</span>
+            <span class="working">
+              Regenerating&hellip;
+              <span class="ghosts is-one" aria-hidden="true"><i style="--g: 0"></i></span>
+            </span>
           </div>
         </form>
       </details>
       {% endif %}
     </div>
-  </div>
+  </details>
   {% endfor %}
+  </div>
 </div>

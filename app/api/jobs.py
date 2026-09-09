@@ -6,6 +6,7 @@ wait 30-90s for generation, so work goes to the queue.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -59,6 +60,14 @@ class ArtefactOut(BaseModel):
     variants: list[VariantOut] = []
     # None = not yet rated. Lets the buttons show which way this artefact went.
     liked: bool | None = None
+    # A short digest of everything the dashboard draws for this artefact.
+    #
+    # The status region replaces itself wholesale every two seconds, so an
+    # element's birth says nothing about whether work happened - a one-shot
+    # animation keyed to it fires forever, and a sound keyed to it fires at
+    # every poll. This changes only when something actually moved, which is
+    # what lets the client tell a real event from a redraw.
+    state_token: str = ""
 
 
 class StageOut(BaseModel):
@@ -292,6 +301,13 @@ def _detail(session, job: Job) -> JobDetail:
         )
 
     total = len(artefacts)
+    live = _checker_rows(job.id)
+
+    # Stamp each artefact with a digest of what the dashboard will draw for it,
+    # including the mid-flight checker states that live outside the row.
+    for out in artefacts:
+        out.state_token = _state_token(out, live.get(out.output_type, []))
+
     return JobDetail(
         job_id=job.id,
         status=str(job.status),
@@ -302,9 +318,32 @@ def _detail(session, job: Job) -> JobDetail:
         parameters=job.parameters or {},
         artefacts=artefacts,
         stages=_stages(session, job, artefacts, settled),
-        live_checkers=_checker_rows(job.id),
+        live_checkers=live,
         warnings=_active_warnings(),
     )
+
+
+def _state_token(artefact: ArtefactOut, live: list[dict]) -> str:
+    """A digest of everything about one artefact the operator can see change.
+
+    Deliberately NOT a hash of the whole record: content is large and changes
+    identity on every regeneration, which would report movement on a redraw of
+    identical text. What is included is what an operator would call an event -
+    a verdict landed, a checker advanced, a retry was spent, the status moved.
+    """
+    parts = [
+        artefact.status,
+        str(artefact.retry_count),
+        str(artefact.parse_retry_count),
+        str(artefact.provider_error_count),
+        str(len(artefact.qa)),
+        ",".join(f"{c.checker}:{c.passed}" for c in artefact.qa),
+        ",".join(f"{c.get('checker')}:{c.get('state')}" for c in live),
+        ",".join(f"{v.label}:{v.status}:{v.chosen}" for v in artefact.variants),
+        str(artefact.liked),
+        str(bool(artefact.content)),
+    ]
+    return hashlib.sha1("|".join(parts).encode("utf-8")).hexdigest()[:12]
 
 
 def _stages(session, job: Job, artefacts: list[ArtefactOut], settled: int) -> list[StageOut]:
