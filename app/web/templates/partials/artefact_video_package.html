@@ -1,6 +1,6 @@
-{# A shot list. Each scene shows its duration as a proportional bar, so an
-   unbalanced package - one scene carrying half the runtime - is visible
-   without adding the numbers up.
+{# A shot list, on a strip of film. Each scene shows its duration as a
+   proportional bar, so an unbalanced package - one scene carrying half the
+   runtime - is visible without adding the numbers up.
 
    The package is text: script, storyboard, narration, subtitles. Rendering is
    deterministic TTS and ffmpeg, never generated video (Invariant 10). #}
@@ -19,6 +19,9 @@
         <i style="width: {{ (100 * s.duration_sec / total)|round|int }}%"></i>
       </span>
       <span class="num muted">{{ s.duration_sec }}s</span>
+    </div>
+    <div class="shot-frame" aria-hidden="true">
+      <span class="shot-slate">{{ loop.index }}</span>
     </div>
     <p class="narration">&ldquo;{{ s.narration }}&rdquo;</p>
     <dl class="shot-meta">

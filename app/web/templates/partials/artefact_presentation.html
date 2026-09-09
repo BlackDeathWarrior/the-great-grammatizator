@@ -1,6 +1,7 @@
-{# Slides look like slides: a 16:9 plate each, numbered, with the speaker
-   notes below the plate rather than inside it - that is where they live in
-   every deck tool, and half the deliverable is the notes. #}
+{# Slides look like slides: a 16:9 plate each, numbered in the corner the way a
+   deck numbers them, with the speaker notes below the plate rather than inside
+   it - that is where they live in every deck tool, and half the deliverable is
+   the notes. #}
 <h3>{{ a.content.title }}</h3>
 <div class="slides">
   {% for s in a.content.slides %}
@@ -9,6 +10,7 @@
       <span class="slide-n" aria-hidden="true">{{ loop.index }}</span>
       <h4>{{ s.heading }}</h4>
       <ul>{% for b in s.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+      <span class="slide-foot" aria-hidden="true">{{ loop.index }} / {{ a.content.slides|length }}</span>
     </div>
     <p class="slide-notes"><span class="label">Notes</span> {{ s.speaker_notes }}</p>
   </div>

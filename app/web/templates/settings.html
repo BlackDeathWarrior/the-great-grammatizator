@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "partials/icons.html" import save, test, trash, download, upload, cog %}
+{% from "partials/icons.html" import save, test, trash, download, upload, cog, thumb_up, thumb_down %}
 {% block title %}Settings &middot; The Great Grammatizator{% endblock %}
 {% block content %}
 
@@ -297,8 +297,12 @@
       <tr data-fmt="{{ f.output_type }}">
         <td><span class="fmt-dot"></span> {{ f.output_type.replace('_', ' ') }}</td>
         <td>
+          {# The icon carries no meaning on its own here: every icon in this
+             interface is aria-hidden, so the verdict has to be a word too or
+             this column is silent to a screen reader (and to anyone who does
+             not read the glyph). #}
           <span class="thumb {{ 'up' if f.liked else 'down' }}">
-            {{ '👍' if f.liked else '👎' }}
+            {{ thumb_up() if f.liked else thumb_down() }}{{ 'Good' if f.liked else 'Not good' }}
           </span>
         </td>
         <td class="muted">{{ f.reason or '—' }}</td>

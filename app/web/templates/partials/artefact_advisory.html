@@ -1,14 +1,30 @@
-{# Severity drives the badge. It was hardcoded to `failed`, so a low-severity
-   advisory rendered in alarm red. #}
+{# A security advisory, in the shape a real one has: a severity rail down the
+   side in the severity's own colour, the identifier and score in mono the way
+   every CVE is quoted, and the recommendations as the operative section.
+
+   Severity drives the badge. It was once hardcoded to `failed`, so a
+   low-severity advisory rendered in alarm red. #}
+{# Matched by substring, not equality: models return "Critical" but also
+   "Critical (CVSS 3.1 base score 9.8)", and an exact match sent a critical
+   advisory to the grey rail - the one severity that must never be quiet.
+   Ordered high-to-low so "medium-high" cannot read as medium. #}
 {% set sev = (a.content.severity or '')|lower %}
-{% set tone = 'failed' if sev in ('critical','high') else ('passed_flagged' if sev == 'medium' else 'pending') %}
-<h3>{{ a.content.title }} <span class="badge {{ tone }}">{{ a.content.severity }}</span></h3>
-<p>{{ a.content.summary }}</p>
-{% if a.content.affected %}
-<p class="muted"><strong>Affected:</strong> {{ a.content.affected|join(', ') }}</p>
-{% endif %}
-<p><strong>Recommendations</strong></p>
-<ul>{% for r in a.content.recommendations %}<li>{{ r }}</li>{% endfor %}</ul>
-{% if a.content.references %}
-<p class="muted"><strong>References:</strong> {{ a.content.references|join(', ') }}</p>
-{% endif %}
+{% set tone = 'failed' if ('critical' in sev or 'high' in sev)
+              else ('passed_flagged' if 'medium' in sev else 'pending') %}
+<div class="advisory is-{{ tone }}">
+  <div class="adv-bar">
+    <span class="badge {{ tone }}">{{ a.content.severity }}</span>
+  </div>
+  <div class="adv-body">
+    <h3>{{ a.content.title }}</h3>
+    <p>{{ a.content.summary }}</p>
+    {% if a.content.affected %}
+    <p class="adv-affected"><span class="label">Affected</span> {{ a.content.affected|join(', ') }}</p>
+    {% endif %}
+    <p class="adv-lead"><span class="label">Recommendations</span></p>
+    <ul class="adv-recs">{% for r in a.content.recommendations %}<li>{{ r }}</li>{% endfor %}</ul>
+    {% if a.content.references %}
+    <p class="adv-refs muted"><span class="label">References</span> {{ a.content.references|join(', ') }}</p>
+    {% endif %}
+  </div>
+</div>
