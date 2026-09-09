@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Sign in (mock) · The Great Grammatizator{% endblock %}
+
+{# No app header: a sign-in screen showing Studio/Settings navigation would be
+   offering the very thing it is pretending to gate. #}
+{% block header %}{% endblock %}
+
+{# A sign-in screen that signs nobody in.
+
+   This platform has no authentication at all (ARCHITECTURE.md sec.13.1), and
+   the Settings page says so plainly rather than hiding it. This page keeps that
+   habit: the form has no action, posts nowhere, and says on its face that it is
+   a mock. A convincing login that quietly did nothing would be the one
+   dishonest screen in the whole interface. #}
+{% block content %}
+<div class="signin">
+  <div class="plate signin-card">
+    <p class="signin-mark"><span class="label">The machine</span></p>
+    <h1 class="signin-title">Sign in</h1>
+    <p class="signin-lead">One source in. Artefacts out, each cited to the source.</p>
+
+    <form class="signin-form">
+      <div class="signin-field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="off"
+               placeholder="operator@example.com">
+      </div>
+      <div class="signin-field">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="off"
+               placeholder="Not checked. Nothing is.">
+      </div>
+      <div class="actions signin-actions">
+        <button type="button" disabled>Sign in</button>
+        <span class="signin-note">Inert by design</span>
+      </div>
+    </form>
+
+    <div class="mishap signin-mishap">
+      <p class="mishap-head">This is a demonstration mock.</p>
+      <p class="mishap-advice">
+        It creates no account, checks nothing and protects nothing &mdash; the
+        platform has no authentication, deliberately and documented rather than
+        hidden. What does exist is an operator profile: a name this browser
+        remembers so the machine can learn your preferences.
+      </p>
+      <p class="mishap-acts">
+        <a class="mishap-act is-primary" href="/">Go to the Studio</a>
+        <a class="mishap-act" href="/settings#profiles">Set up a profile</a>
+      </p>
+    </div>
+  </div>
+
+  <p class="signin-back"><a href="/welcome">What is this machine?</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}What this machine does · The Great Grammatizator{% endblock %}
+
+{# The front door. Dahl's machine was a room-sized brass apparatus that ate a
+   plot and ground out prose; this page's whole job is to make that legible in
+   about ten seconds and then get out of the way.
+
+   The product name is not repeated in the body. It is stamped once on the
+   nameplate above, the way a machine carries one, and a landing page that
+   shouts it four more times is the marketing furniture this interface has
+   deliberately avoided everywhere else. #}
+{% block content %}
+
+<section class="hero">
+  <p class="hero-eyebrow"><span class="label">The machine</span></p>
+  <h1 class="hero-line">One source in.<br>Cited artefacts out.</h1>
+  <p class="hero-lead">
+    Feed it an advisory, a report, an article, an image or a video. It reads the
+    source once, then writes every communication artefact you asked for &mdash;
+    each claim citing the chunk of the source it came from, each draft judged by
+    six independent checkers before you ever see it.
+  </p>
+  <p class="hero-acts">
+    <a class="cta" href="/">Run the machine</a>
+    <a class="cta-quiet" href="#how">See how it works</a>
+  </p>
+</section>
+
+{# The hero graphic is the architecture itself, drawn with the same components
+   the live job board uses - so what a visitor sees here is exactly what they
+   will watch happen. Nothing is faked except the timing. #}
+<section class="stage-demo" aria-labelledby="stage-h">
+  <h2 id="stage-h" class="sr-only">The pipeline</h2>
+  <div class="fanout is-demo" aria-hidden="true">
+    <span class="fan-node fan-source is-done">
+      <i class="fan-dot"></i><span class="fan-label">Source</span>
+    </span>
+    <span class="fan-edge is-flowing"></span>
+    <span class="fan-node fan-analysis is-done">
+      <i class="fan-dot"></i><span class="fan-label">Analysis</span>
+    </span>
+    <span class="fan-edge fan-split is-flowing"></span>
+    <span class="fan-bank">
+      {% for f in formats %}
+      <span class="fan-node fan-fmt" data-fmt="{{ f.id }}" style="--fan-i: {{ loop.index0 }}">
+        <i class="fan-dot"></i>
+        <span class="fan-label">{{ f.label }}</span>
+        <span class="fan-bench">
+          {% for n in range(6) %}<i class="fan-tick" style="--tick-i: {{ n }}"></i>{% endfor %}
+        </span>
+      </span>
+      {% endfor %}
+    </span>
+  </div>
+  <p class="stage-caption">
+    One ingest, one analysis, then every format generated and checked on its own
+    bench. A format that fails does not stop the others.
+  </p>
+</section>
+
+<section id="how" class="panel">
+  <h2>How it works</h2>
+  <div class="bank-3">
+    <div class="slip step">
+      <span class="step-n" aria-hidden="true">1</span>
+      <h3>Read once</h3>
+      <p>
+        The source is hashed, extracted, normalised and cut into chunks with
+        permanent ids. No model touches this step, so the text an artefact cites
+        is the text you supplied.
+      </p>
+    </div>
+    <div class="slip step">
+      <span class="step-n" aria-hidden="true">2</span>
+      <h3>Understand once</h3>
+      <p>
+        A single structured pass classifies the source and its provenance. The
+        result is cached on the job and shared by every generator, so seven
+        formats cost one analysis.
+      </p>
+    </div>
+    <div class="slip step">
+      <span class="step-n" aria-hidden="true">3</span>
+      <h3>Write, then check</h3>
+      <p>
+        Each format is drafted against the chunks and put in front of six
+        checkers. Anything that fails comes back with a specific fix note and is
+        rewritten, up to three times.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>What comes out</h2>
+  <p class="panel-lead">
+    Pick any combination. Each is generated and checked independently, in its own
+    shape rather than as the same prose in a different box.
+  </p>
+  <div class="bank landing-formats">
+    {% for f in formats %}
+    <article class="slip fmt-card" data-fmt="{{ f.id }}">
+      <h3><span class="fmt-dot" aria-hidden="true"></span>{{ f.label }}</h3>
+      <p>{{ f.description }}</p>
+      <p class="fmt-meta">
+        {% if f.shape %}<span class="chip">{{ f.shape }}</span>{% endif %}
+        {% if f.runtime_hint %}<span class="chip">{{ f.runtime_hint }}</span>{% endif %}
+        <span class="chip subtle">.{{ f.renderer }}</span>
+      </p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+{# The actual pitch. Not features - the reasons to believe the output, which is
+   the only thing that matters when a machine writes on your behalf. #}
+<section class="trust">
+  <h2>Why you can publish what it writes</h2>
+  <div class="bank-4">
+    <div class="trust-item">
+      <h3>Every claim cites its chunk</h3>
+      <p>Not a bibliography at the end &mdash; each factual statement carries the id of the passage it came from.</p>
+    </div>
+    <div class="trust-item">
+      <h3>Six checkers, independently</h3>
+      <p>Grounding, format, tone, safety, editorial and source reuse. Two are deterministic and provably make no model call.</p>
+    </div>
+    <div class="trust-item">
+      <h3>It fails closed</h3>
+      <p>A checker that could not run withholds the artefact as unverified rather than letting it through.</p>
+    </div>
+    <div class="trust-item">
+      <h3>No model in the ingest path</h3>
+      <p>Extraction and chunking are deterministic code. Your source is never quietly rewritten before it is read.</p>
+    </div>
+  </div>
+</section>
+
+<section class="closer">
+  <h2>Put something through it</h2>
+  <p>A page of text is enough to see the whole pipeline run.</p>
+  <p class="hero-acts">
+    <a class="cta" href="/">Run the machine</a>
+    <a class="cta-quiet" href="/login">See the sign-in mock</a>
+  </p>
+</section>
+
+{% endblock %}
