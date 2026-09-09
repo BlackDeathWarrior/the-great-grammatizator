@@ -135,3 +135,15 @@ Address each one specifically. Do not regenerate unrelated parts wholesale.
 {% endif %}
 
 Return ONLY a JSON object matching the schema. No prose, no markdown fence.
+
+TYPES MATTER AS MUCH AS CONTENT. Every array in this schema holds plain
+STRINGS, not objects - `recommendations`, `key_points`, `affected`,
+`references`, `bullets`, `panels` captions and the rest are lists of sentences.
+Write the detail INSIDE the sentence; do not wrap it in {"action": ...,
+"rationale": ...} or any other structure. The only array of objects is
+`claims`, and each claim is exactly {"text": "...", "chunk_id": "cN"}.
+
+Every chunk_id must be one of the ids shown in the source above, in the form
+c1, c2, c3. Never invent an id and never use a label such as ANALYSIS or
+OPERATOR_PARAMETERS - a claim that cannot point at a real chunk should be
+dropped instead.
