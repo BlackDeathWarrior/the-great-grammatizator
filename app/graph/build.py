@@ -24,7 +24,7 @@ from app.agents.qa import runner
 from app.config import get_settings
 from app.formats import registry
 from app.gateway import router
-from app.graph import progress
+from app.graph import cancel, progress
 from app.graph.state import (
     AnalysisResult,
     Artefact,
@@ -41,7 +41,13 @@ log = logging.getLogger(__name__)
 # (Invariant 8). But returning immediately meant one transient 429 - outliving
 # LiteLLM's own internal retries - permanently killed one format of seven for
 # the whole job. Retry it here, bounded, on its own counter.
-_PROVIDER_ATTEMPTS = 3
+# Four rather than three. The backoff doubles, so three attempts spent 12s+24s
+# = 36s of waiting, and a free-tier rate-limit window is usually 60s or more:
+# every attempt landed inside the same window and the artefact gave up with one
+# QA retry of its three unused. A fourth attempt pushes the total past 84s,
+# which clears a typical window. Costs nothing when the provider is healthy -
+# the first attempt succeeds and the rest are never scheduled.
+_PROVIDER_ATTEMPTS = 4
 # Must outlast the router's own cooldown. LiteLLM benches a deployment for
 # cooldown_time seconds after allowed_fails failures, and while it is benched
 # every call returns "No deployments available" instantly. A 2s/4s backoff
@@ -249,6 +255,12 @@ async def run_job(
 
         async def _capped(fid: str):
             async with fanout:
+                # The cancellation boundary. Checked here rather than inside
+                # the generate/QA loop so a stop never abandons a half-written
+                # artefact: whatever has finished is kept, whatever has not
+                # started never begins.
+                if cancel.is_requested(job_id):
+                    raise cancel.JobCancelled(fid)
                 return await run_artefact(
                     fid,
                     content,
@@ -266,7 +278,14 @@ async def run_job(
 
         artefacts: dict[str, Artefact] = {}
         operator_message = ""
+        stopped_early = False
         for fid, result in zip(format_ids, results, strict=True):
+            if isinstance(result, cancel.JobCancelled):
+                # Never started. PENDING is the honest status - it says the
+                # work was not done, without claiming it was attempted.
+                stopped_early = True
+                artefacts[fid] = Artefact(output_type=fid, status=ArtefactStatus.PENDING)
+                continue
             if isinstance(result, BaseException):
                 log.exception("%s failed outright", fid, exc_info=result)
                 artefacts[fid] = Artefact(
@@ -278,11 +297,28 @@ async def run_job(
             if message and not operator_message:
                 operator_message = message
 
+        if stopped_early:
+            done = sum(
+                1
+                for a in artefacts.values()
+                if a.status
+                in (ArtefactStatus.PASSED, ArtefactStatus.PASSED_FLAGGED)
+            )
+            operator_message = (
+                f"Stopped at your request. {done} artefact"
+                f"{'' if done == 1 else 's'} finished before the stop and "
+                "are kept below; the rest were never started."
+            )
+
         return {
             "job_id": job_id,
             "analysis": analysis,
             "artefacts": artefacts,
-            "status": _job_status(artefacts, operator_message),
+            "status": (
+                JobStatus.STOPPED_BY_OPERATOR
+                if stopped_early
+                else _job_status(artefacts, operator_message)
+            ),
             "operator_message": operator_message or None,
         }
     finally:

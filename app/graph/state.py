@@ -45,6 +45,9 @@ class JobStatus(StrEnum):
     FAILED_PERMANENT = "failed_permanent"
     # 3 QA strikes: stop the job and tell the operator to restart (TC-0607).
     STOPPED_QA_BUDGET = "stopped_qa_budget"
+    # The operator pressed stop. Deliberately not a failure: nothing went
+    # wrong, and whatever finished before the stop is kept and delivered.
+    STOPPED_BY_OPERATOR = "stopped_by_operator"
 
 
 class ArtefactStatus(StrEnum):
