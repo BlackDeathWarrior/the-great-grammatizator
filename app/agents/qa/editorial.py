@@ -98,10 +98,12 @@ async def check(
         response_format={"type": "json_object"},
         temperature=0.0,
         # This checker asks for a nested object - four sub-scores plus a
-        # suggestion - where the others want a flat one. On the default budget
-        # the reply was truncated mid-key, failed to parse, and the artefact
-        # was withheld as unverified for what was really a token limit.
-        max_tokens=400,
+        # suggestion - where the others want a flat one. It needs room: at 400
+        # the reply came back empty or was rejected upstream as invalid JSON,
+        # and because a hard checker fails closed that withheld the artefact as
+        # unverified for what was really a token budget. The reply is small; the
+        # ceiling only has to be comfortably above it.
+        max_tokens=1200,
     )
 
     data = _parse(raw)
@@ -164,6 +166,38 @@ def _worst(dimensions: dict) -> str:
     return min(scored, key=scored.get) if scored else ""
 
 
+def _salvage(text: str) -> dict | None:
+    """Recover the scores from a reply that was cut off mid-write.
+
+    Closes the object at the last complete key/value pair and re-parses. Returns
+    None when nothing usable survives, so the caller can still fail closed - the
+    point is to rescue a real judgement, never to manufacture one.
+    """
+    if not text.startswith("{"):
+        return None
+    # Walk back to the last comma that sits at brace depth 0 or 1, which is the
+    # boundary of the last fully written entry.
+    depth = 0
+    cut = -1
+    for i, ch in enumerate(text):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+        elif ch == "," and depth in (1, 2):
+            cut = i
+    if cut < 0:
+        return None
+    candidate = text[:cut] + "}" * max(text[:cut].count("{") - text[:cut].count("}"), 0)
+    try:
+        data = json.loads(candidate)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict) or "score" not in data:
+        return None
+    return data
+
+
 def _parse(raw: str) -> dict:
     text = (raw or "").strip()
     if text.startswith("```"):
@@ -171,10 +205,19 @@ def _parse(raw: str) -> dict:
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
-        # Editorial is a hard checker, so an unreadable response must not read
-        # as a pass. The runner turns this into a checker_error and the verdict
-        # withholds the artefact as unverified.
-        raise ValueError(f"editorial returned non-JSON: {text[:120]!r}") from exc
+        # A truncated reply is the common case here, and it is not the same as
+        # an unreadable one: this checker writes its four scores BEFORE its
+        # prose suggestion, so a response cut off mid-suggestion still carries
+        # everything the verdict needs. Salvaging it turns a withheld artefact
+        # into a judged one, without inventing anything - if the scores did not
+        # arrive, the salvage fails and the raise below still stands.
+        data = _salvage(text)
+        if data is None:
+            # Editorial is a hard checker, so an unreadable response must not
+            # read as a pass. The runner turns this into a checker_error and
+            # the verdict withholds the artefact as unverified.
+            raise ValueError(f"editorial returned non-JSON: {text[:120]!r}") from exc
+        log.warning("editorial reply truncated; recovered %d key(s)", len(data))
     if not isinstance(data, dict):
         raise ValueError(f"editorial returned {type(data).__name__}, expected an object")
     return data

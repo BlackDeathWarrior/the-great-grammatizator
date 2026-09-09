@@ -82,6 +82,13 @@ async def run(
                 cache.put(key, result.model_dump_json())
                 _report(job_id, artefact.output_type, result)
                 return result
+            except router.MalformedOutput as exc:
+                # The provider rejected the checker's own output as invalid
+                # JSON. That is not infrastructure - retrying with backoff just
+                # buys the same rejection - so it falls through to the handler
+                # below and a hard checker fails CLOSED, exactly as it would if
+                # the response had been unparseable on arrival.
+                raise ValueError(f"checker output rejected upstream: {exc}") from exc
             except router.ProviderError:
                 # Infrastructure, not quality. Surface it so the caller can
                 # retry with backoff without touching the QA counter (TC-0609).

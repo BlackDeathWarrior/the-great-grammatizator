@@ -153,12 +153,26 @@ async def generate(
                 }
             )
 
-        raw = await router.complete(
-            spec.model_alias,
-            messages,
-            response_format={"type": "json_object"},
-            temperature=0.4,
-        )
+        try:
+            raw = await router.complete(
+                spec.model_alias,
+                messages,
+                response_format={"type": "json_object"},
+                temperature=0.4,
+            )
+        except router.MalformedOutput as exc:
+            # The provider validated json_object mode server-side and rejected
+            # the model's output before it reached us. Same fault as unparseable
+            # text, so it takes the same cheap path - retry here with the error
+            # fed back - rather than three rounds of provider backoff.
+            last_error = f"provider rejected the JSON: {exc}"
+            log.warning(
+                "parse attempt %d/%d rejected upstream for %s",
+                parse_attempt + 1,
+                settings.parse_max_retries + 1,
+                spec.id,
+            )
+            continue
 
         try:
             data = _parse(raw)
@@ -206,10 +220,36 @@ def _validate(spec: FormatSpec, data: dict) -> None:
         Draft202012Validator(spec.schema()).iter_errors(data), key=lambda e: list(e.path)
     )
     if errors:
-        detail = "; ".join(
-            f"{'.'.join(str(p) for p in e.path) or '(root)'}: {e.message}" for e in errors[:4]
-        )
+        detail = "; ".join(_error_line(e) for e in errors[:4])
         raise ParseFailure(f"schema violation - {detail}")
+
+
+def _error_line(err) -> str:
+    """One violation, said in a sentence the model can act on.
+
+    jsonschema's own message embeds the entire offending value. For a rich
+    object where a string was wanted that is several thousand tokens of the
+    model's own output read back at it - which crowded out the instruction,
+    cost a fortune per retry, and still did not say what to do differently.
+
+    The common failures each get a specific repair instruction instead.
+    """
+    path = ".".join(str(p) for p in err.path) or "(root)"
+    msg = err.message
+
+    if "is not of type 'string'" in msg:
+        return (
+            f"{path} must be a plain STRING, not an object. Put the detail in the sentence itself."
+        )
+    if "does not match" in msg and "chunk_id" in path:
+        return (
+            f"{path} is not a real chunk id. Use one of the ids shown in the "
+            "source (c1, c2, ...), or drop the claim."
+        )
+    if "is a required property" in msg:
+        return f"{path}: {msg}"
+    # Anything else: keep the message, but never the offending value.
+    return f"{path}: {msg[:160]}"
 
 
 def _build(spec: FormatSpec, data: dict) -> Artefact:
