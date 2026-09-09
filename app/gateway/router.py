@@ -37,10 +37,75 @@ ALIASES = (FAST, LONG)
 #   llama-3.3-70b-instruct:free    -> the :free slug is now paid-only
 # Re-probe these if a demo fails at the first model call.
 _GROQ_FAST = "groq/openai/gpt-oss-20b"
+# Re-probed 2026-09-09: Gemini's daily free quota was exhausted and BOTH
+# OpenRouter slugs had gone (llama-3.3-70b-instruct now errors, minimax-m3:free
+# is 404). That left `long` with no reachable deployment at all. This is a Groq
+# model on the same key as `fast`, so it shares a rate-limit pool - not ideal -
+# but a working alias beats a correct one that 404s.
+_GROQ_LONG = "groq/openai/gpt-oss-120b"
 _GEMINI_LONG = "gemini/gemini-3.6-flash"
 _OPENROUTER_FAST = "openrouter/meta-llama/llama-3.3-70b-instruct"
+# Mistral, added as a fourth provider. Its free tier is a separate rate-limit
+# pool from Groq and Gemini, which is the whole point: the failure mode this
+# platform actually hits on a demo day is every deployment for an alias sitting
+# behind the same exhausted quota.
+# Probed 2026-09-09 against the demo key: mistral-small/medium/large and
+# open-mixtral all return 429 or "not available" on this tier, so the aliases
+# point at the models the key can actually reach. ministral-8b is the small
+# fast one; open-mistral-nemo carries a 128k context, which is what `long`
+# needs. Re-probe if the tier changes - these strings drift like every other
+# free-tier slug.
+# NVIDIA NIM, a fifth pool. Probed 2026-09-09 against the demo key: most of the
+# catalogue 404s (listed but not deployed for this key) and llama-3.3-70b is
+# 410 Gone - end of life 2026-08-26. Of what does answer, muse-glimmer-30b
+# returns EMPTY content under json_object mode, which would fail the pipeline
+# silently, so it is deliberately not used. These two return clean JSON.
+_NIM_FAST = "nvidia_nim/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+_NIM_LONG = "nvidia_nim/moonshotai/kimi-k3"
+_MISTRAL_FAST = "mistral/ministral-8b-latest"
+_MISTRAL_LONG = "mistral/open-mistral-nemo"
 # Long-context second pool for the `long` alias.
-_OPENROUTER_LONG = "openrouter/minimax/minimax-m3:free"
+# Re-probed 2026-09-09: the ":free" slug now 404s and OpenRouter's own error
+# names the replacement. A dead deployment is worse than a missing one -
+# every `long` call paid three retries and 12s of backoff before falling
+# back, which is what pushed a seven-format job past the 900s job timeout.
+_OPENROUTER_LONG = "openrouter/minimax/minimax-m3"
+
+# Where an operator goes when a provider says no. This lives here because this
+# file is the only one allowed to know a provider's name (Invariant 5): the web
+# layer asks "who failed, and where do I send them", and never spells out an
+# answer of its own.
+_PROVIDER_CONSOLES = {
+    "groq": "https://console.groq.com/settings/billing",
+    "gemini": "https://aistudio.google.com/app/apikey",
+    "google": "https://aistudio.google.com/app/apikey",
+    "openrouter": "https://openrouter.ai/credits",
+}
+
+
+def provider_in(text: str) -> str:
+    """Name the provider a raw error came from, or "" if it is not one of ours.
+
+    The caller has an exception string and no idea which deployment produced
+    it. Answering that here keeps the provider vocabulary in this file.
+    """
+    low = (text or "").lower()
+    for name in _PROVIDER_CONSOLES:
+        if name in low:
+            return name
+    return ""
+
+
+def console_for(provider: str) -> str:
+    """The page where an operator checks limits or tops up a provider account."""
+    return _PROVIDER_CONSOLES.get(provider, "")
+
+
+# Enough for the longest artefact this platform produces - a seven-slide deck
+# with speaker notes measured ~3.4k tokens - with headroom, and far below the
+# free-tier ceilings that reject an unbounded request.
+_DEFAULT_MAX_TOKENS = 8000
+
 
 _router = None
 # The key generation the cached router was built from; see get_router().
@@ -48,6 +113,30 @@ _router_key_version = -1
 # One semaphore per event loop; see qa_semaphore(). Weak keys so a finished
 # loop does not keep its semaphore (or itself) alive.
 _qa_semaphores: weakref.WeakKeyDictionary[object, asyncio.Semaphore] = weakref.WeakKeyDictionary()
+
+
+class MalformedOutput(RuntimeError):
+    """The model emitted output the provider rejected as invalid JSON.
+
+    A content fault wearing a provider error's clothes: some providers validate
+    json_object mode server-side and fail the request rather than returning the
+    bad text. Callers route this to their PARSE counter, never the QA one and
+    never the provider-backoff path (Invariant 8).
+    """
+
+
+# Provider wording for "the model did not produce the JSON it was asked for".
+# Matched on text because the exception CLASS is a generic BadRequestError.
+_MALFORMED_MARKERS = (
+    "json_validate_failed",
+    "failed to validate json",
+    "failed_generation",
+)
+
+
+def _is_malformed_output(exc: Exception) -> bool:
+    low = str(exc).lower()
+    return any(m in low for m in _MALFORMED_MARKERS)
 
 
 class ProviderError(RuntimeError):
@@ -70,6 +159,8 @@ def build_router():
     groq_key = resolve_key("groq")
     gemini_key = resolve_key("gemini")
     openrouter_key = resolve_key("openrouter")
+    mistral_key = resolve_key("mistral")
+    nim_key = resolve_key("nvidia_nim")
 
     model_list: list[dict[str, Any]] = []
 
@@ -99,6 +190,16 @@ def build_router():
                 "litellm_params": {"model": _GEMINI_LONG, "api_key": gemini_key},
             }
         )
+    if groq_key:
+        # Third `long` deployment, and on the free tiers usually the only one
+        # actually reachable. Ordered after Gemini so the genuinely
+        # long-context provider is still preferred when its quota allows.
+        model_list.append(
+            {
+                "model_name": LONG,
+                "litellm_params": {"model": _GROQ_LONG, "api_key": groq_key},
+            }
+        )
     if openrouter_key:
         # `long` had exactly ONE deployment, so a Gemini 429 - routine on the
         # free tier - had no same-alias alternative and fell across to `fast`,
@@ -112,6 +213,37 @@ def build_router():
                     "model": _OPENROUTER_LONG,
                     "api_key": openrouter_key,
                 },
+            }
+        )
+
+    if mistral_key:
+        # Both aliases: a fourth pool is worth most where the others are
+        # thinnest, and `long` has historically been the alias that ran out of
+        # places to go.
+        model_list.append(
+            {
+                "model_name": FAST,
+                "litellm_params": {"model": _MISTRAL_FAST, "api_key": mistral_key},
+            }
+        )
+        model_list.append(
+            {
+                "model_name": LONG,
+                "litellm_params": {"model": _MISTRAL_LONG, "api_key": mistral_key},
+            }
+        )
+
+    if nim_key:
+        model_list.append(
+            {
+                "model_name": FAST,
+                "litellm_params": {"model": _NIM_FAST, "api_key": nim_key},
+            }
+        )
+        model_list.append(
+            {
+                "model_name": LONG,
+                "litellm_params": {"model": _NIM_LONG, "api_key": nim_key},
             }
         )
 
@@ -265,8 +397,17 @@ async def complete(
     }
     if response_format is not None:
         kwargs["response_format"] = response_format
-    if max_tokens is not None:
-        kwargs["max_tokens"] = max_tokens
+    # An unset max_tokens is not "no limit" - providers read it as "reserve the
+    # whole context window". OpenRouter's free tier then refuses the call
+    # outright ("you requested up to 131072 tokens, but can only afford 11858"),
+    # which arrives as a 402 and is retried three times with backoff before
+    # falling back. Seven formats of that is what pushed a job past the 900s
+    # timeout with nothing to show for it.
+    #
+    # A ceiling belongs here rather than at each call site: this file is the
+    # only one that knows a provider exists, and an agent that had to remember
+    # a token budget would eventually forget.
+    kwargs["max_tokens"] = max_tokens if max_tokens is not None else _DEFAULT_MAX_TOKENS
 
     # Guardrail before dispatch. Without this an oversized prompt reaches the
     # provider, comes back as a context-length error, is classified as a
@@ -283,7 +424,15 @@ async def complete(
     try:
         resp = await router.acompletion(**kwargs)
     except Exception as exc:  # noqa: BLE001 - litellm raises many provider types
-        # Everything reaching here is infrastructure, not content quality.
+        # Not everything reaching here is infrastructure. A provider that
+        # enforces json_object mode server-side rejects the CALL when the model
+        # emits invalid JSON, and that is the model failing to speak the
+        # protocol - the same condition generator._parse raises ParseFailure
+        # for. Classified as a ProviderError it bought three retries with 12s
+        # of backoff each, per artefact, for a fault that a parse retry fixes
+        # in one cheap attempt with the error fed back to the model.
+        if _is_malformed_output(exc):
+            raise MalformedOutput(str(exc)) from exc
         raise ProviderError(str(exc)) from exc
 
     return resp.choices[0].message.content or ""
@@ -293,12 +442,14 @@ async def complete(
 # rather than in the settings page or the key store because a list of providers
 # IS provider knowledge, and Invariant 5 keeps that in one file (TC-0901). The
 # dashboard asks for this roster; it does not maintain its own.
-PROVIDER_IDS = ("groq", "gemini", "openrouter", "embedding")
+PROVIDER_IDS = ("groq", "gemini", "openrouter", "mistral", "nvidia_nim", "embedding")
 
 PROVIDER_LABELS = {
     "groq": "Groq",
     "gemini": "Gemini",
     "openrouter": "OpenRouter",
+    "mistral": "Mistral",
+    "nvidia_nim": "NVIDIA NIM",
     "embedding": "Embeddings",
 }
 
@@ -306,6 +457,8 @@ PROVIDER_ROLES = {
     "groq": "Short-form generation and the QA checkers (the 'fast' alias).",
     "gemini": "Long structured output - decks, video packages (the 'long' alias).",
     "openrouter": "Fallback pool. Without it a rate-limited job has nowhere to go.",
+    "mistral": "A second fallback pool, on both aliases. Separate quota from the rest.",
+    "nvidia_nim": "A third fallback pool, on both aliases. Hosted NVIDIA endpoints.",
     "embedding": "Semantic retrieval at ingest. Without it search falls back to hash vectors.",
 }
 
@@ -317,6 +470,8 @@ _ENV_FIELDS = {
     "groq": "groq_api_key",
     "gemini": "gemini_api_key",
     "openrouter": "openrouter_api_key",
+    "mistral": "mistral_api_key",
+    "nvidia_nim": "nvidia_nim_api_key",
     # Embeddings bypass this router by design (ARCHITECTURE.md sec.2) but still
     # need a credential resolved, and the store must not spell the field name
     # any more than it spells the others.
@@ -349,4 +504,6 @@ def probe_model_for(provider: str) -> str | None:
         "groq": _GROQ_FAST,
         "gemini": _GEMINI_LONG,
         "openrouter": _OPENROUTER_FAST,
+        "mistral": _MISTRAL_FAST,
+        "nvidia_nim": _NIM_FAST,
     }.get(provider)
